@@ -508,8 +508,9 @@ const { slug } = Astro.props;
   }
 
   .response-expand-toggle-button.expanded-state {
-    /* "Collapse" button state, positioned at bottom-right of expanded pane */
-    bottom: 10px; /* Inside, near bottom right */
+    /* "Collapse" button state, positioned at top-right of expanded pane */
+    top: 10px; /* Inside, near top right */
+    bottom: auto; /* Ensure bottom is not interfering */
   }
 
   /* Added styles for controlling overall layout when response pane is expanded */
