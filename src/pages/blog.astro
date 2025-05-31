@@ -1,0 +1,137 @@
+---
+import { getCollection } from "astro:content";
+import Layout from "../layouts/Layout.astro";
+import { formatDate } from "../utils/formatDate";
+
+const pageTitle = "Blog";
+// Fetch posts from the 'blog' collection
+let allPosts = await getCollection("blog");
+// Sort posts by date, newest first
+allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<Layout title={pageTitle}>
+  <div class="blog-list-container">
+    <h1>{pageTitle}</h1>
+    <ul class="post-list">
+      {
+        allPosts.map((post) => (
+          <li class="post-entry">
+            <a href={`/blog/${post.slug}/`} class="post-title-link">
+              <h2>{post.data.title}</h2>
+            </a>
+            <p class="post-meta">
+              Published on{" "}
+              <time datetime={post.data.date.toISOString()}>
+                {formatDate(post.data.date)}
+              </time>
+              {post.data.author && ` by ${post.data.author}`}
+            </p>
+            {post.data.description && (
+              <p class="post-description">{post.data.description}</p>
+            )}
+            <a href={`/blog/${post.slug}/`} class="read-more-link">
+              Read more &rarr;
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</Layout>
+
+<style>
+  .blog-list-container {
+    max-width: 800px;
+    margin: 2rem auto; /* Center the container and add some margin */
+    padding: 0 1rem; /* Add padding on the sides */
+    /* font-family, line-height, background-color, color, font-size inherited from blog.css .blog-list-container or body */
+  }
+
+  .blog-list-container h1 {
+    text-align: center; /* Center the main blog title */
+    margin-bottom: 2rem; /* Space below the main title */
+    font-family: var(--font-heading); /* Ensure heading font is applied */
+    font-size: 2.5rem; /* Match blog.css */
+    color: var(--blgc-text-primary); /* Match blog.css */
+    font-weight: 700; /* Match blog.css */
+  }
+
+  .post-list {
+    list-style: none; /* Remove default list bullets */
+    padding: 0;
+    margin: 0;
+  }
+
+  .post-entry {
+    background-color: #ffffff;
+    border-bottom: 1px solid var(--blgc-main-surface-secondary); /* Separator line between posts */
+    padding: 2rem 0.5rem; /* More vertical padding, less horizontal if needed or keep it simple */
+    margin-bottom: 0; /* Remove bottom margin as border-bottom will separate */
+    transition: background-color 0.3s ease; /* Subtle hover for background */
+  }
+
+  .post-entry:hover {
+    background-color: #f9f9f9; /* Very light background change on hover */
+  }
+
+  .post-entry h2 {
+    /* This styles the <h2> inside .post-title-link */
+    margin-top: 0; /* Remove default top margin for heading inside entry */
+    font-size: 1.5em; /* Adjust title size */
+    color: var(--blgc-text-primary);
+    font-family: var(--font-body); /* Questrial (sans-serif) for subheadings */
+    font-weight: 700;
+  }
+
+  .post-title-link {
+    text-decoration: none;
+    color: inherit; /* Make h2 color apply */
+    border-bottom: none; /* Remove underline from link itself */
+  }
+
+  .post-title-link:hover h2 {
+    /* Style h2 on link hover */
+    color: var(--blgc-text-secondary); /* Subtle hover color for title */
+  }
+  .post-title-link:hover {
+    /* Ensure link itself doesn't get an underline from global styles */
+    border-bottom: none;
+  }
+
+  .post-meta {
+    font-size: 0.9em;
+    color: var(--blgc-text-secondary);
+    margin-bottom: 0.75rem;
+    /* font-family is inherited */
+  }
+
+  .post-meta time {
+    font-weight: 600;
+  }
+
+  .post-description {
+    font-size: 1em;
+    color: var(--blgc-text-primary); /* Slightly darker than meta text */
+    line-height: 1.7; /* Inherited, but can be specific */
+    margin-bottom: 1rem;
+    /* font-family is inherited */
+  }
+
+  .read-more-link {
+    display: inline-block;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--blgc-text-secondary); /* Use a theme color */
+    border-bottom: 1px solid transparent; /* Start with transparent border */
+    transition:
+      color 0.3s ease,
+      border-color 0.3s ease;
+    /* font-family is inherited */
+  }
+
+  .read-more-link:hover {
+    color: var(--blgc-text-primary); /* Darken text on hover */
+    border-bottom-color: var(--blgc-text-primary); /* Show underline on hover */
+  }
+</style>

@@ -1,0 +1,638 @@
+---
+// This layout now controls the ENTIRE page for blog posts, including site header/footer.
+import SiteHeader from "../components/Header.astro"; // Your site's main header component
+import SiteFooter from "../components/Footer.astro"; // Your site's main footer component
+// import BlogAIAssistant from "../components/BlogAssistant.astro";
+// import ChipButton from "../components/ChipButton.astro"; // Import the new component
+import { formatDate } from "../utils/formatDate";
+
+interface Props {
+  frontmatter: {
+    title: string;
+    author?: string;
+    date?: string | Date;
+    description?: string;
+  };
+  slug: string;
+}
+
+const { frontmatter, slug } = Astro.props;
+const { title, author, date, description } = frontmatter;
+
+let datetimeAttrValue = "";
+if (date) {
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  datetimeAttrValue = dateObj.toISOString();
+}
+const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{pageTitle}</title>
+    {/* Favicons and other meta tags from your original Layout.astro */}
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png" />
+    <meta name="generator" content={Astro.generator} />
+    <meta
+      name="description"
+      content={description ||
+        "We optimize the blogpost content for each user based on their reading history."}
+    />
+    {/* Google Fonts from your original Layout.astro */}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Questrial&family=Spectral:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    {/* If you have a global stylesheet, link it here */}
+    {/* e.g., <link rel="stylesheet" href="/styles/global.css" /> */}
+  </head>
+  <body>
+    <div class="three-pane-page-container">
+      <!-- <BlogAIAssistant slug={slug} /> -->
+      <div class="blog-content-pane scrollable-pane">
+        <div class="scrollable-content-inner">
+          {/* New wrapper for padding & max-width */}
+          <SiteHeader />
+          <main class="blog-post-content-wrapper">
+            {/* Your existing class for article content */}
+            <article>
+              <header class="post-header-container">
+                <h1>{title}</h1>
+                <p class="post-meta">
+                  {author && <span class="author">By {author}</span>}
+                  {
+                    author && date && (
+                      <span class="separator">&nbsp;•&nbsp;</span>
+                    )
+                  }
+                  {/* Added separator */}
+                  {
+                    date && (
+                      <time datetime={datetimeAttrValue}>
+                        {formatDate(date)}
+                      </time>
+                    )
+                  }
+                </p>
+                {description && <p class="post-lede">{description}</p>}
+              </header>
+              <div class="post-body">
+                <slot />
+                {/* The actual Markdown content of the blog post */}
+              </div>
+            </article>
+          </main>
+          <SiteFooter />
+        </div>
+      </div>
+      {/* BlogAIAssistant moved to the top of three-pane-page-container */}
+    </div>
+
+    {/* Global styles for the 3-pane layout and root elements */}
+    <style is:global>
+      :root {
+        /* Copied CSS variables from your original Layout.astro */
+        --hf-color: #4d4d4d;
+        --hf-bg-color: #ebf5f7;
+        --cstm-main-surface-primary: #f7f5f2;
+        --cstm-main-surface-secondary: #e6d9ce;
+        --cstm-text-primary: #3d3d3d;
+        --cstm-text-secondary: #5d5d5d;
+        --cstm-text-tertiary: #b4b4b4;
+        --hero-gradient-start: #f2e6de;
+        --font-heading: "Libre Baskerville", serif;
+        --font-body: "Questrial", sans-serif;
+        --font-weight-bold: 700;
+        --line-height-body: 1.6;
+        --text-lg: 1.2em;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden; /* Body should not scroll; panes will */
+        font-family: var(--font-body); /* Apply base font from your theme */
+        color: var(--cstm-text-primary); /* Apply base text color */
+        background-color: var(
+          --cstm-main-surface-primary
+        ); /* Base background */
+      }
+      .three-pane-page-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow-y: auto; /* Allow vertical scrolling for the whole container */
+      }
+      .blog-content-pane {
+        flex: 1; /* Grow to fill available space */
+        overflow-y: auto;
+        min-height: 0; /* For Firefox flex scrolling */
+        /* scroll-behavior: smooth; /* REMOVED for instant scroll */
+      }
+      .scrollable-content-inner {
+        /* This new wrapper controls padding and max-width for the scrollable content */
+        padding: 0 1rem; /* Adjust horizontal padding as needed, vertical padding comes from header/footer/article margins */
+        max-width: 800px; /* Or your blog's standard content width */
+        margin: 0 auto; /* Center the content if max-width is used */
+      }
+      .scrollable-pane {
+        overflow-y: auto;
+      }
+
+      /* Styles from original BlogPostLayout.astro, scoped to this layout's content */
+      .blog-post-content-wrapper article {
+        font-family: "Libre Baskerville", serif;
+        line-height: 1.7;
+        color: #333333; /* This was specific, might want to use var(--cstm-text-primary) */
+        font-size: 1rem; /* Changed from 14px to 1rem */
+        /* max-width is handled by .scrollable-content-inner */
+        margin: 4rem 0; /* Vertical margin for article, horizontal handled by inner wrapper */
+        padding: 3rem 2rem; /* Padding within the article itself */
+        background-color: #ffffff; /* Specific background for the article content area */
+      }
+      .post-header-container {
+        margin-bottom: 3rem;
+        padding-bottom: 2rem;
+        border-bottom: 1px solid #efefef;
+      }
+      .post-header-container h1 {
+        font-family: var(--font-body);
+        font-size: 2.8rem;
+        font-weight: 700;
+        line-height: 1.15;
+        color: var(--cstm-text-primary);
+        margin-top: 0;
+      }
+      .post-meta {
+        font-size: 0.9em;
+        color: var(--cstm-text-secondary);
+        margin-top: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      .post-meta .author {
+        font-weight: 600;
+      }
+      /* .post-meta .author::after was removed as separator is now explicit */
+      .post-meta time {
+        font-style: italic;
+      }
+      .post-lede {
+        font-size: 1.15em;
+        color: var(--cstm-text-primary);
+        line-height: 1.7;
+        margin-top: 1.5rem;
+      }
+      .post-body {
+        font-family: "Libre Baskerville", serif;
+      }
+      /* Global styles for Markdown content within .post-body */
+      .post-body h2 {
+        font-family: var(--font-body);
+        font-size: 2rem;
+        margin-top: 3rem;
+        margin-bottom: 1.5rem;
+        color: var(--cstm-text-primary);
+        font-weight: 700;
+      }
+      .post-body h3 {
+        font-family: var(--font-body);
+        font-size: 1.7rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1.25rem;
+        color: var(--cstm-text-primary);
+        font-weight: 700;
+      }
+      .post-body h4 {
+        font-family: var(--font-body);
+        font-size: 1.35rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1.25rem;
+        color: var(--cstm-text-primary);
+        font-weight: 700;
+      }
+      .post-body h5,
+      .post-body h6 {
+        font-family: var(--font-body);
+        margin-top: 2.5rem;
+        margin-bottom: 1.25rem;
+        color: var(--cstm-text-primary);
+        font-weight: 700;
+      }
+      .post-body p {
+        margin-bottom: 1.5rem;
+      }
+      .post-body a {
+        color: var(--cstm-text-primary);
+        text-decoration: none;
+        border-bottom: 1px solid var(--cstm-text-secondary);
+        transition: border-color 0.2s ease-in-out;
+      }
+      .post-body a:hover {
+        border-bottom-color: var(--cstm-text-primary);
+      }
+      .post-body ul,
+      .post-body ol {
+        padding-left: 1.75rem;
+        margin-bottom: 1.5rem;
+      }
+      .post-body li {
+        margin-bottom: 0.6rem;
+      }
+      .post-body ul {
+        list-style-type: disc;
+      }
+      .post-body ul li::marker {
+        color: var(--cstm-main-surface-secondary);
+      }
+      .post-body ol {
+        list-style-type: decimal;
+      }
+      .post-body blockquote {
+        border-left: 3px solid var(--cstm-text-secondary);
+        padding-left: 1.25rem;
+        margin-left: 0;
+        font-style: italic;
+        color: var(--cstm-text-secondary);
+        margin-bottom: 1.5rem;
+      }
+      .post-body img {
+        max-width: 100%;
+        height: auto;
+        margin: 1.5rem auto;
+        display: block;
+        border-radius: 4px;
+      }
+      .post-body figure {
+        margin: 1.5rem 0;
+      }
+      .post-body figcaption {
+        text-align: center;
+        font-size: 0.9em;
+        color: var(--cstm-text-secondary);
+        margin-top: 0.5rem;
+        font-style: italic;
+      }
+      .post-body hr {
+        border: 0;
+        text-align: center;
+        overflow: visible;
+        height: auto;
+        background-color: transparent;
+        margin: 3.5rem auto;
+      }
+      .post-body hr::before {
+        content: "...";
+        display: inline-block;
+        letter-spacing: 0.6em;
+        font-size: 1.5em;
+        color: var(--cstm-text-tertiary);
+      }
+      .post-body table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5rem;
+        font-size: 0.9rem;
+        box-shadow: none;
+        border-radius: 0;
+        border-top: 1px solid #e5e5e5;
+        border-bottom: 1px solid #e5e5e5;
+        /* Add these lines */
+        display: block;
+        overflow-x: auto;
+      }
+      .post-body th,
+      .post-body td {
+        border: none;
+        border-bottom: 1px solid #e5e5e5;
+        padding: 0.8rem 0.5rem;
+        text-align: left;
+        line-height: 1.5;
+      }
+      .post-body tr:last-child td {
+        border-bottom: none;
+      }
+      .post-body th {
+        background-color: transparent;
+        font-weight: 600;
+        color: var(--cstm-text-secondary);
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+      }
+      .post-body tr:hover {
+        background-color: #f9f9f9;
+      }
+      .post-body code {
+        background-color: #f7f7f7;
+        padding: 0.15em 0.3em;
+        border-radius: 3px;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier,
+          monospace;
+        font-size: 0.9em;
+        color: #c7254e;
+      }
+      .post-body pre {
+        background-color: #f7f7f7;
+        border: 1px solid #e5e5e5;
+        padding: 1.25rem;
+        border-radius: 4px;
+        overflow-x: auto;
+        margin: 1.5rem 0;
+        line-height: 1.45;
+      }
+      .post-body pre code {
+        background-color: transparent;
+        padding: 0;
+        font-size: 0.9em;
+        color: inherit;
+      }
+
+      /* Utility class to hide elements */
+      .hidden {
+        display: none !important;
+      }
+
+      /* Styles for the Floating Action Button Container */
+      /* This class now styles a container DIV that will wrap the ChipButton component */
+      .fab-container {
+        position: fixed;
+        bottom: 20px; /* Adjust if legs make it appear too low/high */
+        right: 20px; /* Adjust if legs make it appear too far left/right */
+        z-index: 1000; /* Ensure it's on top of other content */
+        transition:
+          opacity 0.3s ease,
+          visibility 0.3s ease;
+        /* 
+        Removed: height, background-color, color, border, border-radius, cursor, 
+        font-weight, font-size, padding. These are now handled by ChipButton.astro.
+        The effective size will be determined by ChipButton's content and padding,
+        plus the 8px margin for its legs.
+      */
+      }
+      /* Hover state for the button itself is handled within ChipButton.astro */
+
+      /* Styles for word spans created for click-to-input functionality */
+      .word-span {
+        /* Base style, mostly for identification. Highlighting is done by .clickable-word */
+        display: inline; /* Default span behavior */
+      }
+
+      .word-span.clickable-word {
+        background-color: var(
+          --cstm-main-surface-primary
+        ); /* Site background color for highlight */
+        color: var(--cstm-text-primary); /* Ensure text is readable */
+        cursor: pointer;
+        /* padding: 0.05em 0.15em; */ /* REMOVED to prevent layout shift */
+        /* margin: 0 0.05em; */ /* REMOVED to prevent layout shift */
+        border-radius: 3px;
+        transition: background-color 0.1s ease-in-out;
+      }
+
+      .word-span.clickable-word:hover {
+        background-color: var(
+          --cstm-main-surface-secondary
+        ); /* A slightly different shade for hover */
+        /* color: var(--cstm-text-primary); */ /* Ensure text is still readable */
+      }
+    </style>
+
+    {/* Floating Action Button Container using the new ChipButton component */}
+    <div id="fab-container" class="fab-container">
+      {/* ID for script, class for styling */}
+      <!-- <ChipButton id="floating-ask-ai-button" type="button">Ask AI</ChipButton> -->
+    </div>
+
+    <script>
+      // Constants for word highlighting
+      const CLICKABLE_WORD_CLASS = "clickable-word";
+      const WORD_SPAN_BASE_CLASS = "word-span";
+      const BLOG_CONTENT_SELECTOR = ".blog-post-content-wrapper .post-body"; // Target for word wrapping
+
+      let wordsAreWrapped = false;
+      let lastKnownAssistantHeight = 0;
+
+      // Function to wrap words in spans
+      function wrapWordsInSpans(containerSelector) {
+        if (wordsAreWrapped) return;
+        const container = document.querySelector(containerSelector);
+        if (!container) {
+          console.warn(
+            "Blog content container for word wrapping not found:",
+            containerSelector,
+          );
+          return;
+        }
+
+        const walker = document.createTreeWalker(
+          container,
+          NodeFilter.SHOW_TEXT,
+          null,
+          false,
+        );
+        let node;
+        const nodesToProcess = [];
+        while ((node = walker.nextNode())) {
+          nodesToProcess.push(node);
+        }
+
+        nodesToProcess.forEach((textNode) => {
+          const parent = textNode.parentNode;
+          if (
+            !parent ||
+            parent.nodeName === "A" ||
+            parent.nodeName === "PRE" ||
+            parent.nodeName === "SCRIPT" ||
+            parent.nodeName === "STYLE" ||
+            parent.classList.contains(WORD_SPAN_BASE_CLASS)
+          ) {
+            return; // Skip text within links, preformatted blocks, scripts, styles, or already processed spans
+          }
+          if (!textNode.textContent.trim()) return;
+
+          const fragment = document.createDocumentFragment();
+          // Split by sequences of whitespace, keeping the whitespace as delimiters
+          const parts = textNode.textContent.split(/(\s+)/);
+
+          parts.forEach((part) => {
+            if (part.trim().length > 0) {
+              // It's a word
+              const span = document.createElement("span");
+              span.className = WORD_SPAN_BASE_CLASS;
+              span.textContent = part;
+              fragment.appendChild(span);
+            } else {
+              // It's whitespace
+              fragment.appendChild(document.createTextNode(part));
+            }
+          });
+          parent.replaceChild(fragment, textNode);
+        });
+        wordsAreWrapped = true;
+      }
+
+      // Function to handle clicks on words
+      function handleWordClick(event) {
+        const questionInput = document.getElementById("ai-question-input");
+        if (!questionInput || !event.target) return;
+
+        let word = event.target.textContent;
+        // Remove common leading/trailing punctuation.
+        // This regex handles various quotes, brackets, and standard punctuation.
+        word = word.replace(
+          /^[\s.,;:!?()"“”«»‹›‚‘‛’–—{\[\]}]+|[\s.,;:!?()"“”«»‹›‚‘‛’–—{\[\]}]+$/g,
+          "",
+        );
+        const currentValue = questionInput.value.trim();
+
+        questionInput.value = currentValue ? `${currentValue} ${word}` : word;
+        questionInput.dispatchEvent(
+          new Event("input", { bubbles: true, cancelable: true }),
+        ); // Update button state in BlogAssistant
+        questionInput.focus(); // Keep focus on input
+      }
+
+      // Function to toggle word highlighting and clickability
+      function toggleWordHighlighting(enable) {
+        const wordSpans = document.querySelectorAll(
+          `${BLOG_CONTENT_SELECTOR} .${WORD_SPAN_BASE_CLASS}`,
+        );
+        wordSpans.forEach((span) => {
+          if (enable) {
+            span.classList.add(CLICKABLE_WORD_CLASS);
+            span.addEventListener("click", handleWordClick);
+          } else {
+            span.classList.remove(CLICKABLE_WORD_CLASS);
+            span.removeEventListener("click", handleWordClick);
+          }
+        });
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const fabContainer = document.getElementById("fab-container"); // Changed to fab-container
+        const assistantContainer = document.querySelector(
+          ".assistant-ui-container",
+        );
+        const questionInput = document.getElementById("ai-question-input");
+        const askButton = document.getElementById("ask-ai-button"); // Button next to AI input
+        const blogContentPane = document.querySelector(".blog-content-pane");
+
+        // Note: floating-ask-ai-button is now the ID of the <button> INSIDE ChipButton.
+        // The container is fabContainer.
+        if (
+          !fabContainer ||
+          !assistantContainer ||
+          !questionInput ||
+          !askButton ||
+          !blogContentPane
+        ) {
+          console.warn(
+            "Required elements for AI Assistant toggle, word highlighting, or scroll adjustment not found.",
+          );
+          return;
+        }
+
+        // The actual button with id="floating-ask-ai-button" is inside fabContainer.
+        // We add the event listener to the container, or directly to the button if preferred.
+        // For simplicity, if ChipButton handles its own click propagation, listening on the button ID is fine.
+        // Let's assume we need to get the button itself if the click logic is specific to it.
+        const fabButtonItself = document.getElementById(
+          "floating-ask-ai-button",
+        );
+        if (!fabButtonItself) {
+          console.warn(
+            "FAB button itself (floating-ask-ai-button) not found within fab-container.",
+          );
+          return;
+        }
+
+        // --- Existing FAB Logic ---
+        // Listen on the button itself, not the container, for the click action.
+        fabButtonItself.addEventListener("click", () => {
+          fabContainer.classList.add("hidden"); // Hide the container
+          assistantContainer.classList.remove("hidden");
+          questionInput.focus(); // This will trigger the 'focus' listener below
+          questionInput.dispatchEvent(
+            new Event("input", { bubbles: true, cancelable: true }),
+          );
+        });
+
+        // --- New Word Highlighting Logic ---
+        questionInput.addEventListener("focus", () => {
+          if (!assistantContainer.classList.contains("hidden")) {
+            // Only if assistant is visible
+            if (!wordsAreWrapped) {
+              wrapWordsInSpans(BLOG_CONTENT_SELECTOR);
+            }
+            toggleWordHighlighting(true);
+          }
+        });
+
+        questionInput.addEventListener("blur", () => {
+          // Small delay to allow click on word to register before removing highlights
+          setTimeout(() => {
+            // Check if focus is still outside the input before removing highlights
+            if (document.activeElement !== questionInput) {
+              toggleWordHighlighting(false);
+            }
+          }, 150); // Increased timeout slightly to allow focus to resettle
+        });
+
+        // When "Ask AI" (submit) or "Close" button inside assistant is clicked
+        askButton.addEventListener("click", () => {
+          toggleWordHighlighting(false);
+          // The rest of the click logic (API call or close) is in BlogAssistant.astro
+          // When "Close" is clicked in BlogAssistant, it hides assistantContainer and shows fabContainer.
+          // We need to ensure fabContainer is shown. This is handled by BlogAssistant.astro's script.
+        });
+
+        // Observe AI assistant visibility changes to show/hide FAB container
+        const assistantObserver = new MutationObserver((mutationsList) => {
+          for (const mutation of mutationsList) {
+            if (
+              mutation.type === "attributes" &&
+              mutation.attributeName === "class"
+            ) {
+              const isAssistantVisible =
+                !assistantContainer.classList.contains("hidden");
+
+              if (isAssistantVisible) {
+                fabContainer.classList.add("hidden"); // Hide FAB when assistant is visible
+                // Scroll adjustment logic
+                requestAnimationFrame(() => {
+                  lastKnownAssistantHeight = assistantContainer.offsetHeight;
+                  if (lastKnownAssistantHeight > 0) {
+                    blogContentPane.scrollTop += lastKnownAssistantHeight;
+                  }
+                });
+              } else {
+                fabContainer.classList.remove("hidden"); // Show FAB when assistant is hidden
+                // Scroll adjustment logic
+                if (lastKnownAssistantHeight > 0) {
+                  blogContentPane.scrollTop = Math.max(
+                    0,
+                    blogContentPane.scrollTop - lastKnownAssistantHeight,
+                  );
+                }
+                toggleWordHighlighting(false);
+              }
+            }
+          }
+        });
+        assistantObserver.observe(assistantContainer, { attributes: true });
+      });
+    </script>
+  </body>
+</html>
