@@ -53,7 +53,7 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     margin-bottom: 2rem; /* Space below the main title */
     font-family: var(--font-heading); /* Ensure heading font is applied */
     font-size: 2.5rem; /* Match blog.css */
-    color: var(--blgc-text-primary); /* Match blog.css */
+    color: var(--cstm-text-primary); /* Match blog.css */
     font-weight: 700; /* Match blog.css */
   }
 
@@ -65,7 +65,7 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
   .post-entry {
     background-color: #ffffff;
-    border-bottom: 1px solid var(--blgc-main-surface-secondary); /* Separator line between posts */
+    border-bottom: 1px solid var(--cstm-main-surface-secondary); /* Separator line between posts */
     padding: 2rem 0.5rem; /* More vertical padding, less horizontal if needed or keep it simple */
     margin-bottom: 0; /* Remove bottom margin as border-bottom will separate */
     transition: background-color 0.3s ease; /* Subtle hover for background */
@@ -79,7 +79,7 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     /* This styles the <h2> inside .post-title-link */
     margin-top: 0; /* Remove default top margin for heading inside entry */
     font-size: 1.5em; /* Adjust title size */
-    color: var(--blgc-text-primary);
+    color: var(--cstm-text-primary);
     font-family: var(--font-body); /* Questrial (sans-serif) for subheadings */
     font-weight: 700;
   }
@@ -92,7 +92,7 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
   .post-title-link:hover h2 {
     /* Style h2 on link hover */
-    color: var(--blgc-text-secondary); /* Subtle hover color for title */
+    color: var(--cstm-text-secondary); /* Subtle hover color for title */
   }
   .post-title-link:hover {
     /* Ensure link itself doesn't get an underline from global styles */
@@ -101,7 +101,7 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
   .post-meta {
     font-size: 0.9em;
-    color: var(--blgc-text-secondary);
+    color: var(--cstm-text-secondary);
     margin-bottom: 0.75rem;
     /* font-family is inherited */
   }
@@ -112,7 +112,7 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
   .post-description {
     font-size: 1em;
-    color: var(--blgc-text-primary); /* Slightly darker than meta text */
+    color: var(--cstm-text-primary); /* Slightly darker than meta text */
     line-height: 1.7; /* Inherited, but can be specific */
     margin-bottom: 1rem;
     /* font-family is inherited */
@@ -122,7 +122,7 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     display: inline-block;
     font-weight: 600;
     text-decoration: none;
-    color: var(--blgc-text-secondary); /* Use a theme color */
+    color: var(--cstm-text-secondary); /* Use a theme color */
     border-bottom: 1px solid transparent; /* Start with transparent border */
     transition:
       color 0.3s ease,
@@ -131,7 +131,7 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
   }
 
   .read-more-link:hover {
-    color: var(--blgc-text-primary); /* Darken text on hover */
-    border-bottom-color: var(--blgc-text-primary); /* Show underline on hover */
+    color: var(--cstm-text-primary); /* Darken text on hover */
+    border-bottom-color: var(--cstm-text-primary); /* Show underline on hover */
   }
 </style>

@@ -11,7 +11,7 @@ export async function GET(context) {
 		items: posts.map((post) => ({
 			...post.data, // Spreads all fields from frontmatter (title, author, date, description, tags)
 			pubDate: post.data.date, // Ensures pubDate is set from post.data.date for RSS
-			link: `/blog/${post.id}/`, 
+			link: `/blog/${post.slug}/`, 
 		})),
 	});
 }
