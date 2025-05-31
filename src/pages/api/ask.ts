@@ -461,17 +461,17 @@ No additional text or explanation outside this JSON object.`;
     // For Llama API, the actual provider used isn't relevant in the same way as OpenRouter.
     // We can log the model used.
     const actualProviderUsed = DEFAULT_MODEL; // Or derive from answerData if available
-    let llmOutputString = answerData.choices?.[0]?.message?.content;
+    
+    // Adjusting to the Llama.com API response structure observed in logs
+    let llmOutputString = answerData.completion_message?.content?.text;
 
     if (!llmOutputString) {
-      if (answerData.choices?.[0]?.message?.reasoning) {
-        llmOutputString = answerData.choices[0].message.reasoning;
-      } else {
-        console.error(
-          "LLM response content is missing or empty:",
-          JSON.stringify(answerData).substring(0, 500),
-        );
-        if (aiLogsBucket && r2Key) {
+      // Removed the .choices and .reasoning fallback as it's not applicable
+      console.error(
+        "LLM response content is missing or empty. Expected at answerData.completion_message.content.text:",
+        JSON.stringify(answerData).substring(0, 500),
+      );
+      if (aiLogsBucket && r2Key) {
           const logData = {
             sessionId,
             readerId,
