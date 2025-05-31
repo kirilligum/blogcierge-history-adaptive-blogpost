@@ -58,14 +58,14 @@ pages_build_output_dir = "./dist"
 # bucket_name = "my-bucket"
 
 [[kv_namespaces]]
-binding = "PRLS_BLOGPOST_AI_CACHE" # Reflects the namespace name "prls blogpost ai"
+binding = "BLGC_BLOGPOST_AI_CACHE"              # Reflects the namespace name "blgc blogpost ai"
 id = "e05a15d829484001a8d3d37ba61cbe5f"
 preview_id = "e05a15d829484001a8d3d37ba61cbe5f"
 
 [[r2_buckets]]
-binding = "PRLS_AI_LOGS_BUCKET"  # How you'll access it in the code
-bucket_name = "prls-blogpost-ai-turns" # The actual name of your R2 bucket in Cloudflare
-preview_bucket_name = "prls-blogpost-ai-turns" # For local dev, wrangler will use/create this in .wrangler/state
+binding = "BLGC_AI_LOGS_BUCKET"                # How you'll access it in the code
+bucket_name = "blgc-blogpost-ai-turns"         # The actual name of your R2 bucket in Cloudflare
+preview_bucket_name = "blgc-blogpost-ai-turns" # For local dev, wrangler will use/create this in .wrangler/state
 
 # Bind another Worker service. Use this binding to call another Worker without network overhead.
 # Docs: https://developers.cloudflare.com/pages/functions/bindings/#service-bindings
