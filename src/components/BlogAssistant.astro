@@ -159,6 +159,32 @@ const { slug } = Astro.props;
               `${previousMessage.type}-message`,
             );
             questionElement.innerHTML = `🗣️ <strong>${previousMessage.content.replace(/\n/g, "<br>")}</strong>`;
+
+            // Add feedback buttons for AI messages, now part of the question element
+            if (currentMessage.type === "ai" && previousMessage && previousMessage.type === "user") {
+              const feedbackContainer = document.createElement("div");
+              feedbackContainer.classList.add("feedback-container");
+
+              const likeButton = document.createElement("button");
+              likeButton.classList.add("feedback-button", "feedback-like");
+              likeButton.innerHTML = "👍";
+              likeButton.title = "Like this response";
+              likeButton.addEventListener("click", (e) => {
+                handleFeedbackClick(e.currentTarget as HTMLButtonElement, i, "like");
+              });
+
+              const dislikeButton = document.createElement("button");
+              dislikeButton.classList.add("feedback-button", "feedback-dislike");
+              dislikeButton.innerHTML = "👎";
+              dislikeButton.title = "Dislike this response";
+              dislikeButton.addEventListener("click", (e) => {
+                handleFeedbackClick(e.currentTarget as HTMLButtonElement, i, "dislike");
+              });
+
+              feedbackContainer.appendChild(likeButton);
+              feedbackContainer.appendChild(dislikeButton);
+              questionElement.appendChild(feedbackContainer);
+            }
             responsePane.appendChild(questionElement);
           }
 
@@ -171,32 +197,6 @@ const { slug } = Astro.props;
             /\n/g,
             "<br>",
           );
-
-          // Add feedback buttons for AI messages
-          if (currentMessage.type === "ai" && previousMessage && previousMessage.type === "user") {
-            const feedbackContainer = document.createElement("div");
-            feedbackContainer.classList.add("feedback-container");
-
-            const likeButton = document.createElement("button");
-            likeButton.classList.add("feedback-button", "feedback-like");
-            likeButton.innerHTML = "👍";
-            likeButton.title = "Like this response";
-            likeButton.addEventListener("click", (e) => {
-              handleFeedbackClick(e.currentTarget as HTMLButtonElement, i, "like");
-            });
-
-            const dislikeButton = document.createElement("button");
-            dislikeButton.classList.add("feedback-button", "feedback-dislike");
-            dislikeButton.innerHTML = "👎";
-            dislikeButton.title = "Dislike this response";
-            dislikeButton.addEventListener("click", (e) => {
-              handleFeedbackClick(e.currentTarget as HTMLButtonElement, i, "dislike");
-            });
-
-            feedbackContainer.appendChild(likeButton);
-            feedbackContainer.appendChild(dislikeButton);
-            answerElement.appendChild(feedbackContainer);
-          }
 
           responsePane.appendChild(answerElement);
         }
@@ -513,7 +513,10 @@ const { slug } = Astro.props;
     background-color: var(--blgc-text-primary, #333);
     color: white;
     margin-left: auto; 
-    text-align: right;
+    /* text-align: right; /* Replaced by flex alignment */
+    display: flex;
+    justify-content: space-between; /* Pushes text and buttons apart */
+    align-items: center; /* Vertically aligns them */
   }
 
   .ai-message {
@@ -623,9 +626,11 @@ const { slug } = Astro.props;
 
   .feedback-container {
     display: flex;
-    justify-content: flex-end; /* Align buttons to the right */
+    /* justify-content: flex-end; /* Not strictly needed here as it's a flex item */
     gap: 0.5rem; /* Space between buttons */
-    margin-top: 0.5rem; /* Space above the buttons */
+    /* margin-top: 0.5rem; /* Removed */
+    margin-left: 0.8rem; /* Space after the question text */
+    flex-shrink: 0; /* Prevent buttons from shrinking if question text is long */
   }
 
   .feedback-button {
