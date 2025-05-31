@@ -372,8 +372,11 @@ No additional text or explanation outside this JSON object.`;
       temperature: 0.6,
       repetition_penalty: 1,
       top_p: 0.9,
-      // response_format and provider removed as they are OpenRouter/specific model features
-      // The system prompt still requests JSON output.
+      response_format: {
+        type: "json_schema",
+        json_schema: llmResponseSchema, // llmResponseSchema contains name, strict, and the actual schema
+      },
+      // The system prompt still requests JSON output, and this will enforce it.
     };
 
     // --- Prepare and Make Answerer LLM Call ---
