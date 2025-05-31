@@ -2,8 +2,8 @@
 // This layout now controls the ENTIRE page for blog posts, including site header/footer.
 import SiteHeader from "../components/Header.astro"; // Your site's main header component
 import SiteFooter from "../components/Footer.astro"; // Your site's main footer component
-// import BlogAIAssistant from "../components/BlogAssistant.astro";
-// import ChipButton from "../components/ChipButton.astro"; // Import the new component
+import BlogAIAssistant from "../components/BlogAssistant.astro";
+import ChipButton from "../components/ChipButton.astro"; // Import the new component
 import { formatDate } from "../utils/formatDate";
 
 interface Props {
@@ -60,7 +60,7 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
   </head>
   <body>
     <div class="three-pane-page-container">
-      <!-- <BlogAIAssistant slug={slug} /> -->
+      <BlogAIAssistant slug={slug} />
       <div class="blog-content-pane scrollable-pane">
         <div class="scrollable-content-inner">
           {/* New wrapper for padding & max-width */}
@@ -412,7 +412,7 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
     {/* Floating Action Button Container using the new ChipButton component */}
     <div id="fab-container" class="fab-container">
       {/* ID for script, class for styling */}
-      <!-- <ChipButton id="floating-ask-ai-button" type="button">Ask AI</ChipButton> -->
+      <ChipButton id="floating-ask-ai-button" type="button">Ask AI</ChipButton>
     </div>
 
     <script>
