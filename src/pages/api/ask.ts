@@ -493,7 +493,6 @@ No additional text or explanation outside this JSON object.`;
           { status: 500 },
         );
       }
-    }
 
     let parsedLlmJson;
     try {
