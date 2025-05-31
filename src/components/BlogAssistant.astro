@@ -158,7 +158,12 @@ const { slug } = Astro.props;
               "chat-message",
               `${previousMessage.type}-message`,
             );
-            questionElement.innerHTML = `🗣️ <strong>${previousMessage.content.replace(/\n/g, "<br>")}</strong>`;
+
+            // Create a span for the question text content
+            const questionTextSpan = document.createElement('span');
+            // questionTextSpan.classList.add('question-text-content'); // Optional class if specific styling is needed later
+            questionTextSpan.innerHTML = `🗣️ <strong>${previousMessage.content.replace(/\n/g, "<br>")}</strong>`;
+            questionElement.appendChild(questionTextSpan); // Append the text span first
 
             // Add feedback buttons for AI messages, now part of the question element
             if (currentMessage.type === "ai" && previousMessage && previousMessage.type === "user") {
