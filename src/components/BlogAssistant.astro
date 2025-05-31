@@ -479,7 +479,7 @@ const { slug } = Astro.props;
     cursor: pointer;
     z-index: 10; /* Above content, below modals if any */
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    transition: background-color 0.2s ease, bottom 0.3s ease-in-out, transform 0.3s ease-in-out;
+    transition: background-color 0.2s ease, transform 0.3s ease-in-out; /* Removed 'bottom' from transition */
     /* Default state: "Expand" button, positioned below the normal response pane */
     bottom: -36px; /* (button height 32px + 4px gap) Below the pane */
   }
