@@ -216,17 +216,19 @@ const { slug } = Astro.props;
       const aiResponseContent = aiMessage.content;
       const userQuestionContent = userMessage.content;
 
-      // Disable both buttons in this feedback container
+      // Disable buttons and apply visual feedback
       const parentContainer = buttonElement.parentElement;
+      buttonElement.disabled = true;
+      buttonElement.classList.add('disabled', 'selected');
+
       if (parentContainer) {
         parentContainer.querySelectorAll('.feedback-button').forEach(btn => {
-          (btn as HTMLButtonElement).disabled = true;
-          (btn as HTMLButtonElement).classList.add('disabled');
+          if (btn !== buttonElement) {
+            (btn as HTMLButtonElement).disabled = true;
+            (btn as HTMLButtonElement).classList.add('disabled', 'hidden');
+          }
         });
       }
-      // Optionally, provide immediate visual feedback on the clicked button
-      buttonElement.classList.add('selected');
-
 
       try {
         const feedbackTimestamp = new Date().toISOString();
@@ -249,21 +251,22 @@ const { slug } = Astro.props;
         } else {
           const errorData = await response.json();
           console.error("Failed to submit feedback:", errorData.error);
-          // Re-enable buttons on error if desired, or show error state
+          // Re-enable buttons on error and revert visual changes
           if (parentContainer) {
             parentContainer.querySelectorAll('.feedback-button').forEach(btn => {
               (btn as HTMLButtonElement).disabled = false;
-              (btn as HTMLButtonElement).classList.remove('disabled');
+              (btn as HTMLButtonElement).classList.remove('disabled', 'hidden', 'selected');
             });
           }
-          buttonElement.classList.remove('selected');
+          // Ensure the originally clicked button also has selected removed if not covered by loop
+          buttonElement.classList.remove('selected'); 
         }
       } catch (error) {
         console.error("Client-side error submitting feedback:", error);
         if (parentContainer) {
           parentContainer.querySelectorAll('.feedback-button').forEach(btn => {
             (btn as HTMLButtonElement).disabled = false;
-            (btn as HTMLButtonElement).classList.remove('disabled');
+            (btn as HTMLButtonElement).classList.remove('disabled', 'hidden', 'selected');
           });
         }
         buttonElement.classList.remove('selected');
@@ -648,6 +651,12 @@ const { slug } = Astro.props;
   .feedback-button.selected {
     background-color: var(--cstm-main-surface-secondary, #e6d9ce); /* A distinct color for selected */
     border-color: var(--cstm-text-primary, #3d3d3d);
+    font-size: 0.7em; /* Make the symbol smaller when selected */
+    padding: 0.3em 0.6em; /* Adjust padding if needed for smaller font */
+  }
+
+  .feedback-button.hidden {
+    display: none;
   }
 
   .feedback-like:hover:not(:disabled) {
