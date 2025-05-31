@@ -9,14 +9,9 @@ export async function GET(context) {
 		description: SITE_DESCRIPTION,
 		site: context.site,
 		items: posts.map((post) => ({
-			title: post.data.title,
-			description: post.data.description,
-			pubDate: post.data.date, // Map post.data.date to pubDate
-			link: `/blog/${post.id}/`,
-			// Spread other data if needed, ensuring pubDate is correctly sourced from post.data.date
-			// For example, to include author and tags if they exist in your schema:
-			author: post.data.author, 
-			tags: post.data.tags,
+			...post.data, // Spreads all fields from frontmatter (title, author, date, description, tags)
+			pubDate: post.data.date, // Ensures pubDate is set from post.data.date for RSS
+			link: `/blog/${post.id}/`, 
 		})),
 	});
 }
