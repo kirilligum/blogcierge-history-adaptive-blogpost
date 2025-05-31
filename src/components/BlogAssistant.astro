@@ -519,7 +519,8 @@ const { slug } = Astro.props;
   }
 
   /* This rule targets a sibling of assistant-ui-container */
-  .blog-content-pane.response-condensed-mode {
-    display: none; /* Make the blog content pane disappear entirely */
-  }
+  /* MOVED TO BlogPostLayout.astro <style is:global> */
+  /* .blog-content-pane.response-condensed-mode { */
+  /*   display: none; /* Make the blog content pane disappear entirely */
+  /* } */
 </style>

@@ -151,6 +151,11 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
         overflow-y: auto;
       }
 
+      /* Added from BlogAssistant.astro to ensure global application */
+      .blog-content-pane.response-condensed-mode {
+        display: none !important; /* Make the blog content pane disappear entirely */
+      }
+
       /* Styles from original BlogPostLayout.astro, scoped to this layout's content */
       .blog-post-content-wrapper article {
         font-family: "Libre Baskerville", serif;
