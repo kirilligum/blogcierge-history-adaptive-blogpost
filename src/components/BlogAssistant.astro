@@ -165,16 +165,34 @@ const { slug } = Astro.props;
 
             // If this AI message has a preceding user message, prepare feedback buttons HTML
             if (currentMessage.type === "ai" && previousMessage && previousMessage.type === "user") {
-              const likeButtonId = `like-btn-${i}`; // Unique ID for the like button
-              const dislikeButtonId = `dislike-btn-${i}`; // Unique ID for the dislike button
+              const aiMessageWithFeedback = currentMessage as (typeof chatHistory[0] & { feedbackRating?: "like" | "dislike" });
+              const likeButtonId = `like-btn-${i}`;
+              const dislikeButtonId = `dislike-btn-${i}`;
+
+              let likeBtnClasses = "feedback-button feedback-like";
+              let dislikeBtnClasses = "feedback-button feedback-dislike";
+              let likeBtnDisabled = "";
+              let dislikeBtnDisabled = "";
+
+              if (aiMessageWithFeedback.feedbackRating) {
+                likeBtnDisabled = "disabled";
+                dislikeBtnDisabled = "disabled";
+                if (aiMessageWithFeedback.feedbackRating === "like") {
+                  likeBtnClasses += " selected";
+                  dislikeBtnClasses += " hidden";
+                } else { // feedbackRating === "dislike"
+                  dislikeBtnClasses += " selected";
+                  likeBtnClasses += " hidden";
+                }
+              }
 
               const feedbackHTMLString = `
                 <span class="feedback-container-inline">
-                  <button id="${likeButtonId}" class="feedback-button feedback-like" title="Like this response">👍</button>
-                  <button id="${dislikeButtonId}" class="feedback-button feedback-dislike" title="Dislike this response">👎</button>
+                  <button id="${likeButtonId}" class="${likeBtnClasses}" title="Like this response" ${likeBtnDisabled}>👍</button>
+                  <button id="${dislikeButtonId}" class="${dislikeBtnClasses}" title="Dislike this response" ${dislikeBtnDisabled}>👎</button>
                 </span>
               `;
-              questionHTML += feedbackHTMLString; // Append feedback buttons HTML to the question string
+              questionHTML += feedbackHTMLString;
             }
 
             questionTextSpan.innerHTML = questionHTML;
@@ -219,7 +237,7 @@ const { slug } = Astro.props;
     };
 
     async function handleFeedbackClick(buttonElement: HTMLButtonElement, aiMessageIndex: number, rating: "like" | "dislike") {
-      const aiMessage = chatHistory[aiMessageIndex];
+      const aiMessage = chatHistory[aiMessageIndex] as (typeof chatHistory[0] & { feedbackRating?: "like" | "dislike" });
       const userMessage = chatHistory[aiMessageIndex - 1];
 
       if (!aiMessage || aiMessage.type !== 'ai' || !userMessage || userMessage.type !== 'user') {
@@ -227,22 +245,22 @@ const { slug } = Astro.props;
         return;
       }
 
+      // If already voted, do nothing.
+      if (aiMessage.feedbackRating) {
+        console.log("Already voted on this item.");
+        return;
+      }
+
+      // Store the rating in the chat history
+      aiMessage.feedbackRating = rating;
+
+      // Re-render the chat history to reflect the new state
+      renderChatHistory();
+
+      // Proceed with API call (visual state is now handled by renderChatHistory)
       const aiResponseContent = aiMessage.content;
       const userQuestionContent = userMessage.content;
-
-      // Disable buttons and apply visual feedback
-      const parentContainer = buttonElement.parentElement;
-      buttonElement.disabled = true;
-      buttonElement.classList.add('disabled', 'selected');
-
-      if (parentContainer) {
-        parentContainer.querySelectorAll('.feedback-button').forEach(btn => {
-          if (btn !== buttonElement) {
-            (btn as HTMLButtonElement).disabled = true;
-            (btn as HTMLButtonElement).classList.add('disabled', 'hidden');
-          }
-        });
-      }
+      const parentContainer = buttonElement.parentElement; // Still useful for logging context if needed
 
       try {
         const feedbackTimestamp = new Date().toISOString();
@@ -262,28 +280,17 @@ const { slug } = Astro.props;
 
         if (response.ok) {
           console.log(`Feedback (${rating}) submitted successfully.`);
+          // Visual state is already persistent due to chatHistory update and re-render.
         } else {
-          const errorData = await response.json();
-          console.error("Failed to submit feedback:", errorData.error);
-          // Re-enable buttons on error and revert visual changes
-          if (parentContainer) {
-            parentContainer.querySelectorAll('.feedback-button').forEach(btn => {
-              (btn as HTMLButtonElement).disabled = false;
-              (btn as HTMLButtonElement).classList.remove('disabled', 'hidden', 'selected');
-            });
-          }
-          // Ensure the originally clicked button also has selected removed if not covered by loop
-          buttonElement.classList.remove('selected'); 
+          const errorText = await response.text(); 
+          console.error(`Failed to submit feedback. Status: ${response.status}, Response: ${errorText}`);
+          // The visual state remains "voted" as per the requirement.
+          // No need to revert UI changes here.
         }
       } catch (error) {
         console.error("Client-side error submitting feedback:", error);
-        if (parentContainer) {
-          parentContainer.querySelectorAll('.feedback-button').forEach(btn => {
-            (btn as HTMLButtonElement).disabled = false;
-            (btn as HTMLButtonElement).classList.remove('disabled', 'hidden', 'selected');
-          });
-        }
-        buttonElement.classList.remove('selected');
+        // The visual state remains "voted".
+        // No need to revert UI changes here.
       }
     }
 
