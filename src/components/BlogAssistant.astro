@@ -68,6 +68,7 @@ const { slug } = Astro.props;
     const toggleResponseExpandButton = assistantContainer.querySelector(
       "#toggle-response-expand-button",
     ) as HTMLButtonElement | null;
+    const blogContentPane = document.querySelector(".blog-content-pane") as HTMLElement | null; // Query for the sibling
 
     // Get reference to the FAB's CONTAINER defined in BlogPostLayout.astro
     const fabContainer = document.getElementById(
@@ -81,10 +82,11 @@ const { slug } = Astro.props;
       !askButton ||
       !fabContainer ||
       !responsePaneWrapper ||
-      !toggleResponseExpandButton
+      !toggleResponseExpandButton ||
+      !blogContentPane // Add to the check
     ) {
       console.error(
-        "One or more BlogAssistant UI elements, the FAB container, or expand/collapse elements are missing.",
+        "One or more BlogAssistant UI elements, the FAB container, expand/collapse elements, or blogContentPane are missing.",
       );
       return;
     }
@@ -186,6 +188,10 @@ const { slug } = Astro.props;
         if (iconSpan) iconSpan.textContent = "unfold_more";
         toggleResponseExpandButton.setAttribute("aria-label", "Expand response area");
         toggleResponseExpandButton.title = "Expand response area";
+
+        // Ensure assistant container and blog content pane revert to normal flex behavior
+        assistantContainer.classList.remove("response-expanded-mode");
+        if (blogContentPane) blogContentPane.classList.remove("response-condensed-mode");
     };
     
     const resetChat = () => {
@@ -333,13 +339,22 @@ const { slug } = Astro.props;
         if (iconSpan) iconSpan.textContent = "unfold_less";
         toggleResponseExpandButton.setAttribute("aria-label", "Collapse response area");
         toggleResponseExpandButton.title = "Collapse response area";
+
+        // Make assistant container grow and blog content pane shrink
+        assistantContainer.classList.add("response-expanded-mode");
+        if (blogContentPane) blogContentPane.classList.add("response-condensed-mode");
       } else {
+        // This branch is effectively what collapseResponsePane does for these classes
         responsePaneWrapper.classList.remove("expanded");
         responsePane.classList.remove("expanded");
         toggleResponseExpandButton.classList.remove("expanded-state");
         if (iconSpan) iconSpan.textContent = "unfold_more";
         toggleResponseExpandButton.setAttribute("aria-label", "Expand response area");
         toggleResponseExpandButton.title = "Expand response area";
+
+        // Revert assistant container and blog content pane
+        assistantContainer.classList.remove("response-expanded-mode");
+        if (blogContentPane) blogContentPane.classList.remove("response-condensed-mode");
       }
     });
   });
@@ -495,5 +510,20 @@ const { slug } = Astro.props;
   .response-expand-toggle-button.expanded-state {
     /* "Collapse" button state, positioned at bottom-right of expanded pane */
     bottom: 10px; /* Inside, near bottom right */
+  }
+
+  /* Added styles for controlling overall layout when response pane is expanded */
+  .assistant-ui-container.response-expanded-mode {
+    flex-grow: 1; /* Make the assistant container take available vertical space */
+    min-height: 0; /* Crucial for flex children to shrink/grow properly */
+  }
+
+  /* This rule targets a sibling of assistant-ui-container */
+  .blog-content-pane.response-condensed-mode {
+    flex-grow: 0;   /* Prevent blog content from growing */
+    flex-shrink: 1; /* Allow blog content to shrink */
+    flex-basis: 0%; /* Encourage blog content to shrink to its minimum possible size */
+    min-height: 0;  /* Allow it to shrink to zero height if its content allows */
+    overflow: hidden; /* Hide content of the blog pane if it doesn't shrink to 0 */
   }
 </style>
