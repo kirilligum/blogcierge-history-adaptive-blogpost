@@ -171,11 +171,104 @@ const { slug } = Astro.props;
             /\n/g,
             "<br>",
           );
+
+          // Add feedback buttons for AI messages
+          if (currentMessage.type === "ai" && previousMessage && previousMessage.type === "user") {
+            const feedbackContainer = document.createElement("div");
+            feedbackContainer.classList.add("feedback-container");
+
+            const likeButton = document.createElement("button");
+            likeButton.classList.add("feedback-button", "feedback-like");
+            likeButton.innerHTML = "👍";
+            likeButton.title = "Like this response";
+            likeButton.addEventListener("click", (e) => {
+              handleFeedbackClick(e.currentTarget as HTMLButtonElement, i, "like");
+            });
+
+            const dislikeButton = document.createElement("button");
+            dislikeButton.classList.add("feedback-button", "feedback-dislike");
+            dislikeButton.innerHTML = "👎";
+            dislikeButton.title = "Dislike this response";
+            dislikeButton.addEventListener("click", (e) => {
+              handleFeedbackClick(e.currentTarget as HTMLButtonElement, i, "dislike");
+            });
+
+            feedbackContainer.appendChild(likeButton);
+            feedbackContainer.appendChild(dislikeButton);
+            answerElement.appendChild(feedbackContainer);
+          }
+
           responsePane.appendChild(answerElement);
         }
       }
       responsePane.scrollTop = 0;
     };
+
+    async function handleFeedbackClick(buttonElement: HTMLButtonElement, aiMessageIndex: number, rating: "like" | "dislike") {
+      const aiMessage = chatHistory[aiMessageIndex];
+      const userMessage = chatHistory[aiMessageIndex - 1];
+
+      if (!aiMessage || aiMessage.type !== 'ai' || !userMessage || userMessage.type !== 'user') {
+        console.error("Invalid message context for feedback.");
+        return;
+      }
+
+      const aiResponseContent = aiMessage.content;
+      const userQuestionContent = userMessage.content;
+
+      // Disable both buttons in this feedback container
+      const parentContainer = buttonElement.parentElement;
+      if (parentContainer) {
+        parentContainer.querySelectorAll('.feedback-button').forEach(btn => {
+          (btn as HTMLButtonElement).disabled = true;
+          (btn as HTMLButtonElement).classList.add('disabled');
+        });
+      }
+      // Optionally, provide immediate visual feedback on the clicked button
+      buttonElement.classList.add('selected');
+
+
+      try {
+        const feedbackTimestamp = new Date().toISOString();
+        const response = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug: postSlug,
+            readerId: currentReaderId,
+            sessionId: currentSessionId,
+            aiResponseContent: aiResponseContent,
+            userQuestionContext: userQuestionContent,
+            rating: rating,
+            feedbackTimestamp: feedbackTimestamp,
+          }),
+        });
+
+        if (response.ok) {
+          console.log(`Feedback (${rating}) submitted successfully.`);
+        } else {
+          const errorData = await response.json();
+          console.error("Failed to submit feedback:", errorData.error);
+          // Re-enable buttons on error if desired, or show error state
+          if (parentContainer) {
+            parentContainer.querySelectorAll('.feedback-button').forEach(btn => {
+              (btn as HTMLButtonElement).disabled = false;
+              (btn as HTMLButtonElement).classList.remove('disabled');
+            });
+          }
+          buttonElement.classList.remove('selected');
+        }
+      } catch (error) {
+        console.error("Client-side error submitting feedback:", error);
+        if (parentContainer) {
+          parentContainer.querySelectorAll('.feedback-button').forEach(btn => {
+            (btn as HTMLButtonElement).disabled = false;
+            (btn as HTMLButtonElement).classList.remove('disabled');
+          });
+        }
+        buttonElement.classList.remove('selected');
+      }
+    }
 
     const collapseResponsePane = () => {
         if (!isResponsePaneExpanded) return; // Already collapsed
@@ -524,4 +617,44 @@ const { slug } = Astro.props;
   /* .blog-content-pane.response-condensed-mode { */
   /*   display: none; /* Make the blog content pane disappear entirely */
   /* } */
+
+  .feedback-container {
+    display: flex;
+    justify-content: flex-end; /* Align buttons to the right */
+    gap: 0.5rem; /* Space between buttons */
+    margin-top: 0.5rem; /* Space above the buttons */
+  }
+
+  .feedback-button {
+    background-color: transparent;
+    border: 1px solid var(--blgc-main-surface-secondary, #ccc);
+    border-radius: 4px;
+    padding: 0.2em 0.5em;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .feedback-button:hover:not(:disabled) {
+    background-color: var(--blgc-main-surface-secondary, #eee);
+    border-color: var(--cstm-text-secondary, #aaa);
+  }
+
+  .feedback-button.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  
+  .feedback-button.selected {
+    background-color: var(--cstm-main-surface-secondary, #e6d9ce); /* A distinct color for selected */
+    border-color: var(--cstm-text-primary, #3d3d3d);
+  }
+
+  .feedback-like:hover:not(:disabled) {
+    /* Optional: specific hover for like */
+  }
+
+  .feedback-dislike:hover:not(:disabled) {
+    /* Optional: specific hover for dislike */
+  }
 </style>
