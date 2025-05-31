@@ -520,10 +520,6 @@ const { slug } = Astro.props;
 
   /* This rule targets a sibling of assistant-ui-container */
   .blog-content-pane.response-condensed-mode {
-    flex-grow: 0;   /* Prevent blog content from growing */
-    flex-shrink: 1; /* Allow blog content to shrink */
-    flex-basis: 0%; /* Encourage blog content to shrink to its minimum possible size */
-    min-height: 0;  /* Allow it to shrink to zero height if its content allows */
-    overflow: hidden; /* Hide content of the blog pane if it doesn't shrink to 0 */
+    display: none; /* Make the blog content pane disappear entirely */
   }
 </style>
