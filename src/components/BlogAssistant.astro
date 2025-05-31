@@ -161,36 +161,45 @@ const { slug } = Astro.props;
 
             // Create a span for the question text content
             const questionTextSpan = document.createElement('span');
-            // questionTextSpan.classList.add('question-text-content'); // Optional class if specific styling is needed later
-            questionTextSpan.innerHTML = `🗣️ <strong>${previousMessage.content.replace(/\n/g, "<br>")}</strong>`;
-            questionElement.appendChild(questionTextSpan); // Append the text span first
+            let questionHTML = `🗣️ <strong>${previousMessage.content.replace(/\n/g, "<br>")}</strong>`;
 
-            // Add feedback buttons for AI messages, now part of the question element
+            // If this AI message has a preceding user message, prepare feedback buttons HTML
             if (currentMessage.type === "ai" && previousMessage && previousMessage.type === "user") {
-              const feedbackContainer = document.createElement("div");
-              feedbackContainer.classList.add("feedback-container");
+              const likeButtonId = `like-btn-${i}`; // Unique ID for the like button
+              const dislikeButtonId = `dislike-btn-${i}`; // Unique ID for the dislike button
 
-              const likeButton = document.createElement("button");
-              likeButton.classList.add("feedback-button", "feedback-like");
-              likeButton.innerHTML = "👍";
-              likeButton.title = "Like this response";
-              likeButton.addEventListener("click", (e) => {
-                handleFeedbackClick(e.currentTarget as HTMLButtonElement, i, "like");
-              });
-
-              const dislikeButton = document.createElement("button");
-              dislikeButton.classList.add("feedback-button", "feedback-dislike");
-              dislikeButton.innerHTML = "👎";
-              dislikeButton.title = "Dislike this response";
-              dislikeButton.addEventListener("click", (e) => {
-                handleFeedbackClick(e.currentTarget as HTMLButtonElement, i, "dislike");
-              });
-
-              feedbackContainer.appendChild(likeButton);
-              feedbackContainer.appendChild(dislikeButton);
-              questionElement.appendChild(feedbackContainer);
+              const feedbackHTMLString = `
+                <span class="feedback-container-inline">
+                  <button id="${likeButtonId}" class="feedback-button feedback-like" title="Like this response">👍</button>
+                  <button id="${dislikeButtonId}" class="feedback-button feedback-dislike" title="Dislike this response">👎</button>
+                </span>
+              `;
+              questionHTML += feedbackHTMLString; // Append feedback buttons HTML to the question string
             }
+
+            questionTextSpan.innerHTML = questionHTML;
+            questionElement.appendChild(questionTextSpan);
             responsePane.appendChild(questionElement);
+
+            // After innerHTML is set, attach event listeners if feedback buttons were added
+            if (currentMessage.type === "ai" && previousMessage && previousMessage.type === "user") {
+              const likeButtonId = `like-btn-${i}`;
+              const dislikeButtonId = `dislike-btn-${i}`;
+              
+              const likeButton = questionElement.querySelector(`#${likeButtonId}`);
+              const dislikeButton = questionElement.querySelector(`#${dislikeButtonId}`);
+
+              if (likeButton) {
+                likeButton.addEventListener("click", (e) => {
+                  handleFeedbackClick(e.currentTarget as HTMLButtonElement, i, "like");
+                });
+              }
+              if (dislikeButton) {
+                dislikeButton.addEventListener("click", (e) => {
+                  handleFeedbackClick(e.currentTarget as HTMLButtonElement, i, "dislike");
+                });
+              }
+            }
           }
 
           const answerElement = document.createElement("div");
@@ -629,13 +638,12 @@ const { slug } = Astro.props;
   /*   display: none; /* Make the blog content pane disappear entirely */
   /* } */
 
-  .feedback-container {
-    display: flex;
-    /* justify-content: flex-end; /* Not strictly needed here as it's a flex item */
+  .feedback-container-inline { /* Renamed and adjusted for inline flow */
+    display: inline-flex; /* Allows it to flow with text, and flex its children (buttons) */
+    align-items: center; /* Vertically align buttons with the text line */
     gap: 0.5rem; /* Space between buttons */
-    /* margin-top: 0.5rem; /* Removed */
     margin-left: 0.8rem; /* Space after the question text */
-    flex-shrink: 0; /* Prevent buttons from shrinking if question text is long */
+    /* flex-shrink: 0; /* Not a direct flex item of .user-message, so less critical here */
   }
 
   .feedback-button {
