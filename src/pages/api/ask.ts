@@ -19,14 +19,14 @@ function normalizeQuestionForCache(question: string): string {
 // Helper function to retrieve API key
 function getApiKey(locals: App.Locals, devMode: boolean): string | undefined {
   // Attempt to get API key from Cloudflare runtime environment
-  if (locals.runtime?.env?.OPENROUTER_API_KEY) {
-    return locals.runtime.env.OPENROUTER_API_KEY;
+  if (locals.runtime?.env?.LLAMA_API_KEY) {
+    return locals.runtime.env.LLAMA_API_KEY;
   }
 
   // If API key is not found via runtime AND in local development mode,
   // attempt to get it from Vite's `import.meta.env`.
-  if (devMode && import.meta.env.OPENROUTER_API_KEY) {
-    return import.meta.env.OPENROUTER_API_KEY;
+  if (devMode && import.meta.env.LLAMA_API_KEY) {
+    return import.meta.env.LLAMA_API_KEY;
   }
   return undefined;
 }
@@ -45,8 +45,8 @@ function getR2SessionLogKey(
   return `ai-logs/${slug}/${formattedDate}/${sessionId}/${turnTimestamp}.json`;
 }
 
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "qwen/qwen3-32b";
+const LLAMA_API_URL = "https://api.llama.com/v1/chat/completions";
+const DEFAULT_MODEL = "Llama-4-Maverick-17B-128E-Instruct-FP8";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   // Define aiLogsBucket at the top of the function scope, before the try block
@@ -152,8 +152,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     if (!apiKey) {
       const contextMessage = import.meta.env.DEV
-        ? "Local development: OPENROUTER_API_KEY not found in .env or via platform proxy."
-        : "Cloudflare deployment: OPENROUTER_API_KEY not found in environment variables. Ensure it is set in Pages project settings.";
+        ? "Local development: LLAMA_API_KEY not found in .env or via platform proxy."
+        : "Cloudflare deployment: LLAMA_API_KEY not found in environment variables. Ensure it is set in Pages project settings.";
       console.error(`CRITICAL: ${contextMessage}`);
       // Log API key error to R2
       if (aiLogsBucket && r2Key) {
@@ -368,15 +368,12 @@ No additional text or explanation outside this JSON object.`;
         // Ensure `messages` here is the chat history from the client, not the one used for cache check
         ...(body.messages || []), // Use body.messages which is the chat history for LLM
       ],
-      // provider: { order: ["lambda"] }, // This is OpenRouter specific
-      provider: { order: ["cerebras", "lambda"] }, // This is OpenRouter specific
-      max_tokens: 768, // Adjusted for concise JSON output (relation, related, ~5 line response)
-      temperature: 0.3,
-      response_format: {
-        // Add this for structured output
-        type: "json_schema", // As per Cerebras and OpenAI v2 API
-        json_schema: llmResponseSchema, // The schema defined earlier
-      },
+      max_tokens: 2048,
+      temperature: 0.6,
+      repetition_penalty: 1,
+      top_p: 0.9,
+      // response_format and provider removed as they are OpenRouter/specific model features
+      // The system prompt still requests JSON output.
     };
 
     // --- Prepare and Make Answerer LLM Call ---
@@ -388,110 +385,79 @@ No additional text or explanation outside this JSON object.`;
     };
 
     let answererResponse;
-    let attemptNumber = 1;
-    let providerForLog = answererPayload.provider.order.join(",");
+    const attemptNumber = 1; // No retry logic anymore
 
-    // Attempt 1: Cerebras preferred
     console.log(
-      `[DEBUG] Calling LLM (Attempt 1). Model: ${answererPayload.model}. Provider order: ${answererPayload.provider.order.join(", ")}`,
+      `[DEBUG] Calling LLM. Model: ${answererPayload.model}. API URL: ${LLAMA_API_URL}`,
     );
     console.log(
       "[MOCKING_LOG] LLM Input Payload:",
       JSON.stringify(answererPayload, null, 2),
     ); // Added for mocking
-    answererResponse = await fetch(OPENROUTER_API_URL, {
-      method: "POST",
-      headers: commonHeaders,
-      body: JSON.stringify(answererPayload),
-    });
-
-    if (!answererResponse.ok) {
-      const errorTextAttempt1 = await answererResponse.text();
-      console.error(
-        `Answerer API Error (Attempt 1 - Cerebras Preferred): Status ${answererResponse.status}`,
-        errorTextAttempt1.substring(0, 500),
-      );
+    
+    try {
+      answererResponse = await fetch(LLAMA_API_URL, {
+        method: "POST",
+        headers: commonHeaders,
+        body: JSON.stringify(answererPayload),
+      });
+    } catch (fetchError) {
+      console.error("LLM API fetch error:", fetchError);
       if (aiLogsBucket && r2Key) {
-        const logDataAttempt1 = {
+        const logData = {
           sessionId,
           readerId,
           blogSlug: slug,
           turnTimestampUTC: turnTimestamp,
           userQuestion: currentUserQuestion,
-          errorDetails: `LLM API Error (Attempt 1 - Cerebras Preferred): Status ${answererResponse.status}. Details: ${errorTextAttempt1.substring(0, 1000)}`,
-          source: "error_llm_api_attempt1_cerebras",
-          providerRequested: answererPayload.provider.order.join(","),
+          errorDetails: `LLM API fetch error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`,
+          source: "error_llm_api_fetch",
         };
-        // Use a distinct key for this error log or add attempt info to the object if using the same key
         locals.runtime.ctx.waitUntil(
-          aiLogsBucket.put(
-            r2Key + "_err_att1",
-            JSON.stringify(logDataAttempt1),
-          ),
+          aiLogsBucket.put(r2Key, JSON.stringify(logData)),
         );
       }
-
-      // Attempt 2: Lambda only
-      console.log(
-        "[DEBUG] Attempt 1 failed. Retrying with Lambda provider only.",
+      return new Response(
+        JSON.stringify({ error: "Failed to connect to the AI service." }),
+        { status: 503, headers: { "Content-Type": "application/json" } },
       );
-      attemptNumber = 2;
-      const retryPayload = {
-        ...answererPayload,
-        provider: { order: ["lambda"] },
-      };
-      providerForLog = retryPayload.provider.order.join(",");
+    }
 
-      console.log(
-        `[DEBUG] Calling LLM (Attempt 2 - Lambda Only). Model: ${retryPayload.model}. Provider order: ${retryPayload.provider.order.join(", ")}`,
+    if (!answererResponse.ok) {
+      const errorText = await answererResponse.text();
+      console.error(
+        `LLM API Error: Status ${answererResponse.status}`,
+        errorText.substring(0, 500),
       );
-      answererResponse = await fetch(OPENROUTER_API_URL, {
-        method: "POST",
-        headers: commonHeaders,
-        body: JSON.stringify(retryPayload),
-      });
-
-      if (!answererResponse.ok) {
-        const errorTextAttempt2 = await answererResponse.text();
-        console.error(
-          `Answerer API Error (Attempt 2 - Lambda Only): Status ${answererResponse.status}`,
-          errorTextAttempt2.substring(0, 500),
-        );
-        if (aiLogsBucket && r2Key) {
-          const logDataAttempt2 = {
-            sessionId,
-            readerId,
-            blogSlug: slug,
-            turnTimestampUTC: turnTimestamp,
-            userQuestion: currentUserQuestion,
-            errorDetails: `LLM API Error (Attempt 2 - Lambda Only): Status ${answererResponse.status}. Details: ${errorTextAttempt2.substring(0, 1000)}`,
-            source: "error_llm_api_attempt2_lambda",
-            providerRequested: retryPayload.provider.order.join(","),
-          };
-          locals.runtime.ctx.waitUntil(
-            aiLogsBucket.put(
-              r2Key + "_err_att2",
-              JSON.stringify(logDataAttempt2),
-            ),
-          );
-        }
-        return new Response(
-          JSON.stringify({
-            error: `AI service (answerer) returned an error on retry with Lambda: ${answererResponse.status}. Details: ${errorTextAttempt2}`,
-          }),
-          {
-            status: answererResponse.status,
-            headers: { "Content-Type": "application/json" },
-          },
+      if (aiLogsBucket && r2Key) {
+        const logData = {
+          sessionId,
+          readerId,
+          blogSlug: slug,
+          turnTimestampUTC: turnTimestamp,
+          userQuestion: currentUserQuestion,
+          errorDetails: `LLM API Error: Status ${answererResponse.status}. Details: ${errorText.substring(0, 1000)}`,
+          source: "error_llm_api_response",
+        };
+        locals.runtime.ctx.waitUntil(
+          aiLogsBucket.put(r2Key, JSON.stringify(logData)),
         );
       }
-      console.log("[DEBUG] Attempt 2 (Lambda only) successful.");
-    } else {
-      console.log("[DEBUG] Attempt 1 (Cerebras preferred) successful.");
+      return new Response(
+        JSON.stringify({
+          error: `AI service returned an error: ${answererResponse.status}. Details: ${errorText}`,
+        }),
+        {
+          status: answererResponse.status,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
 
     const answerData = await answererResponse.json();
-    const actualProviderUsed = answerData.route?.name || providerForLog; // Get actual provider if available
+    // For Llama API, the actual provider used isn't relevant in the same way as OpenRouter.
+    // We can log the model used.
+    const actualProviderUsed = DEFAULT_MODEL; // Or derive from answerData if available
     let llmOutputString = answerData.choices?.[0]?.message?.content;
 
     if (!llmOutputString) {

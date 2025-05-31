@@ -5,7 +5,7 @@ import type { KVNamespace, R2Bucket } from "@cloudflare/workers-types";
 
 // Define the Env interface for Cloudflare bindings
 interface Env {
-  OPENROUTER_API_KEY: string; // For Cloudflare runtime
+  LLAMA_API_KEY: string; // For Cloudflare runtime
   BLGC_BLOGPOST_AI_CACHE: KVNamespace; // KV namespace binding for "blgc blogpost ai"
   BLGC_AI_LOGS_BUCKET: R2Bucket; // R2 bucket binding for AI conversation logs
   // Add other Cloudflare bindings (D1, R2, etc.) here if you use them
@@ -20,7 +20,7 @@ declare namespace App {
 
 // Augment ImportMetaEnv for Vite's .env handling
 interface ImportMetaEnv {
-  readonly OPENROUTER_API_KEY: string;
+  readonly LLAMA_API_KEY: string;
   // Add other environment variables from your .env file here
 }
 
