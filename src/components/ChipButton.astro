@@ -1,0 +1,175 @@
+---
+interface Props {
+  id?: string;
+  type?: "button" | "submit" | "reset";
+  class?: string; // For additional classes on the button element itself
+  wrapperClass?: string; // For additional classes on the chip-button-wrapper div
+  disabled?: boolean;
+}
+
+const {
+  id,
+  type = "button",
+  class: buttonClass,
+  wrapperClass,
+  disabled = false,
+} = Astro.props;
+---
+
+<div class:list={["chip-button-wrapper", wrapperClass]}>
+  <button
+    id={id}
+    type={type}
+    class:list={["chip-button-main", buttonClass]}
+    {disabled}
+  >
+    <slot />
+    {/* Button text (e.g., "Ask AI") */}
+  </button>
+  {/* Top Legs */}
+  <span class="chip-leg leg-top-1"></span>
+  <span class="chip-leg leg-top-2"></span>
+  <span class="chip-leg leg-top-3"></span>
+  <span class="chip-leg leg-top-4"></span>
+  {/* Bottom Legs */}
+  <span class="chip-leg leg-bottom-1"></span>
+  <span class="chip-leg leg-bottom-2"></span>
+  <span class="chip-leg leg-bottom-3"></span>
+  <span class="chip-leg leg-bottom-4"></span>
+  {/* Left Legs */}
+  <span class="chip-leg leg-left-1"></span>
+  <span class="chip-leg leg-left-2"></span>
+  <span class="chip-leg leg-left-3"></span>
+  <span class="chip-leg leg-left-4"></span>
+  {/* Right Legs */}
+  <span class="chip-leg leg-right-1"></span>
+  <span class="chip-leg leg-right-2"></span>
+  <span class="chip-leg leg-right-3"></span>
+  <span class="chip-leg leg-right-4"></span>
+</div>
+
+<style>
+  .chip-button-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Ensure button is centered horizontally in wrapper */
+    flex-shrink: 0;
+    margin: 0 6px; /* Account for 6px protruding legs on left/right */
+    height: 4rem; /* Fixed height to match the button */
+    /* Vertical margin for legs (top/bottom 6px) will be naturally handled by line height or parent padding */
+  }
+
+  .chip-button-main {
+    /* Reverted to original button styling with rounded corners */
+    width: 4rem; /* Fixed width for square shape - increased */
+    height: 4rem; /* Fixed height for square shape - increased */
+    padding: 0.25rem; /* Uniform padding for centered text */
+    background-color: var(--blgc-text-primary, #333);
+    color: white;
+    border: none;
+    border-radius: 4px; /* Original rounded corners */
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem; /* Explicitly set to match FAB's original font size */
+    transition: background-color 0.2s ease;
+
+    position: relative; /* To ensure button body is above legs */
+    z-index: 1;
+
+    display: flex; /* For centering text */
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    /* flex-grow: 1; Removed to maintain fixed size */
+    box-sizing: border-box;
+    /* Height is now fixed */
+  }
+
+  .chip-button-main:hover {
+    background-color: var(--blgc-text-secondary, #555);
+  }
+
+  .chip-button-main:disabled {
+    background-color: #bbb;
+    cursor: not-allowed;
+  }
+
+  .chip-leg {
+    display: block;
+    position: absolute;
+    background-color: #b0b0b0; /* Silver/grey color for legs */
+    width: 8px; /* Leg thickness - doubled */
+    height: 8px; /* Leg length - doubled */
+    z-index: 0; /* Behind the button body */
+  }
+
+  /* Positioning for 4 legs on each side, adjusted for 6px legs/offsets and even spacing */
+  .leg-top-1 {
+    top: -6px;
+    left: 10%;
+  }
+  .leg-top-2 {
+    top: -6px;
+    left: 32.5%;
+  }
+  .leg-top-3 {
+    top: -6px;
+    left: 55%;
+  }
+  .leg-top-4 {
+    top: -6px;
+    left: 77.5%;
+  }
+
+  .leg-bottom-1 {
+    bottom: -6px;
+    left: 10%;
+  }
+  .leg-bottom-2 {
+    bottom: -6px;
+    left: 32.5%;
+  }
+  .leg-bottom-3 {
+    bottom: -6px;
+    left: 55%;
+  }
+  .leg-bottom-4 {
+    bottom: -6px;
+    left: 77.5%;
+  }
+
+  .leg-left-1 {
+    left: -6px;
+    top: 10%;
+  }
+  .leg-left-2 {
+    left: -6px;
+    top: 32.5%;
+  }
+  .leg-left-3 {
+    left: -6px;
+    top: 55%;
+  }
+  .leg-left-4 {
+    left: -6px;
+    top: 77.5%;
+  }
+
+  .leg-right-1 {
+    right: -6px;
+    top: 10%;
+  }
+  .leg-right-2 {
+    right: -6px;
+    top: 32.5%;
+  }
+  .leg-right-3 {
+    right: -6px;
+    top: 55%;
+  }
+  .leg-right-4 {
+    right: -6px;
+    top: 77.5%;
+  }
+</style>

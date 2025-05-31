@@ -1,0 +1,427 @@
+---
+// website/src/components/BlogAssistant.astro
+import ChipButton from "./ChipButton.astro"; // Import the new component
+
+interface Props {
+  slug: string; // The slug of the current blog post, passed from the layout
+}
+const { slug } = Astro.props;
+---
+
+<div class="assistant-ui-container hidden" data-post-slug={slug}>
+  <div id="ai-input-pane" class="assistant-pane input-area">
+    <div class="input-controls">
+      {/* New wrapper for flex layout */}
+      <textarea
+        id="ai-question-input"
+        rows="2"
+        placeholder="E.g., What is 'data curation'?"
+        aria-label="Ask the AI assistant a question about this blog post"
+      ></textarea>
+      <ChipButton
+        id="ask-ai-button"
+        type="button"
+        wrapperClass="ai-panel-chip-button-wrapper">Ask AI</ChipButton
+      >
+    </div>
+  </div>
+  <div id="ai-response-pane" class="assistant-pane scrollable-pane">
+    <!-- Chat history will be rendered here -->
+  </div>
+</div>
+
+<script>
+  // This script runs in the browser
+  document.addEventListener("DOMContentLoaded", () => {
+    const assistantContainer = document.querySelector(
+      ".assistant-ui-container",
+    ) as HTMLElement | null;
+    if (!assistantContainer) {
+      console.error("BlogAssistant UI container not found.");
+      return;
+    }
+
+    const postSlug = assistantContainer.dataset.postSlug;
+    const responsePane = assistantContainer.querySelector(
+      "#ai-response-pane",
+    ) as HTMLElement | null;
+    const questionInput = assistantContainer.querySelector(
+      "#ai-question-input",
+    ) as HTMLTextAreaElement | null;
+    const askButton = assistantContainer.querySelector(
+      "#ask-ai-button",
+    ) as HTMLButtonElement | null;
+
+    // Get reference to the FAB's CONTAINER defined in BlogPostLayout.astro
+    const fabContainer = document.getElementById(
+      "fab-container",
+    ) as HTMLElement | null;
+
+    if (
+      !postSlug ||
+      !responsePane ||
+      !questionInput ||
+      !askButton ||
+      !fabContainer
+    ) {
+      console.error(
+        "One or more BlogAssistant UI elements or the FAB container are missing.",
+      );
+      return;
+    }
+
+    let currentReaderId = "";
+    let currentSessionId = "";
+
+    function getOrSetReaderId(): string {
+      let readerId = localStorage.getItem("blgcAiReaderId");
+      if (!readerId) {
+        readerId = crypto.randomUUID();
+        localStorage.setItem("blgcAiReaderId", readerId);
+      }
+      return readerId;
+    }
+
+    function generateNewSessionId(): string {
+      const sessionStartTime = new Date().toISOString();
+
+      // Generate 6 random bytes for the suffix
+      const randomBytes = new Uint8Array(6);
+      crypto.getRandomValues(randomBytes);
+
+      // Convert bytes to a string, then to base64
+      let base64Suffix = btoa(String.fromCharCode(...randomBytes));
+
+      // Convert to base64url: replace + with -, / with _, and remove padding =
+      base64Suffix = base64Suffix
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+
+      return `${currentReaderId}_${sessionStartTime}_${base64Suffix}`;
+    }
+
+    currentReaderId = getOrSetReaderId(); // Initialize readerId
+
+    let chatHistory: Array<{
+      type: "user" | "ai" | "system" | "error";
+      content: string;
+    }> = [];
+    const initialMessage =
+      "Hello! Ask me any technical questions about this blog post.";
+
+    const renderChatHistory = () => {
+      if (!responsePane) return;
+      responsePane.innerHTML = ""; // Clear existing messages
+
+      if (chatHistory.length === 0) {
+        const placeholderElement = document.createElement("div");
+        // Using 'system-message' class for styling the placeholder, or create a new one if needed.
+        placeholderElement.classList.add("chat-message", "system-message");
+        placeholderElement.innerHTML = initialMessage.replace(/\n/g, "<br>");
+        responsePane.appendChild(placeholderElement);
+      } else {
+        // Iterate through chatHistory to render pairs (Question then Answer/Error)
+        // from newest pair to oldest pair.
+        for (let i = chatHistory.length - 1; i >= 0; i -= 2) {
+          const currentMessage = chatHistory[i]; // This is usually an AI answer or an error.
+          const previousMessage = chatHistory[i - 1]; // This is usually the user's question.
+
+          // Add a separator before each Q&A pair, except for the very first one at the top.
+          if (i < chatHistory.length - 1) {
+            const separatorElement = document.createElement("div");
+            separatorElement.classList.add("chat-pair-separator");
+            responsePane.appendChild(separatorElement);
+          }
+
+          // If previousMessage exists (i.e., we have a pair, or i-1 is a valid index)
+          // render it first (this is the User Question).
+          if (previousMessage) {
+            const questionElement = document.createElement("div");
+            questionElement.classList.add(
+              "chat-message",
+              `${previousMessage.type}-message`,
+            );
+            // Add emoji and make question bold
+            questionElement.innerHTML = `🗣️ <strong>${previousMessage.content.replace(/\n/g, "<br>")}</strong>`;
+            responsePane.appendChild(questionElement);
+          }
+
+          // Then render the currentMessage (AI Answer or Error).
+          // If previousMessage didn't exist (i.e. chatHistory has an odd number of messages,
+          // and this is the very first message), it will be rendered here.
+          const answerElement = document.createElement("div");
+          answerElement.classList.add(
+            "chat-message",
+            `${currentMessage.type}-message`,
+          );
+          answerElement.innerHTML = currentMessage.content.replace(
+            /\n/g,
+            "<br>",
+          );
+          responsePane.appendChild(answerElement);
+        }
+      }
+      // Scroll to the top of the response pane to show the latest message
+      responsePane.scrollTop = 0;
+    };
+
+    const resetChat = () => {
+      chatHistory = []; // Initialize as empty, initialMessage will be shown by renderChatHistory
+      currentSessionId = generateNewSessionId(); // Generate new session ID
+      console.log(
+        `New AI session started: ${currentSessionId} for reader: ${currentReaderId}`,
+      );
+      renderChatHistory();
+    };
+
+    // Initialize with the welcome message (placeholder will be shown)
+    resetChat();
+
+    const updateButtonState = () => {
+      if (questionInput.value.trim() === "") {
+        askButton.textContent = "Close";
+      } else {
+        askButton.textContent = "Ask AI";
+      }
+    };
+
+    // Listen to input changes on the textarea to update the button state
+    questionInput.addEventListener("input", updateButtonState);
+
+    // Initial state is set by the 'input' event dispatched from BlogPostLayout.astro
+    // when the assistant is shown.
+
+    askButton.addEventListener("click", async () => {
+      const question = questionInput.value.trim();
+
+      if (askButton.textContent === "Close") {
+        assistantContainer.classList.add("hidden"); // Hide this assistant
+        fabContainer.classList.remove("hidden"); // Show the FAB container
+        resetChat(); // Clear history when closing
+        // questionInput.value = ''; // Input is already cleared after asking or if it was empty
+        // updateButtonState(); // Button state will be "Close" as input is empty
+        return; // Stop further execution
+      }
+
+      // This part is for "Ask AI" functionality
+      if (!question) {
+        // Should ideally not be reached if button says "Ask AI", but as a fallback
+        chatHistory.push({
+          type: "error",
+          content: "Please type a question first.",
+        });
+        renderChatHistory();
+        return;
+      }
+
+      // Add user's question to history and render
+      chatHistory.push({ type: "user", content: question });
+      renderChatHistory();
+
+      // Disable button and show loading state
+      askButton.disabled = true;
+      askButton.textContent = "Thinking...";
+
+      // Add a system message for "Fetching answer..."
+      chatHistory.push({
+        type: "system",
+        content: "<i>Fetching answer from AI...</i>",
+      });
+      renderChatHistory();
+
+      // Prepare messages for the API, including history
+      const messagesForApi = chatHistory
+        .filter((msg) => msg.type === "user" || msg.type === "ai") // Only send user and AI messages
+        .map((msg) => ({
+          role: msg.type === "ai" ? "assistant" : "user", // Map 'ai' to 'assistant' for the API
+          content: msg.content,
+        }));
+      // The current question is already the last item in messagesForApi if it's a 'user' message
+
+      try {
+        const apiResponse = await fetch("/api/ask", {
+          // Calls your backend API endpoint
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          // Send the formatted messages array and the slug
+          body: JSON.stringify({
+            messages: messagesForApi,
+            slug: postSlug,
+            readerId: currentReaderId,
+            sessionId: currentSessionId,
+            currentUserQuestion: question, // This is the 'question' variable from the outer scope
+          }),
+        });
+
+        const data = await apiResponse.json();
+
+        // Remove the "Fetching answer..." system message
+        chatHistory.pop();
+
+        if (apiResponse.ok) {
+          chatHistory.push({ type: "ai", content: data.answer });
+        } else {
+          chatHistory.push({
+            type: "error",
+            content: `Error: ${data.error || "Failed to get an answer from the AI."}`,
+          });
+        }
+      } catch (error) {
+        console.error("Client-side fetch error:", error);
+        // Remove the "Fetching answer..." system message if it's still there on error
+        if (
+          chatHistory.length > 0 &&
+          chatHistory[chatHistory.length - 1].type === "system"
+        ) {
+          chatHistory.pop();
+        }
+        chatHistory.push({
+          type: "error",
+          content:
+            "A network error occurred. Please check your connection and try again.",
+        });
+      } finally {
+        renderChatHistory();
+        // Re-enable button and update its text based on input content
+        askButton.disabled = false;
+        questionInput.value = ""; // Clear the input field
+        updateButtonState(); // This will set it to "Close" because the input is now empty
+      }
+    });
+
+    // Optional: Allow submitting with Enter key (Shift+Enter for new line)
+    questionInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault(); // Prevent default Enter behavior (new line)
+        askButton.click(); // Trigger button click
+      }
+    });
+  });
+</script>
+
+<style>
+  .assistant-ui-container {
+    /* This container holds the AI response and input panes */
+    /* It will be a flex item in the main 3-pane layout */
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0; /* Prevents this container from shrinking if content is too large */
+    border-bottom: 1px solid var(--blgc-main-surface-secondary, #ddd); /* Separator for content below */
+  }
+
+  .assistant-pane {
+    padding: 1rem;
+  }
+
+  #ai-response-pane {
+    /* Aim for ~5 lines of text. Adjust height based on your font and line-height. */
+    /* 1.2em line-height * 5 lines = 6em. Add padding: 6em + 2rem (padding top/bottom) */
+    height: calc(5 * 1.4em + 2rem); /* Example: 1.4em line-height */
+    overflow-y: auto; /* Makes this pane scrollable if content exceeds height */
+    background-color: var(--blgc-main-surface-primary, #f9f9f9);
+    line-height: 1.4em; /* Adjust to match your desired line spacing */
+    /* border-bottom is removed as it's now below the input pane */
+  }
+  #ai-response-pane p {
+    /* This might be obsolete if all messages are divs */
+    margin: 0;
+  }
+
+  .chat-message {
+    padding: 0.5em 0.8em;
+    margin-bottom: 0.5em;
+    border-radius: 8px;
+    max-width: 90%;
+    word-wrap: break-word; /* Ensure long words don't overflow */
+  }
+
+  .user-message {
+    background-color: var(--blgc-text-primary, #333);
+    color: white;
+    margin-left: auto; /* Align to the right */
+    text-align: right;
+  }
+
+  .ai-message {
+    background-color: var(--blgc-main-surface-secondary, #e6d9ce);
+    color: var(--blgc-text-primary, #3d3d3d);
+    margin-right: auto; /* Align to the left */
+  }
+
+  .system-message {
+    font-style: italic;
+    color: var(--blgc-text-secondary, #5d5d5d);
+    text-align: center;
+    font-size: 0.9em;
+    background-color: transparent;
+  }
+
+  .error-message {
+    background-color: #ffebee; /* Light red background for errors */
+    color: #c62828; /* Darker red text for errors */
+    border: 1px solid #ef9a9a;
+    margin-right: auto; /* Align to the left */
+  }
+
+  .chat-pair-separator {
+    height: 1px;
+    background-color: var(--blgc-main-surface-secondary, #ddd);
+    margin: 1em auto; /* Centered with vertical margin */
+    width: 95%; /* Slightly less than full width for a subtle effect */
+  }
+
+  #ai-input-pane {
+    background-color: #ffffff;
+    border-bottom: 1px solid var(--blgc-main-surface-secondary, #ddd); /* Added border to separate from response pane */
+    /* display: flex; // Flex is now on the inner .input-controls */
+    /* flex-direction: column; // Not needed here anymore */
+    /* gap: 0.75rem; // Gap is now within .input-controls or handled by margins */
+  }
+
+  .input-controls {
+    /* New style for the wrapper */
+    display: flex;
+    gap: 0.75rem; /* Space between textarea and button */
+    align-items: stretch; /* Make items stretch to fill height */
+  }
+
+  /* New style to control the alignment of the ChipButton's wrapper in this specific context */
+  .ai-panel-chip-button-wrapper {
+    align-self: center; /* Center the fixed-height button wrapper vertically next to the textarea */
+  }
+
+  #ai-question-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit; /* Use the blog's font */
+    font-size: 0.95rem;
+    line-height: 1.4em; /* For the textarea itself */
+    resize: none; /* User cannot resize the textarea */
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+  }
+
+  /* 
+    The styles for #ask-ai-button (related to chip look), 
+    .chip-button-wrapper, and .chip-leg are now removed 
+    as they are handled by the ChipButton.astro component.
+    The :hover and :disabled states for the button are also
+    handled within ChipButton.astro.
+  */
+
+  /* #ask-ai-button specific styles (if any beyond ChipButton's base) would go here,
+     but ChipButton.astro should cover common styling.
+     If #ask-ai-button needs unique styling not covered by ChipButton,
+     ensure ChipButton.astro allows passing a class or that its internal
+     button can be targeted specifically if needed, e.g., by its ID.
+     For now, assuming ChipButton's default styling is sufficient.
+  */
+
+  .scrollable-pane {
+    overflow-y: auto; /* General class for scrollable panes */
+  }
+</style>
