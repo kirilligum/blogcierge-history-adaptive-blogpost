@@ -56,11 +56,28 @@ export async function getStaticPaths() {
   const blogEntries = await getCollection("blog");
   return blogEntries.map((entry) => ({
     params: { slug: entry.slug },
-    props: { entry },
+    // props: { entry }, // Props from getStaticPaths are not directly passed to Astro.props in SSR for dynamic routes.
+                       // The entry is fetched below using Astro.params.slug.
   }));
 }
 
-const { entry } = Astro.props;
+const { slug } = Astro.params;
+
+if (typeof slug !== 'string') {
+  // This should ideally not be reached if the route pattern is matched correctly by Astro.
+  console.error("[SSR Blog Page] Error: Slug is undefined or not a string from Astro.params.");
+  // Return a 400 Bad Request response as the slug is essential for this page.
+  return new Response("Invalid request: Slug parameter is missing or invalid.", { status: 400 });
+}
+
+const entry = await getEntryBySlug("blog", slug);
+
+if (!entry) {
+  // If no entry is found for the given slug, return a 404 Not Found response.
+  console.warn(`[SSR Blog Page] No blog entry found for slug: ${slug}`);
+  return new Response(null, { status: 404, statusText: "Not Found" });
+}
+
 // OriginalContentComponent is used as a fallback if personalization fails or is not applicable
 const { Content: OriginalContentComponent } = await entry.render();
 
