@@ -6,6 +6,7 @@ import type { APIRoute } from "astro";
 // ADD:
 import { getCollection, getEntryBySlug } from "astro:content"; // Added getEntryBySlug
 import type { KVNamespace, R2Bucket } from "@cloudflare/workers-types"; // Added R2Bucket
+import { getApiKey } from "../../utils/apiKey";
 
 // CACHE_TTL_SECONDS for individual questions remains the same
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 60; // 2 months (60 days)
@@ -21,21 +22,6 @@ function normalizeQuestionForCache(question: string): string {
     .replace(/[^\w\s]/gi, "")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-// Helper function to retrieve API key
-function getApiKey(locals: App.Locals, devMode: boolean): string | undefined {
-  // Attempt to get API key from Cloudflare runtime environment
-  if (locals.runtime?.env?.LLAMA_API_KEY) {
-    return locals.runtime.env.LLAMA_API_KEY;
-  }
-
-  // If API key is not found via runtime AND in local development mode,
-  // attempt to get it from Vite's `import.meta.env`.
-  if (devMode && import.meta.env.LLAMA_API_KEY) {
-    return import.meta.env.LLAMA_API_KEY;
-  }
-  return undefined;
 }
 
 // Helper function to generate R2 object key
