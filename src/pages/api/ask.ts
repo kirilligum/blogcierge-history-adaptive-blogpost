@@ -4,7 +4,7 @@ import type { APIRoute } from "astro";
 // REMOVE:
 // import { getEntryBySlug } from "astro:content";
 // ADD:
-import { getCollection } from "astro:content";
+import { getCollection, getEntryBySlug } from "astro:content"; // Added getEntryBySlug
 import type { KVNamespace, R2Bucket } from "@cloudflare/workers-types"; // Added R2Bucket
 
 // CACHE_TTL_SECONDS for individual questions remains the same
@@ -461,10 +461,13 @@ No additional text or explanation outside this JSON object.`;
     };
 
     let answererResponse;
-    const attemptNumber = 1; // No retry logic anymore
+    let attemptNumber = 1; 
+    let finalLlmSuccessful = false;
+    let llmOutputString; // To store the successful LLM output string
+    let actualProviderUsed = DEFAULT_MODEL; // Initialize, might be updated by fallback
 
     console.log(
-      `[DEBUG] Calling LLM. Model: ${answererPayload.model}. API URL: ${LLAMA_API_URL}`,
+      `[LLM_CALL] Attempt ${attemptNumber}: Calling LLM with all posts context. Model: ${answererPayload.model}. API URL: ${LLAMA_API_URL}`,
     );
     console.log(
       "[MOCKING_LOG] LLM Input Payload:",
@@ -500,10 +503,11 @@ No additional text or explanation outside this JSON object.`;
     }
 
     if (!answererResponse.ok) {
-      const errorText = await answererResponse.text();
+      const primaryErrorText = await answererResponse.text();
+      const primaryStatus = answererResponse.status;
       console.error(
-        `LLM API Error: Status ${answererResponse.status}`,
-        errorText.substring(0, 500),
+        `[LLM_CALL] Attempt ${attemptNumber} FAILED: Status ${primaryStatus}`,
+        primaryErrorText.substring(0, 500),
       );
       if (aiLogsBucket && r2Key) {
         const logData = {
@@ -512,37 +516,129 @@ No additional text or explanation outside this JSON object.`;
           blogSlug: slug,
           turnTimestampUTC: turnTimestamp,
           userQuestion: currentUserQuestion,
-          errorDetails: `LLM API Error: Status ${answererResponse.status}. Details: ${errorText.substring(0, 1000)}`,
-          source: "error_llm_api_response",
+          errorDetails: `LLM API Error (Primary Attempt): Status ${primaryStatus}. Details: ${primaryErrorText.substring(0, 1000)}`,
+          source: "error_llm_api_response_primary",
+          attempt: attemptNumber,
         };
         locals.runtime.ctx.waitUntil(
           aiLogsBucket.put(r2Key, JSON.stringify(logData)),
         );
       }
-      return new Response(
-        JSON.stringify({
-          error: `AI service returned an error: ${answererResponse.status}. Details: ${errorText}`,
-        }),
-        {
-          status: answererResponse.status,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+
+      // --- BEGIN FALLBACK LOGIC ---
+      attemptNumber = 2;
+      console.log(`[LLM_CALL] Attempt ${attemptNumber}: FALLBACK - Fetching current blog post content for slug: ${slug}`);
+
+      let currentPostBodyForFallback: string | null = null;
+      try {
+        const currentPostEntry = await getEntryBySlug("blog", slug); // Use the slug from the request
+        if (!currentPostEntry) {
+          console.error(`[FALLBACK_CONTEXT] Error: Blog post with slug '${slug}' not found for fallback.`);
+          if (aiLogsBucket && r2Key) {
+            const logData = { sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, errorDetails: `Fallback context retrieval failed: Blog post with slug '${slug}' not found. Primary LLM error was: Status ${primaryStatus}, ${primaryErrorText.substring(0,200)}`, source: "error_fallback_context_not_found", attempt: attemptNumber-1 };
+            locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify(logData)));
+          }
+          return new Response(JSON.stringify({ error: `AI service primary attempt failed (Status ${primaryStatus}). Fallback context retrieval also failed: post '${slug}' not found.` }), { status: primaryStatus, headers: { "Content-Type": "application/json" } });
+        }
+        currentPostBodyForFallback = currentPostEntry.body;
+        console.log(`[FALLBACK_CONTEXT] Successfully fetched content for slug '${slug}'.`);
+      } catch (e) {
+        console.error(`[FALLBACK_CONTEXT] Error fetching blog post '${slug}' for fallback:`, e);
+        if (aiLogsBucket && r2Key) {
+            const logData = { sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, errorDetails: `Fallback context retrieval failed: Error fetching post '${slug}'. Details: ${e instanceof Error ? e.message : String(e)}. Primary LLM error was: Status ${primaryStatus}, ${primaryErrorText.substring(0,200)}`, source: "error_fallback_context_fetch", attempt: attemptNumber-1 };
+            locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify(logData)));
+        }
+        return new Response(JSON.stringify({ error: `AI service primary attempt failed (Status ${primaryStatus}). Fallback context retrieval also failed: error fetching post '${slug}'.` }), { status: primaryStatus, headers: { "Content-Type": "application/json" } });
+      }
+
+      if (currentPostBodyForFallback) {
+        const fallbackSystemPrompt = `You are an expert assistant for a technical blog.
+Your task is to analyze the user's query in relation to THE PROVIDED BLOG POST CONTENT (current post only), then respond in a specific JSON format.
+This is a fallback attempt because a previous attempt with broader context (all site posts) failed. Focus your answer only on the single blog post provided below.
+
+The user is asking their question while viewing the blog post with slug: '${slug}'.
+
+THE blog post content is provided below:
+--- BEGIN CURRENT BLOG POST CONTENT ---
+${currentPostBodyForFallback}
+--- END CURRENT BLOG POST CONTENT ---
+
+Use the chat history below for context if relevant to the current question.
+
+You MUST output your response as a single JSON object adhering to the following schema:
+{
+  "type": "object",
+  "properties": {
+    "relation": { "type": "string", "description": "Explanation of how the query relates to THE blog post content or its broader topics." },
+    "related": { "type": "boolean", "description": "True if the query is relevant, false otherwise." },
+    "response": { "type": "string", "description": "The answer to the query if relevant, or an empty string if not relevant." }
+  },
+  "required": ["relation", "related", "response"]
+}
+No additional text or explanation outside this JSON object.`;
+
+        const fallbackPayload = {
+          ...answererPayload, // Spread original payload (model, max_tokens, temp, etc.)
+          messages: [ // Override messages to change system prompt
+            { role: "system", content: fallbackSystemPrompt },
+            ...(body.messages || []), // Keep the original chat history
+          ],
+        };
+
+        console.log(`[LLM_CALL] Attempt ${attemptNumber}: Calling LLM with fallback (single post) context.`);
+        console.log("[MOCKING_LOG] Fallback LLM Input Payload:", JSON.stringify(fallbackPayload, null, 2));
+
+        try {
+          answererResponse = await fetch(LLAMA_API_URL, { // Re-assign answererResponse
+            method: "POST",
+            headers: commonHeaders,
+            body: JSON.stringify(fallbackPayload),
+          });
+        } catch (fetchErrorFallback) {
+          console.error(`[LLM_CALL] Attempt ${attemptNumber} (Fallback) FETCH FAILED:`, fetchErrorFallback);
+          if (aiLogsBucket && r2Key) {
+            const logData = { sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, errorDetails: `LLM API fetch error (Fallback Attempt): ${fetchErrorFallback instanceof Error ? fetchErrorFallback.message : String(fetchErrorFallback)}`, source: "error_llm_api_fetch_fallback", attempt: attemptNumber };
+            locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify(logData)));
+          }
+          return new Response(JSON.stringify({ error: "Failed to connect to the AI service on fallback attempt." }), { status: 503, headers: { "Content-Type": "application/json" } });
+        }
+
+        if (answererResponse.ok) {
+          console.log(`[LLM_CALL] Attempt ${attemptNumber} (Fallback) SUCCEEDED.`);
+          finalLlmSuccessful = true;
+          const answerDataFallback = await answererResponse.json();
+          llmOutputString = answerDataFallback.completion_message?.content?.text;
+          actualProviderUsed = DEFAULT_MODEL; // Or derive if different for fallback
+        } else {
+          const fallbackErrorText = await answererResponse.text();
+          console.error(`[LLM_CALL] Attempt ${attemptNumber} (Fallback) FAILED: Status ${answererResponse.status}`, fallbackErrorText.substring(0, 500));
+          if (aiLogsBucket && r2Key) {
+            const logData = { sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, errorDetails: `LLM API Error (Fallback Attempt): Status ${answererResponse.status}. Details: ${fallbackErrorText.substring(0, 1000)}`, source: "error_llm_api_response_fallback", attempt: attemptNumber };
+            locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify(logData)));
+          }
+          return new Response(JSON.stringify({ error: `AI service fallback attempt also failed (Status ${answererResponse.status}). Details: ${fallbackErrorText}` }), { status: answererResponse.status, headers: { "Content-Type": "application/json" } });
+        }
+      } else {
+        // This case should be covered by earlier returns if currentPostBodyForFallback is null.
+        // For safety, returning the primary error if somehow reached.
+        return new Response(JSON.stringify({ error: `AI service primary attempt failed (Status ${primaryStatus}). Fallback context was not available.` }), { status: primaryStatus, headers: { "Content-Type": "application/json" } });
+      }
+      // --- END FALLBACK LOGIC ---
+    } else {
+      // Primary LLM call was successful
+      console.log(`[LLM_CALL] Attempt ${attemptNumber} (Primary) SUCCEEDED.`);
+      finalLlmSuccessful = true;
+      const answerData = await answererResponse.json();
+      llmOutputString = answerData.completion_message?.content?.text;
+      actualProviderUsed = DEFAULT_MODEL; // From primary attempt
     }
 
-    const answerData = await answererResponse.json();
-    // For Llama API, the actual provider used isn't relevant in the same way as OpenRouter.
-    // We can log the model used.
-    const actualProviderUsed = DEFAULT_MODEL; // Or derive from answerData if available
-    
-    // Adjusting to the Llama.com API response structure observed in logs
-    let llmOutputString = answerData.completion_message?.content?.text;
-
-    if (!llmOutputString) {
-      // Removed the .choices and .reasoning fallback as it's not applicable
+    if (!finalLlmSuccessful || !llmOutputString) {
+      // This should ideally not be reached if all error paths return a Response.
+      // If llmOutputString is null/undefined after a supposedly successful call.
       console.error(
-        "LLM response content is missing or empty. Expected at answerData.completion_message.content.text:",
-        JSON.stringify(answerData).substring(0, 500),
+        "LLM response content is missing or empty after successful call flag. LLM Output:", llmOutputString ? llmOutputString.substring(0,100) : "undefined",
+        "Raw response object (if available):", answererResponse ? JSON.stringify(await answererResponse.json()).substring(0,500) : "N/A"
       );
       if (aiLogsBucket && r2Key) {
           const logData = {
@@ -551,8 +647,9 @@ No additional text or explanation outside this JSON object.`;
             blogSlug: slug,
             turnTimestampUTC: turnTimestamp,
             userQuestion: currentUserQuestion,
-            errorDetails: "LLM response content was missing or empty.",
+            errorDetails: "LLM response content was missing or empty after successful call.",
             source: "error_llm_empty_response_content",
+            attempt: attemptNumber, // Add attempt number
           };
           locals.runtime.ctx.waitUntil(
             aiLogsBucket.put(r2Key, JSON.stringify(logData)),
@@ -590,6 +687,7 @@ No additional text or explanation outside this JSON object.`;
           userQuestion: currentUserQuestion,
           errorDetails: `Failed to parse LLM JSON. Error: ${e instanceof Error ? e.message : String(e)}. Raw: ${llmOutputString.substring(0, 500)}`,
           source: "error_llm_json_parse",
+          attempt: attemptNumber, // Add attempt number
         };
         locals.runtime.ctx.waitUntil(
           aiLogsBucket.put(r2Key, JSON.stringify(logData)),
@@ -623,6 +721,7 @@ No additional text or explanation outside this JSON object.`;
           userQuestion: currentUserQuestion,
           errorDetails: `LLM JSON response did not match expected schema. Received: ${JSON.stringify(parsedLlmJson).substring(0, 500)}`,
           source: "error_llm_schema_mismatch",
+          attempt: attemptNumber, // Add attempt number
         };
         locals.runtime.ctx.waitUntil(
           aiLogsBucket.put(r2Key, JSON.stringify(logData)),
@@ -661,7 +760,7 @@ No additional text or explanation outside this JSON object.`;
           aiRelatedFlag: related,
           systemResponse: corkyResponse,
           source: "system_filter_off_topic",
-          attempt: attemptNumber, // Log which attempt led to this
+          attempt: attemptNumber, 
           providerUsed: actualProviderUsed,
         };
         locals.runtime.ctx.waitUntil(
@@ -707,8 +806,8 @@ No additional text or explanation outside this JSON object.`;
         aiRawRelation: relation,
         aiRelatedFlag: related,
         aiResponse: finalAnswer,
-        source: "llm",
-        modelUsed: DEFAULT_MODEL, // Or answerData.choices?.[0]?.model if more specific
+        source: attemptNumber === 1 ? "llm_primary" : "llm_fallback_single_post", // Differentiate source
+        modelUsed: DEFAULT_MODEL, 
         attempt: attemptNumber,
         providerUsed: actualProviderUsed,
       };
