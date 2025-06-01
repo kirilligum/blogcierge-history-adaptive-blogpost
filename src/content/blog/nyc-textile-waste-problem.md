@@ -67,7 +67,7 @@ It's crucial to understand that landfills are not passive, benign storage sites 
 
 ## Why Should New Yorkers Care? The Local Impact
 
-The issue of textile waste is not an abstract environmental problem happening "somewhere else"—it has tangible connections to the lives of New Yorkers. Firstly, there's the direct financial impact. As mentioned, the management and disposal of this vast quantity of waste are funded by NYC taxpayers. [\[3\]](#citation-3) Every ton of clothing sent to a landfill represents a cost that could potentially be avoided or reallocated if more sustainable solutions were widely adopted.
+The issue of textile waste is not an abstract environmental problem happening "somewhere else"—it has tangible connections to the lives of New Yorkers. Firstly, there's the direct financial impact. As mentioned, the management and disposal of this vast quantity of waste are funded by NYC taxpayers. [\[3\]](https://www.baruch.cuny.edu/nycdata/environmental/textiles-recycling.htm) Every ton of clothing sent to a landfill represents a cost that could potentially be avoided or reallocated if more sustainable solutions were widely adopted.
 
 Secondly, while much of NYC's physical waste is exported to landfills outside the five boroughs, the principle of responsibility for the environmental degradation caused remains. The pollution generated—be it greenhouse gases or chemical leachate—contributes to broader environmental challenges that affect air quality, water systems, and ecosystems that New Yorkers depend on or value.
 
