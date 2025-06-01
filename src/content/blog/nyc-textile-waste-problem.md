@@ -48,12 +48,12 @@ To better grasp the magnitude, consider this snapshot:
 
 | Metric                                    | Data                                                                 | Source(s)                                                     |
 | :---------------------------------------- | :------------------------------------------------------------------- | :------------------------------------------------------------ |
-| Total Annual Textile Waste                | Over 200,000 tons                                                    | [\[1\]](#citation-1), [\[2\]](#citation-2)                    |
-| Average Textile Waste per New Yorker      | Approx. 46 pounds/year                                               | [\[3\]](#citation-3)                                          |
-| Textile Waste as % of Residential Waste | 6%                                                                   | [\[3\]](#citation-3)                                          |
-| Primary Disposal Method                   | Landfills                                                            | [\[1\]](#citation-1), [\[3\]](#citation-3)                    |
-| Key Environmental Impacts                 | Methane emissions, toxic leachate, resource depletion                | [\[2\]](#citation-2), [\[4\]](#citation-4)                    |
-| Financial Implication                     | Cost to NYC taxpayers for waste management                           | [\[3\]](#citation-3)                                          |
+| Total Annual Textile Waste                | Over 200,000 tons                                                    | [\[1\]](https://www.nyc.gov/assets/dsny/docs/about/2017-06-Textile-Pilot-Report_draft10.pdf), [\[2\]](https://news.climate.columbia.edu/2024/07/02/scaling-the-mountains-of-textile-waste-in-new-york-city/)                    |
+| Average Textile Waste per New Yorker      | Approx. 46 pounds/year                                               | [\[3\]](https://www.baruch.cuny.edu/nycdata/environmental/textiles-recycling.htm)                                          |
+| Textile Waste as % of Residential Waste | 6%                                                                   | [\[3\]](https://www.baruch.cuny.edu/nycdata/environmental/textiles-recycling.htm)                                          |
+| Primary Disposal Method                   | Landfills                                                            | [\[1\]](https://www.nyc.gov/assets/dsny/docs/about/2017-06-Textile-Pilot-Report_draft10.pdf), [\[3\]](https://www.baruch.cuny.edu/nycdata/environmental/textiles-recycling.htm)                    |
+| Key Environmental Impacts                 | Methane emissions, toxic leachate, resource depletion                | [\[2\]](https://news.climate.columbia.edu/2024/07/02/scaling-the-mountains-of-textile-waste-in-new-york-city/), [\[4\]](https://innovation.fitnyc.edu/recycling-textiles-with-chemistry-more/)                    |
+| Financial Implication                     | Cost to NYC taxpayers for waste management                           | [\[3\]](https://www.baruch.cuny.edu/nycdata/environmental/textiles-recycling.htm)                                          |
 
 ## Where Does It All Go? NYC's Landfills and the Textile Burden
 
