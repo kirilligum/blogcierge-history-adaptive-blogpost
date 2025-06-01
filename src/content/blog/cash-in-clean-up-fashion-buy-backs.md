@@ -104,12 +104,3 @@ New York City, with its fashion-forward populace and influential market, is perf
 *   **Spread the Word:** Share information about these programs with friends, family, and your social networks. The more people who participate, the greater the collective impact.
 
 The journey toward a sustainable fashion industry is complex, but fashion buy-back programs offer a clear, effective, and rewarding way for both brands and consumers to participate. By cashing in those old clothes, New Yorkers can play an active role in cleaning up our city's **textile waste**, reducing the environmental toll of **fast fashion**, and helping to build a truly **Circular Economy** for the future.
-
-**Specialized Terms Used in This Post (and where explained previously):**
-
-*   **Circular Economy:** Explained in Post 4 (Section II: What is a Circular Economy in Fashion? The Core Principles).
-*   **Textile Waste Lifecycle & Impacts (Landfills, Carbon Footprint):** Detailed in Post 1 (Section II: The Shocking Scale: Just How Much Clothing Does NYC Throw Away? and Section III: Where Does It All Go? NYC's Landfills and the Textile Burden) and Post 2 (Section III: The Environmental Footprint: Beyond the Landfill).
-*   **Fast Fashion:** Defined and its impacts discussed in Post 2 (Section I: Introduction: The Allure and the Aftermath and Section II: The Engine of Overconsumption: How Fast Fashion Fuels NYC's Textile Mountains).
-*   **Limitations of Current Recycling/Donation Models:** Discussed in Post 3 (Section IV: The Limits of Traditional Recycling and Donation).
-*   **Life Cycle Assessment (LCA):** Introduced in Post 4 (Section IV: Understanding the Full Journey: What is a Life Cycle Assessment (LCA)?).
-*   **Extended Producer Responsibility (EPR):** Defined in this post (Post 5, Section IV: The Bigger Picture: Buy-Backs and Extended Producer Responsibility (EPR)), building on general themes of producer responsibility discussed in Post 4.
