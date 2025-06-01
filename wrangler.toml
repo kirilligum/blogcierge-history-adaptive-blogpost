@@ -72,6 +72,12 @@ binding = "BLGC_USER_INTERACTIONS_KV"
 id = "YOUR_NEW_KV_NAMESPACE_ID" # Replace with your actual KV namespace ID
 preview_id = "YOUR_NEW_KV_NAMESPACE_ID_FOR_PREVIEW" # Replace with your actual KV namespace ID for preview
 
+# ADD: New KV namespace for all blog posts content
+[[kv_namespaces]]
+binding = "BLGC_SITE_CONTENT_CACHE"
+id = "YOUR_SITE_CONTENT_KV_ID" # Replace with actual ID from Cloudflare dashboard
+preview_id = "YOUR_SITE_CONTENT_KV_PREVIEW_ID" # Replace with actual ID for preview (can be same as id)
+
 # Bind another Worker service. Use this binding to call another Worker without network overhead.
 # Docs: https://developers.cloudflare.com/pages/functions/bindings/#service-bindings
 # [[services]]

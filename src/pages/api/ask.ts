@@ -1,11 +1,18 @@
 export const prerender = false; // This ensures the file is treated as a dynamic serverless function
 
 import type { APIRoute } from "astro";
-import { getEntryBySlug } from "astro:content";
+// REMOVE:
+// import { getEntryBySlug } from "astro:content";
+// ADD:
+import { getCollection } from "astro:content";
 import type { KVNamespace, R2Bucket } from "@cloudflare/workers-types"; // Added R2Bucket
 
-// CACHE_TTL_SECONDS remains the same
+// CACHE_TTL_SECONDS for individual questions remains the same
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 60; // 2 months (60 days)
+
+// ADD: Constants for all-posts content cache
+const ALL_POSTS_CACHE_KEY = "ALL_POSTS_CONCATENATED_V1";
+const ALL_POSTS_CACHE_TTL_SECONDS = 60 * 60 * 24; // 1 day (adjust as needed)
 
 function normalizeQuestionForCache(question: string): string {
   // Normalize by converting to lowercase, removing punctuation, and collapsing multiple spaces
@@ -52,6 +59,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
   // Define aiLogsBucket at the top of the function scope, before the try block
   const aiLogsBucket = locals.runtime?.env?.BLGC_AI_LOGS_BUCKET;
   const userInteractionsKV = locals.runtime?.env?.BLGC_USER_INTERACTIONS_KV as KVNamespace | undefined;
+  // ADD: Access the new KV namespace for site content
+  const siteContentCache = locals.runtime?.env?.BLGC_SITE_CONTENT_CACHE as KVNamespace | undefined;
 
   // Declare variables that might be used in the catch block if an early error occurs
   let slug: string | undefined;
@@ -99,54 +108,113 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     // User question logging will be combined with the response/error logging later.
 
-    // --- MODIFIED SECTION: Fetching blog post content ---
-    let postBodyForContext: string;
-    try {
-      const postEntry = await getEntryBySlug("blog", slug);
-      if (!postEntry) {
-        console.error(`Blog post with slug "${slug}" not found.`);
+    // --- START REPLACEMENT: Fetching ALL blog post content with KV Caching ---
+    let allPostsConcatenatedBody: string | null = null;
+
+    if (siteContentCache) {
+      try {
+        console.log(`[CACHE_ALL_POSTS] Attempting to read from KV: ${ALL_POSTS_CACHE_KEY}`);
+        allPostsConcatenatedBody = await siteContentCache.get(ALL_POSTS_CACHE_KEY);
+        if (allPostsConcatenatedBody) {
+          console.log(`[CACHE_ALL_POSTS] HIT: Found all posts content in KV.`);
+        } else {
+          console.log(`[CACHE_ALL_POSTS] MISS: All posts content not found in KV.`);
+        }
+      } catch (kvError) {
+        console.error(`[CACHE_ALL_POSTS] Error reading from KV for ${ALL_POSTS_CACHE_KEY}:`, kvError);
+        // Proceed to fetch from source, allPostsConcatenatedBody remains null.
+      }
+    }
+
+    if (!allPostsConcatenatedBody) {
+      console.log("[CACHE_ALL_POSTS] Fetching all posts from astro:content as it was not in KV or KV read failed.");
+      try {
+        const allEntries = await getCollection("blog");
+
+        if (!allEntries || allEntries.length === 0) {
+          console.error(`No blog posts found in the collection.`);
+          if (aiLogsBucket && r2Key) {
+            const logData = {
+              sessionId,
+              readerId,
+              blogSlug: slug, // Log the current page's slug
+              turnTimestampUTC: turnTimestamp,
+              userQuestion: currentUserQuestion,
+              errorDetails: `Context Error: No blog posts found in collection.`,
+              source: "error_context_no_posts_in_collection",
+            };
+            locals.runtime.ctx.waitUntil(
+              aiLogsBucket.put(r2Key, JSON.stringify(logData)),
+            );
+          }
+          return new Response(
+            JSON.stringify({ error: "Blog post context not available (no posts found)." }),
+            { status: 404 },
+          );
+        }
+
+        const concatenatedBodyFromSource = allEntries
+          .map(
+            (entry) =>
+              `--- BEGIN BLOG POST: ${entry.slug} (Title: ${entry.data.title}) ---\n${entry.body}\n--- END BLOG POST: ${entry.slug} ---`,
+          )
+          .join("\n\n");
+        
+        allPostsConcatenatedBody = concatenatedBodyFromSource;
+
+        if (siteContentCache && allPostsConcatenatedBody) {
+          console.log(`[CACHE_ALL_POSTS] Writing fetched all posts content to KV: ${ALL_POSTS_CACHE_KEY}`);
+          locals.runtime.ctx.waitUntil(
+            siteContentCache.put(ALL_POSTS_CACHE_KEY, allPostsConcatenatedBody, {
+              expirationTtl: ALL_POSTS_CACHE_TTL_SECONDS,
+            })
+            .then(() => console.log(`[CACHE_ALL_POSTS] Successfully wrote all posts content to KV.`))
+            .catch((kvWriteError) => console.error(`[CACHE_ALL_POSTS] Error writing all posts content to KV:`, kvWriteError))
+          );
+        }
+      } catch (e) {
+        console.error(`Error fetching blog post collection:`, e);
         if (aiLogsBucket && r2Key) {
           const logData = {
             sessionId,
             readerId,
-            blogSlug: slug,
+            blogSlug: slug, // Log the current page's slug
             turnTimestampUTC: turnTimestamp,
             userQuestion: currentUserQuestion,
-            errorDetails: `Context Error: Blog post with slug '${slug}' not found.`,
-            source: "error_context",
+            errorDetails: `Context Error: Failed to fetch blog post collection. Details: ${e instanceof Error ? e.message : String(e)}`,
+            source: "error_context_collection_fetch",
           };
           locals.runtime.ctx.waitUntil(
             aiLogsBucket.put(r2Key, JSON.stringify(logData)),
           );
         }
-        return new Response(
-          JSON.stringify({ error: "Blog post context not found." }),
-          { status: 404 },
-        );
+        // If fetching from source fails, allPostsConcatenatedBody might still be null.
+        // The check below will handle returning an error.
       }
-      postBodyForContext = postEntry.body;
-    } catch (e) {
-      console.error(`Error fetching blog post with slug "${slug}":`, e);
+    }
+
+    if (!allPostsConcatenatedBody) {
+      console.error(`CRITICAL: All blog post content could not be retrieved from cache or source.`);
       if (aiLogsBucket && r2Key) {
-        const logData = {
-          sessionId,
-          readerId,
-          blogSlug: slug,
-          turnTimestampUTC: turnTimestamp,
-          userQuestion: currentUserQuestion,
-          errorDetails: `Context Error: Failed to fetch blog post '${slug}'. Details: ${e instanceof Error ? e.message : String(e)}`,
-          source: "error_context_fetch",
-        };
-        locals.runtime.ctx.waitUntil(
-          aiLogsBucket.put(r2Key, JSON.stringify(logData)),
-        );
+          const logData = {
+              sessionId,
+              readerId,
+              blogSlug: slug,
+              turnTimestampUTC: turnTimestamp,
+              userQuestion: currentUserQuestion,
+              errorDetails: `Context Error: Failed to retrieve concatenated blog post content from both KV cache and astro:content.`,
+              source: "error_context_retrieval_failed_completely",
+          };
+          locals.runtime.ctx.waitUntil(
+              aiLogsBucket.put(r2Key, JSON.stringify(logData))
+          );
       }
       return new Response(
-        JSON.stringify({ error: "Failed to retrieve blog post context." }),
-        { status: 500 },
+          JSON.stringify({ error: "Critical error: Blog post context unavailable." }),
+          { status: 500 },
       );
     }
-    // --- END MODIFIED SECTION ---
+    // --- END REPLACEMENT: Fetching ALL blog post content with KV Caching ---
 
     // 3. Securely access the API key
     const apiKey = getApiKey(locals, import.meta.env.DEV);
@@ -301,6 +369,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const siteUrl = new URL(request.url).origin; // Get site's base URL
 
     // --- Define Payload for the Answering LLM ---
+    // llmResponseSchema remains the same
     const llmResponseSchema = {
       name: "blogPostAssistantResponse", // A descriptive name for the schema
       strict: true, // Enforce schema strictly, as per Cerebras docs for best results
@@ -328,8 +397,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       },
     };
 
+    // MODIFY: Update the system prompt
     const answererSystemPrompt = `You are an expert assistant for a technical blog.
-Your task is to analyze the user's query in relation to the provided blog post content and its broader subject matter, then respond in a specific JSON format.
+Your task is to analyze the user's query in relation to ALL the provided blog post content from the entire site, then respond in a specific JSON format.
 
 Instructions:
 1.  **Explain Relation**: Briefly explain how the user's query relates to the provided blog post content, OR to the broader topics, technologies, and concepts discussed or implied within the blog post.
@@ -343,10 +413,12 @@ Instructions:
     *   A query is **not relevant** if it introduces subjects or themes that share no discernible conceptual, logical, or hierarchical connection to the blog post's explicit content or its clearly established subject area, thereby falling outside its thematic boundaries and conceptual scope.
 3.  **Answer if Relevant**: If the query is relevant (true), provide a concise, technically deep answer (around 5 lines or less, focusing on definitions or key concepts from the blog post or related topics as appropriate). If the query is not relevant (false), the 'response' field in the JSON MUST be an empty string.
 
-The user is asking about the following blog post content:
---- BEGIN BLOG POST ---
-${postBodyForContext}
---- END BLOG POST ---
+The user is asking their question while viewing the blog post with slug: '${slug}'. Use this information if it helps to frame your response or understand the user's immediate point of reference.
+
+All available blog post content is provided below:
+--- BEGIN ALL BLOG POSTS CONTENT ---
+${allPostsConcatenatedBody}
+--- END ALL BLOG POSTS CONTENT ---
 
 Use the chat history below for context if relevant to the current question.
 

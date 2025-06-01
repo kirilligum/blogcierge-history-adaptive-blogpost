@@ -9,6 +9,8 @@ interface Env {
   BLGC_BLOGPOST_AI_CACHE: KVNamespace; // KV namespace binding for "blgc blogpost ai"
   BLGC_AI_LOGS_BUCKET: R2Bucket; // R2 bucket binding for AI conversation logs
   BLGC_USER_INTERACTIONS_KV: KVNamespace; // KV namespace for user interactions
+  // ADD: New KV namespace for all blog posts content
+  BLGC_SITE_CONTENT_CACHE: KVNamespace;
   // Add other Cloudflare bindings (D1, R2, etc.) here if you use them
 }
 
