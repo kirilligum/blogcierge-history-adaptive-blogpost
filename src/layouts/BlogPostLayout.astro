@@ -825,5 +825,41 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
         assistantObserver.observe(assistantContainer, { attributes: true });
       });
     </script>
+
+    <script is:inline>
+      // This script runs on the client to ensure deviceId is in a cookie
+      // This is the new script for Phase 1
+      function ensureDeviceIdCookie() {
+        if (typeof localStorage === 'undefined' || typeof document === 'undefined') return;
+
+        let deviceId = localStorage.getItem("blgcUserDeviceID"); // Ensure this key matches your other uses
+        if (!deviceId) {
+          deviceId = crypto.randomUUID();
+          localStorage.setItem("blgcUserDeviceID", deviceId);
+        }
+
+        const cookieName = "blgcUserDeviceID_cookie";
+        let existingCookieValue = null;
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          let cookie = cookies[i].trim();
+          if (cookie.startsWith(cookieName + "=")) {
+            existingCookieValue = cookie.substring(cookieName.length + 1);
+            break;
+          }
+        }
+
+        if (existingCookieValue !== deviceId) {
+          const d = new Date();
+          // Set cookie to expire in 60 days
+          d.setTime(d.getTime() + (60 * 24 * 60 * 60 * 1000));
+          const expires = "expires=" + d.toUTCString();
+          // Added Secure flag; SameSite=Lax is a good default
+          document.cookie = `${cookieName}=${deviceId};${expires};path=/;SameSite=Lax;Secure`;
+        }
+      }
+      // Call the function immediately on script load
+      ensureDeviceIdCookie();
+    </script>
   </body>
 </html>
