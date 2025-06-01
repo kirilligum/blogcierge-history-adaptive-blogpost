@@ -275,8 +275,7 @@ Focus on clarity and conciseness. The output should be ready-to-render Markdown.
       contentSourceDebug = "original_ssr_no_history";
       console.log(`[SSR Tailoring] No significant interaction history for ${deviceId} on ${currentPostSlug}. Serving original content.`);
     }
-  }
-} else if (!deviceId) { // This 'else if' is for the outer 'if (deviceId)'
+  } else if (!deviceId) { // This 'else if' is for the outer 'if (deviceId)'
     contentSourceDebug = "original_ssr_no_cookie";
     console.log(`[SSR Tailoring] No deviceId cookie found. Serving original content for ${currentPostSlug || entry.slug}.`); // Use entry.slug if currentPostSlug is undefined
 }
