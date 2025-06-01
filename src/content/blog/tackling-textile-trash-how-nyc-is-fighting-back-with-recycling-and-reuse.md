@@ -33,7 +33,6 @@ citation:
   "8": "https://thebronxjournal.com/2025/01/03/the-sustainable-fashion-community-center/"
   "9": "https://news.climate.columbia.edu/2024/07/02/scaling-the-mountains-of-textile-waste-in-new-york-city/"
   "10": "Source: Quality of fast fashion & textile-to-textile recycling challenges (URL not explicitly provided)"
-}
 ---
 # Tackling Textile Trash: How NYC is Fighting Back with Recycling and Reuse
 
