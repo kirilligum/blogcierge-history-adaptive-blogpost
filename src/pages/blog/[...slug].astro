@@ -222,16 +222,45 @@ Focus on clarity and conciseness. The output should be ready-to-render Markdown.
     }
     // If finalContentToRender is still null at this point, the OriginalContentComponent will be used.
 
-// Remove processedMarkdownHtml and its associated logic.
-// Astro.markdown.render will be called directly in the template if finalContentToRender is a valid string.
+let processedMarkdownHtml: string | null = null; // This will hold the HTML string from Markdown
+
+if (finalContentToRender && typeof finalContentToRender === 'string' && finalContentToRender.trim() !== '') {
+  // Check if Astro.markdown.render is available.
+  if (Astro.markdown && typeof Astro.markdown.render === 'function') {
+    try {
+      const renderResult = await Astro.markdown.render(finalContentToRender);
+      processedMarkdownHtml = renderResult.code; // .code contains the HTML string
+      // contentSourceDebug would have been set to "llm_generated_ssr" or "cache_ssr" already
+    } catch (e) {
+      console.error(`[SSR Tailoring] Error during Astro.markdown.render for slug ${entry.slug}:`, e);
+      contentSourceDebug += ";markdown_render_error"; // Append to existing debug info
+      // Force fallback to OriginalContentComponent if markdown rendering fails
+      finalContentToRender = null; 
+      processedMarkdownHtml = null;
+    }
+  } else {
+    // This case should ideally not happen in a standard Astro setup.
+    console.error(`[SSR Tailoring] CRITICAL: Astro.markdown.render is not available for slug ${entry.slug}! Falling back to original content.`);
+    contentSourceDebug += ";markdown_unavailable"; // Append to existing debug info
+    finalContentToRender = null; // Force fallback
+    processedMarkdownHtml = null;
+  }
+} else if (finalContentToRender) {
+  // Handle cases where finalContentToRender might be non-string (e.g. if logic changes) or empty string
+  // This ensures we fall back if it's not a valid non-empty string for rendering.
+  console.warn(`[SSR Tailoring] finalContentToRender was not a non-empty string for slug ${entry.slug}. Type: ${typeof finalContentToRender}. Value: '${String(finalContentToRender).substring(0,50)}...' Falling back.`);
+  finalContentToRender = null; // Ensure fallback
+  processedMarkdownHtml = null;
+}
+
 
 console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || 'N/A'}, Source: ${contentSourceDebug}`);
 ---
 
 <BlogPostLayout frontmatter={entry.data} slug={entry.slug}>
   <div class="post-body">
-    {typeof finalContentToRender === 'string' && finalContentToRender.trim() !== '' ? (
-      <Fragment set:html={Astro.markdown.render(finalContentToRender)} />
+    {finalContentToRender && processedMarkdownHtml ? (
+      <Fragment set:html={processedMarkdownHtml} />
     ) : (
       <OriginalContentComponent />
     )}
