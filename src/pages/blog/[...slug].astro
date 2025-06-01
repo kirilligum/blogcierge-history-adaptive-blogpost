@@ -22,6 +22,10 @@ const LLAMA_API_URL = "https://api.llama.com/v1/chat/completions";
 const DEFAULT_MODEL = "Llama-4-Maverick-17B-128E-Instruct-FP8"; 
 
 async function getUserInteractionHistory(kv: KVNamespace, deviceId: string): Promise<{ readPostSlugs: string[], chatMessages: any[] }> {
+  console.log(`[SSR Tailoring - getUserInteractionHistory] Entry. kv type: ${typeof kv}, kv truthy: ${!!kv}`);
+  if (kv && typeof kv.list !== 'function') {
+    console.warn(`[SSR Tailoring - getUserInteractionHistory] kv object lacks .list() method!`);
+  }
   const readPostSlugsSet = new Set<string>();
   const chatMessages: any[] = [];
   
@@ -122,6 +126,11 @@ const deviceId = Astro.cookies.get("blgcUserDeviceID_cookie")?.value;
 
 if (deviceId) {
   const userInteractionsKV = Astro.locals.runtime?.env?.BLGC_USER_INTERACTIONS_KV as KVNamespace | undefined;
+  console.log(`[SSR Tailoring - KV Declared] userInteractionsKV type: ${typeof userInteractionsKV}, isTruthy: ${!!userInteractionsKV}`);
+  if (userInteractionsKV && typeof userInteractionsKV.get !== 'function') {
+    console.warn("[SSR Tailoring - KV Declared] userInteractionsKV is an object but lacks a .get() method!");
+  }
+
   const tailoredContentCache = Astro.locals.runtime?.env?.BLGC_BLOGPOST_AI_CACHE as KVNamespace | undefined;
   const currentPostSlug = entry.slug;
   const cacheKey = `tailored_ssr::${currentPostSlug}::${deviceId}`;
@@ -154,7 +163,9 @@ if (deviceId) {
     console.log(`[SSR Tailoring] Content already available (source: ${contentSourceDebug}), skipping LLM call for ${currentPostSlug}.`);
   } else {
     // Path A or C: Cache MISS (finalContentToRender is null)
+    console.log(`[SSR Tailoring - In Cache Miss Logic] About to check userInteractionsKV. Type: ${typeof userInteractionsKV}, isTruthy: ${!!userInteractionsKV}`);
     if (userInteractionsKV) { // Check 1: KV available?
+      console.log(`[SSR Tailoring - In Cache Miss Logic] userInteractionsKV IS truthy. Proceeding to getUserInteractionHistory.`);
       // Path A: Cache MISS, KV available
       const { readPostSlugs, chatMessages } = await getUserInteractionHistory(userInteractionsKV, deviceId);
 
