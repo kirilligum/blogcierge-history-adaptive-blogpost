@@ -82,6 +82,9 @@ if (!entry) {
 // OriginalContentComponent is used as a fallback if personalization fails or is not applicable
 const { Content: OriginalContentComponent } = await entry.render();
 
+// Ensure originalMarkdown is explicitly defined for clarity
+const originalMarkdown = entry.body;
+
 let finalContentToRender: string | null = null; // This will hold the personalized Markdown string
 let contentSourceDebug = "original_static_fallback_ssr"; // For debugging the content source
 
@@ -299,7 +302,140 @@ console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || 'N/A'}
     ) : (
       <OriginalContentComponent /> /* Fallback to original if personalized content couldn't be rendered */
     )}
+
+      {/* ADDED: Diff button and container */}
+      {/* This will also be part of the content slotted into BlogPostLayout's .post-body div */}
+      {finalContentToRender && finalContentToRender !== originalMarkdown && (
+        <div id="diff-container-wrapper">
+          <button id="show-diff-button" type="button">Show Personalized Changes</button>
+          <div id="diff-output" class="hidden">
+            {/* Diff content will be rendered here by the client-side script */}
+          </div>
+        </div>
+      )}
     {/* For debugging, you can uncomment this to see the content source on the page: */}
     {/* <p style="font-size: 0.8em; color: grey; margin-top: 2em; text-align: center; background: #f0f0f0; padding: 5px;">Content Source: {contentSourceDebug}</p> */}
   </div>
 </BlogPostLayout>
+
+<script define:vars={{ originalMarkdown, tailoredMarkdown: finalContentToRender }}>
+  function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') {
+      return '';
+    }
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const showDiffButton = document.getElementById('show-diff-button');
+    const diffOutputDiv = document.getElementById('diff-output');
+
+    // 'originalMarkdown' and 'tailoredMarkdown' are available here from define:vars.
+    // The button and diffOutputDiv will only exist if finalContentToRender was present
+    // and different from originalMarkdown, due to Astro's conditional rendering.
+
+    if (showDiffButton && diffOutputDiv) {
+      showDiffButton.addEventListener('click', () => {
+        // Ensure tailoredMarkdown is treated as a string, even if it might be null/undefined
+        // though Astro's conditional rendering should prevent that if the button exists.
+        const currentTailoredMarkdown = typeof tailoredMarkdown === 'string' ? tailoredMarkdown : '';
+
+        if (diffOutputDiv.classList.contains('hidden')) {
+          // Generate and display diff (simple side-by-side preformatted text)
+          diffOutputDiv.innerHTML = `
+            <div class="diff-section">
+              <h3>Original Content</h3>
+              <pre class="diff-content-pre">${escapeHtml(originalMarkdown)}</pre>
+            </div>
+            <div class="diff-section">
+              <h3>Personalized Content</h3>
+              <pre class="diff-content-pre">${escapeHtml(currentTailoredMarkdown)}</pre>
+            </div>
+          `;
+          diffOutputDiv.classList.remove('hidden');
+          showDiffButton.textContent = 'Hide Personalized Changes';
+        } else {
+          diffOutputDiv.classList.add('hidden');
+          diffOutputDiv.innerHTML = ''; // Clear content when hiding
+          showDiffButton.textContent = 'Show Personalized Changes';
+        }
+      });
+    }
+  });
+</script>
+
+<style>
+  #diff-container-wrapper {
+    margin-top: 3rem; /* Space above the diff section */
+    padding-top: 2rem; /* Padding above the button */
+    border-top: 1px solid var(--cstm-main-surface-secondary, #eee); /* Separator line */
+    text-align: center; /* Center the button */
+  }
+
+  #show-diff-button {
+    background-color: var(--cstm-main-surface-secondary, #e6d9ce);
+    color: var(--cstm-text-primary, #3d3d3d);
+    border: 1px solid var(--cstm-text-secondary, #5d5d5d);
+    padding: 0.6em 1.2em;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    margin-bottom: 1.5rem; /* Space below the button */
+  }
+
+  #show-diff-button:hover {
+    background-color: var(--cstm-text-secondary, #5d5d5d);
+    color: white;
+  }
+
+  #diff-output {
+    border: 1px solid var(--cstm-main-surface-secondary, #ddd);
+    padding: 1.5rem;
+    margin-top: 1rem;
+    background-color: #fdfdfd; /* Slightly off-white background for the diff area */
+    text-align: left; /* Reset text-align for content */
+  }
+
+  #diff-output.hidden {
+    display: none;
+  }
+
+  .diff-section {
+    margin-bottom: 2rem;
+  }
+  .diff-section:last-child {
+    margin-bottom: 0;
+  }
+
+  .diff-section h3 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-family: var(--font-body);
+    color: var(--cstm-text-primary);
+    font-size: 1.2rem;
+    border-bottom: 1px solid var(--cstm-main-surface-secondary, #eee);
+    padding-bottom: 0.5rem;
+  }
+
+  .diff-content-pre {
+    white-space: pre-wrap; /* Allows text to wrap */
+    word-wrap: break-word; /* Breaks long words to prevent overflow */
+    background-color: #fff;
+    padding: 1rem;
+    border: 1px solid var(--cstm-main-surface-secondary, #eee);
+    border-radius: 4px;
+    max-height: 400px; /* Limits height */
+    overflow-y: auto;   /* Adds scrollbar if content exceeds max-height */
+    font-family: monospace;
+    font-size: 0.9em;
+    line-height: 1.5;
+  }
+</style>
