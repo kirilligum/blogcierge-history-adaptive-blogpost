@@ -18,7 +18,7 @@ import Layout from "../layouts/Layout.astro";
 				</div>
 				<h2>
 					We optimize the blogpost content for each user based on their reading
-					history.
+					history and questions to AI.
 				</h2>
 				<div class="hero-bullets">
 					<ul>
@@ -28,7 +28,11 @@ import Layout from "../layouts/Layout.astro";
 					</ul>
 				</div>
 				<div class="qr-code-container">
-					<img src="/images/website-qr.png" alt="QR code for website" class="website-qr-code" />
+					<img
+						src="/images/website-qr.png"
+						alt="QR code for website"
+						class="website-qr-code"
+					/>
 					<p>Scan to visit!</p>
 				</div>
 			</div>
@@ -217,29 +221,29 @@ import Layout from "../layouts/Layout.astro";
 				}
 			}
 
-		.qr-code-container {
-			display: flex;
-			flex-direction: column;
-			align-items: center; /* Centers the img and p elements */
-			text-align: center; /* Ensures text within p is centered */
-			margin-top: 3rem;
-			margin-bottom: 2rem;
-		}
+			.qr-code-container {
+				display: flex;
+				flex-direction: column;
+				align-items: center; /* Centers the img and p elements */
+				text-align: center; /* Ensures text within p is centered */
+				margin-top: 3rem;
+				margin-bottom: 2rem;
+			}
 
-		.website-qr-code {
-			width: 600px; /* Doubled size */
-			height: 600px; /* Doubled size */
-			border: 5px solid var(--cstm-main-surface-secondary); /* Optional border */
-			border-radius: 8px; /* Optional rounded corners */
-			padding: 5px; /* Optional padding inside border */
-			background-color: white; /* Ensure background is white if QR has transparency */
-		}
+			.website-qr-code {
+				width: 600px; /* Doubled size */
+				height: 600px; /* Doubled size */
+				border: 5px solid var(--cstm-main-surface-secondary); /* Optional border */
+				border-radius: 8px; /* Optional rounded corners */
+				padding: 5px; /* Optional padding inside border */
+				background-color: white; /* Ensure background is white if QR has transparency */
+			}
 
-		.qr-code-container p {
-			margin-top: 0.5rem;
-			font-size: 0.9em;
-			color: var(--cstm-text-secondary);
-		}
+			.qr-code-container p {
+				margin-top: 0.5rem;
+				font-size: 0.9em;
+				color: var(--cstm-text-secondary);
+			}
 		</style>
 	</main>
 </Layout>
