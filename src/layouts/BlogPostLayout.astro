@@ -12,12 +12,16 @@ interface Props {
     author?: string;
     date?: string | Date;
     description?: string;
+    tags?: string[];
+    familiar_concepts?: string[];
+    new_concepts?: string[];
+    citation?: Record<string, string>;
   };
   slug: string;
 }
 
 const { frontmatter, slug } = Astro.props;
-const { title, author, date, description } = frontmatter;
+const { title, author, date, description, tags, familiar_concepts, new_concepts, citation } = frontmatter;
 
 let datetimeAttrValue = "";
 if (date) {
@@ -86,12 +90,54 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
                     )
                   }
                 </p>
+                {tags && tags.length > 0 && (
+                  <div class="post-tags">
+                    <strong>Tags:</strong>
+                    <ul>
+                      {tags.map(tag => <li><span>{tag}</span></li>)}
+                    </ul>
+                  </div>
+                )}
                 {description && <p class="post-lede">{description}</p>}
               </header>
+
+              {(familiar_concepts && familiar_concepts.length > 0) || (new_concepts && new_concepts.length > 0) ? (
+                <div class="concepts-section">
+                  {familiar_concepts && familiar_concepts.length > 0 && (
+                    <div class="concept-list familiar-concepts">
+                      <h3>What you should know</h3>
+                      <ul>
+                        {familiar_concepts.map(concept => <li>{concept}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {new_concepts && new_concepts.length > 0 && (
+                    <div class="concept-list new-concepts">
+                      <h3>What you will learn</h3>
+                      <ul>
+                        {new_concepts.map(concept => <li>{concept}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
               <div class="post-body">
-                <slot />
-                {/* The actual Markdown content of the blog post */}
+                <slot /> {/* The actual Markdown content of the blog post */}
               </div>
+
+              {citation && Object.keys(citation).length > 0 && (
+                <div class="citations-section">
+                  <h3>References</h3>
+                  <ol>
+                    {Object.entries(citation).map(([key, value]) => (
+                      <li>
+                        <span class="citation-key">[{key}]</span> {value.includes('https://') || value.includes('http://') ? <a href={value.match(/https?:\/\/[^\s]+/)?.[0]} target="_blank" rel="noopener noreferrer">{value}</a> : value}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </article>
           </main>
           <SiteFooter />
@@ -202,6 +248,100 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
       .post-body {
         font-family: "Libre Baskerville", serif;
       }
+
+      .post-tags {
+        margin-top: 1rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.9em;
+        color: var(--cstm-text-secondary);
+      }
+      .post-tags strong {
+        color: var(--cstm-text-primary);
+      }
+      .post-tags ul {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem 0 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .post-tags li span {
+        background-color: var(--cstm-main-surface-secondary);
+        padding: 0.25em 0.75em;
+        border-radius: 15px;
+        font-size: 0.9em;
+        color: var(--cstm-text-primary);
+      }
+
+      .concepts-section {
+        background-color: #f9f9f9; /* Light background for the section */
+        border: 1px solid var(--cstm-main-surface-secondary);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2.5rem;
+        font-size: 0.95em;
+      }
+      .concepts-section h3 {
+        font-family: var(--font-body);
+        font-size: 1.3rem !important; /* Override post-body h3 if necessary */
+        color: var(--cstm-text-primary) !important;
+        margin-top: 0 !important;
+        margin-bottom: 1rem !important;
+        border-bottom: 1px solid var(--cstm-main-surface-secondary);
+        padding-bottom: 0.5rem;
+      }
+      .concepts-section .concept-list {
+        margin-bottom: 1.5rem;
+      }
+      .concepts-section .concept-list:last-child {
+        margin-bottom: 0;
+      }
+      .concepts-section ul {
+        list-style: disc;
+        padding-left: 1.5rem;
+        margin: 0;
+      }
+      .concepts-section li {
+        margin-bottom: 0.5rem;
+        line-height: 1.6;
+      }
+
+      .citations-section {
+        margin-top: 3rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--cstm-main-surface-secondary);
+        font-size: 0.9em;
+      }
+      .citations-section h3 {
+        font-family: var(--font-body);
+        font-size: 1.5rem !important;
+        color: var(--cstm-text-primary) !important;
+        margin-top: 0 !important;
+        margin-bottom: 1.5rem !important;
+      }
+      .citations-section ol {
+        list-style: none;
+        padding-left: 0;
+      }
+      .citations-section li {
+        margin-bottom: 0.75rem;
+        line-height: 1.6;
+        color: var(--cstm-text-secondary);
+      }
+      .citations-section .citation-key {
+        font-weight: bold;
+        color: var(--cstm-text-primary);
+        margin-right: 0.5em;
+      }
+      .citations-section a {
+        color: var(--cstm-text-primary);
+        text-decoration: underline;
+      }
+      .citations-section a:hover {
+        text-decoration: none;
+      }
+
       /* Global styles for Markdown content within .post-body */
       .post-body h2 {
         font-family: var(--font-body);

@@ -30,6 +30,14 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
             {post.data.description && (
               <p class="post-description">{post.data.description}</p>
             )}
+            {post.data.tags && post.data.tags.length > 0 && (
+              <div class="post-tags-list">
+                {post.data.tags.slice(0, 5).map(tag => ( // Show up to 5 tags
+                  <span class="tag-item">{tag}</span>
+                ))}
+                {post.data.tags.length > 5 && <span class="tag-item">...</span>}
+              </div>
+            )}
             <a href={`/blog/${post.slug}/`} class="read-more-link">
               Read more &rarr;
             </a>
@@ -133,5 +141,21 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
   .read-more-link:hover {
     color: var(--cstm-text-primary); /* Darken text on hover */
     border-bottom-color: var(--cstm-text-primary); /* Show underline on hover */
+  }
+
+  .post-tags-list {
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .tag-item {
+    background-color: var(--cstm-main-surface-primary);
+    color: var(--cstm-text-secondary);
+    padding: 0.2em 0.6em;
+    border-radius: 12px;
+    font-size: 0.8em;
+    border: 1px solid var(--cstm-main-surface-secondary);
   }
 </style>
