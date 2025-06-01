@@ -131,7 +131,7 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
                   <h3>References</h3>
                   <ol>
                     {Object.entries(citation).map(([key, value]) => (
-                      <li>
+                      <li id={`citation-${key}`}> {/* Added id attribute here */}
                         <span class="citation-key">[{key}]</span> {value.includes('https://') || value.includes('http://') ? <a href={value.match(/https?:\/\/[^\s]+/)?.[0]} target="_blank" rel="noopener noreferrer">{value}</a> : value}
                       </li>
                     ))}

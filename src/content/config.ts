@@ -10,7 +10,7 @@ const blogCollection = defineCollection({
     tags: z.array(z.string()).optional(),
     familiar_concepts: z.array(z.string()).optional(),
     new_concepts: z.array(z.string()).optional(),
-    citation: z.object({}).optional(), // Assuming it's an object, potentially empty
+    citation: z.record(z.string()).optional(), // Correctly define as a record of strings
     // Add any other frontmatter fields you use
   }),
 });
