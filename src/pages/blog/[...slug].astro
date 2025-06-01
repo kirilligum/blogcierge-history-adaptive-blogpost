@@ -152,6 +152,7 @@ if (deviceId) {
 
     // Only attempt LLM call if there's some history to personalize with
     if (readPostSlugs.length > 0 || chatMessages.length > 0) {
+      if (currentPostSlug) {
       let readPostsCombinedContent = "";
       for (const readSlug of readPostSlugs) {
         if (readSlug === currentPostSlug) continue; // Don't include current post in "previously read"
@@ -257,17 +258,18 @@ Focus on clarity and conciseness. The output should be ready-to-render Markdown.
         contentSourceDebug = "original_ssr_no_kv_access";
         console.warn(`[SSR Tailoring] User Interactions KV not available AND no cached content. Serving original content for ${currentPostSlug}.`);
       }
-      // If it reaches here and finalContentToRender is still null, it means:
-      // - deviceId was present
-      // - currentPostSlug was defined
-      // - No cache hit
-      // - userInteractionsKV was available
-      // - But some condition for LLM call wasn't met (e.g., no history, or API key missing)
-      //   (contentSourceDebug would be "original_ssr_no_history" or "original_ssr_no_apikey")
-    } else { // This new else corresponds to 'if (currentPostSlug)'
-      console.warn(`[SSR Tailoring] Skipping personalization for device ${deviceId} because currentPostSlug is undefined (problem with entry.slug).`);
-      if (contentSourceDebug === "original_static_fallback_ssr" || contentSourceDebug === "error_entry_slug_problem_ssr") {
-          contentSourceDebug = "skipped_personalization_due_to_bad_slug_ssr";
+        // If it reaches here and finalContentToRender is still null, it means:
+        // - deviceId was present
+        // - currentPostSlug was defined
+        // - No cache hit
+        // - userInteractionsKV was available
+        // - But some condition for LLM call wasn't met (e.g., no history, or API key missing)
+        //   (contentSourceDebug would be "original_ssr_no_history" or "original_ssr_no_apikey")
+      } else { // This new else corresponds to 'if (currentPostSlug)'
+        console.warn(`[SSR Tailoring] Skipping personalization for device ${deviceId} because currentPostSlug is undefined (problem with entry.slug).`);
+        if (contentSourceDebug === "original_static_fallback_ssr" || contentSourceDebug === "error_entry_slug_problem_ssr") {
+            contentSourceDebug = "skipped_personalization_due_to_bad_slug_ssr";
+        }
       }
     }
   } else if (!deviceId) { // This 'else if' is for the outer 'if (deviceId)'
