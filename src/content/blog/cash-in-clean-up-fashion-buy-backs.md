@@ -1,7 +1,8 @@
 ---
+
 title: "Cash In, Clean Up: Why Fashion Buy-Backs are a Game-Changer for NYC's Environment"
 author: "Kirill Igumenshchev"
-date: "2025-06-01T07:55:00Z"
+date: "2025-06-01T08:01:44Z"
 description: "Fashion brand buy-back programs offer incentives for returning used clothes, promoting reuse, reducing waste, and supporting a circular economy, aligning with Extended Producer Responsibility principles."
 tags:
   - "Fashion buy-back programs"
@@ -32,6 +33,7 @@ citation:
   "4": "https://dec.ny.gov/environmental-protection/recycling-composting/product-stewardship-extended-producer-responsibility"
   "5": "https://www.complianceandrisks.com/blog/extended-producer-responsibility-for-textiles-washington-and-new-york-make-the-first-move/"
 ---
+
 
 # Cash In, Clean Up: Why Fashion Buy-Backs are a Game-Changer for NYC's Environment
 
