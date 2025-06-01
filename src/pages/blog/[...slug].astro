@@ -272,7 +272,7 @@ Focus on clarity and conciseness. The output should be ready-to-render Markdown.
     }
   } else if (!deviceId) { // This 'else if' is for the outer 'if (deviceId)'
       contentSourceDebug = "original_ssr_no_cookie";
-      console.log(`[SSR Tailoring] No deviceId cookie found. Serving original content for ${currentPostSlug || entry.slug}`); // Use entry.slug if currentPostSlug is undefined
+      console.log(`[SSR Tailoring] No deviceId cookie found. Serving original content for ${currentPostSlug || entry.slug}.`); // Use entry.slug if currentPostSlug is undefined
   }
   // If finalContentToRender is still null at this point, the OriginalContentComponent will be used.
 
