@@ -51,6 +51,7 @@ const DEFAULT_MODEL = "Llama-4-Maverick-17B-128E-Instruct-FP8";
 export const POST: APIRoute = async ({ request, locals }) => {
   // Define aiLogsBucket at the top of the function scope, before the try block
   const aiLogsBucket = locals.runtime?.env?.BLGC_AI_LOGS_BUCKET;
+  const userInteractionsKV = locals.runtime?.env?.BLGC_USER_INTERACTIONS_KV as KVNamespace | undefined;
 
   // Declare variables that might be used in the catch block if an early error occurs
   let slug: string | undefined;
@@ -648,6 +649,48 @@ No additional text or explanation outside this JSON object.`;
           .catch((e) =>
             console.error(`Error logging LLM response to R2 for ${r2Key}:`, e),
           ),
+      );
+    }
+
+    // Log successful LLM response to R2 (this part already exists)
+    // ... existing R2 logging for LLM response ...
+
+    // NEW: Log interaction to KV
+    if (userInteractionsKV && readerId && slug && turnTimestamp && currentUserQuestion && finalAnswer) {
+      const interactionDate = new Date(turnTimestamp).toISOString().split('T')[0]; // YYYY-MM-DD
+      const kvKey = `${readerId}/${interactionDate}/${slug}`;
+
+      const userMessageEntry = {
+        role: 'user',
+        content: currentUserQuestion, // This is the user's direct question for this turn
+        timestamp: turnTimestamp, // Timestamp of the user's question
+      };
+      const aiMessageEntry = {
+        role: 'ai',
+        content: finalAnswer, // The AI's response for this turn
+        timestamp: new Date().toISOString(), // Timestamp for when AI response is finalized
+      };
+
+      locals.runtime.ctx.waitUntil(
+        (async () => {
+          try {
+            let currentData = await userInteractionsKV.get<any>(kvKey, { type: 'json' });
+            if (!currentData) {
+              currentData = { read: true, messages: [] }; // If asking, assume they've "read"
+            } else if (typeof currentData.read === 'undefined' || !currentData.read) {
+              currentData.read = true; // Ensure read is true if messages are being added
+            }
+            if (!currentData.messages) {
+                currentData.messages = []; // Ensure messages array exists
+            }
+            currentData.messages.push(userMessageEntry);
+            currentData.messages.push(aiMessageEntry);
+            await userInteractionsKV.put(kvKey, JSON.stringify(currentData));
+            console.log(`Interaction messages stored in KV: ${kvKey}`);
+          } catch (e) {
+            console.error(`KV store error for /api/ask messages (${kvKey}):`, e);
+          }
+        })()
       );
     }
 

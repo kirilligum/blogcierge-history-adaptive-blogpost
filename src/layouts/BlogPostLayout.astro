@@ -560,6 +560,52 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
       <ChipButton id="floating-ask-ai-button" type="button">Ask AI</ChipButton>
     </div>
 
+    <script define:vars={{ postSlug: slug }}>
+      // Client-side script for tracking blog post reads
+      // This script is separate from the word highlighting and FAB logic below.
+      // It uses the postSlug passed from Astro props via define:vars.
+      function getOrSetDeviceIDForTracking() {
+        // Ensure localStorage is available
+        if (typeof localStorage === 'undefined') {
+          console.warn("localStorage not available for tracking.");
+          return null; 
+        }
+        let deviceId = localStorage.getItem("blgcUserDeviceID");
+        if (!deviceId) {
+          deviceId = crypto.randomUUID();
+          localStorage.setItem("blgcUserDeviceID", deviceId);
+        }
+        return deviceId;
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const deviceId = getOrSetDeviceIDForTracking();
+        if (!deviceId) return; // Don't proceed if deviceId couldn't be obtained
+
+        const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+        // The 'postSlug' variable is directly available here due to define:vars={{ postSlug: slug }}
+        fetch('/api/track-interaction', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            deviceId: deviceId,
+            date: currentDate,
+            slug: postSlug, 
+            interactionType: 'read'
+          }),
+        })
+        .then(response => {
+          if (!response.ok) {
+            response.text().then(text => console.error('Failed to track blog post read. Server response:', text));
+          } else {
+            console.log('Blog post read tracked successfully.');
+          }
+        })
+        .catch(err => console.error('Error tracking blog post read:', err));
+      });
+    </script>
+
     <script>
       // Constants for word highlighting
       const CLICKABLE_WORD_CLASS = "clickable-word";

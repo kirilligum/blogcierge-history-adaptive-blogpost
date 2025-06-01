@@ -67,6 +67,11 @@ binding = "BLGC_AI_LOGS_BUCKET"                # How you'll access it in the cod
 bucket_name = "blgc-blogpost-ai-turns"         # The actual name of your R2 bucket in Cloudflare
 preview_bucket_name = "blgc-blogpost-ai-turns" # For local dev, wrangler will use/create this in .wrangler/state
 
+[[kv_namespaces]]
+binding = "BLGC_USER_INTERACTIONS_KV"
+id = "YOUR_NEW_KV_NAMESPACE_ID" # Replace with your actual KV namespace ID
+preview_id = "YOUR_NEW_KV_NAMESPACE_ID_FOR_PREVIEW" # Replace with your actual KV namespace ID for preview
+
 # Bind another Worker service. Use this binding to call another Worker without network overhead.
 # Docs: https://developers.cloudflare.com/pages/functions/bindings/#service-bindings
 # [[services]]

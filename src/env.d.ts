@@ -8,6 +8,7 @@ interface Env {
   LLAMA_API_KEY: string; // For Cloudflare runtime
   BLGC_BLOGPOST_AI_CACHE: KVNamespace; // KV namespace binding for "blgc blogpost ai"
   BLGC_AI_LOGS_BUCKET: R2Bucket; // R2 bucket binding for AI conversation logs
+  BLGC_USER_INTERACTIONS_KV: KVNamespace; // KV namespace for user interactions
   // Add other Cloudflare bindings (D1, R2, etc.) here if you use them
 }
 
