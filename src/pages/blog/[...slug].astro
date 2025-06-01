@@ -271,6 +271,9 @@ Focus on clarity and conciseness. The output should be ready-to-render Markdown.
             contentSourceDebug = "skipped_personalization_due_to_bad_slug_ssr";
         }
       }
+    } else {
+      contentSourceDebug = "original_ssr_no_history";
+      console.log(`[SSR Tailoring] No significant interaction history for ${deviceId} on ${currentPostSlug}. Serving original content.`);
     }
   } else if (!deviceId) { // This 'else if' is for the outer 'if (deviceId)'
       contentSourceDebug = "original_ssr_no_cookie";
