@@ -12,18 +12,21 @@ tags:
   - "water pollution fashion"
   - "sustainable fashion alternatives"
   - "Gen Z fashion trends"
-familiar_concepts: []
+familiar_concepts:
+  - "The core problem of NYC's textile waste (from Post 1)."
+  - "Basic understanding of fashion trends and online shopping."
 new_concepts:
-  - "How fast fashion's business model (including micro-seasons and social media influence) drives overconsumption and exacerbates textile waste. [1, 2]"
-  - "The global environmental footprint of fast fashion, including its significant contributions to carbon emissions [2, 3, 4], water consumption and pollution [1, 3, 5], and resource depletion (e.g., fossil fuels for synthetics, deforestation). [1, 2]"
-  - "The social costs associated with fast fashion, such as poor labor conditions. [1]"
-  - "The concept of \"exported\" environmental costs (where consumption in one region drives pollution elsewhere). [6, 2]"
+  - "The definition of \"fast fashion\" (mass production of trendy, low-cost clothing with rapid turnover)."
+  - "How fast fashion's business model (including micro-seasons and social media influence) drives overconsumption and exacerbates textile waste."
+  - "The global environmental footprint of fast fashion, including its significant contributions to: Carbon emissions; Water consumption and pollution; Resource depletion (e.g., fossil fuels for synthetics, deforestation)."
+  - "The social costs associated with fast fashion, such as poor labor conditions."
+  - "The concept of \"exported\" environmental costs (where consumption in one region drives pollution elsewhere)."
 citation:
-  "1": "https://barnard.edu/news/changes-gen-z-consumers-can-make-prevent-fast-fashion-wrecking-planet"
-  "2": "https://cri.org/oped-new-yorks-fashion-industry-is-hurting-the-planet/"
-  "3": "https://unfccc.int/news/un-helps-fashion-industry-shift-to-low-carbon"
-  "4": "https://carbonliteracy.com/fast-fashions-carbon-footprint/"
-  "5": "https://www.colorado.edu/ecenter/2023/12/15/sustainable-guide-thrifting"
+  "1": "https://barnard.edu/news/changes-gen-z-consumers-can-make-prevent-fast-fashion-wrecking-planet (Defines fast fashion, its link to micro-trends, social media, low-quality materials, and environmental consequences like CO2, water pollution, and toxic chemicals.)"
+  "2": "https://cri.org/oped-new-yorks-fashion-industry-is-hurting-the-planet/ (Details how fast fashion (Shein, Temu, H&M) encourages overconsumption, leading to waste, deforestation, and significant greenhouse gas emissions.)"
+  "3": "https://unfccc.int/news/un-helps-fashion-industry-shift-to-low-carbon (States the fashion industry's ~10% contribution to global greenhouse gas emissions and its high energy and water consumption.)"
+  "4": "https://carbonliteracy.com/fast-fashions-carbon-footprint/ (Highlights the 1.2 billion tonnes of carbon emissions annually from the fashion industry and the impact of manufacturing, transportation, and landfill.)"
+  "5": "https://www.colorado.edu/ecenter/2023/12/15/sustainable-guide-thrifting (Mentions the large volume of clothing Americans throw away and the resource depletion, like water for jeans, and chemical pollution from textile manufacturing.)"
   "6": "Missing citation for reference [6]"
 ---
 
