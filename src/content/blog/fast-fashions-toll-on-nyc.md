@@ -1,7 +1,8 @@
 ---
+
 title: "Fast Fashion's Toll on NYC: More Than Just a Wardrobe Malfunction"
 author: "Kirill Igumenshchev"
-date: "2024-07-29T12:00:00Z"
+date: "2025-06-01T07:21:09Z"
 description: "Fast fashion's rapid, low-cost production model fuels overconsumption and massive textile waste in NYC, with significant global environmental and social costs, from carbon emissions to exploitative labor."
 tags:
   - "Fast fashion NYC"
@@ -28,6 +29,7 @@ citation:
   "4": "https://carbonliteracy.com/fast-fashions-carbon-footprint/ (Highlights the 1.2 billion tonnes of carbon emissions annually from the fashion industry and the impact of manufacturing, transportation, and landfill.)"
   "5": "https://www.colorado.edu/ecenter/2023/12/15/sustainable-guide-thrifting (Mentions the large volume of clothing Americans throw away and the resource depletion, like water for jeans, and chemical pollution from textile manufacturing.)"
 ---
+
 
 # Fast Fashion's Toll on NYC: More Than Just a Wardrobe Malfunction
 

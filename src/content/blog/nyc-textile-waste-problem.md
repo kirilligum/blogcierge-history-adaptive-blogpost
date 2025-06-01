@@ -1,7 +1,8 @@
 ---
+
 title: "The Big Apple's Big Textile Problem: Unpacking NYC's Mountain of Clothing Waste"
 author: "Kirill Igumenshchev"
-date: "2025-06-01T10:00:00Z"
+date: "2025-06-01T07:06:17Z"
 description: "NYC discards over 200,000 tons of textiles annually, filling landfills, releasing methane, and costing taxpayers. This post explores the shocking scale and local impact of this fashion waste crisis."
 tags:
   - "NYC textile waste"
@@ -29,6 +30,7 @@ citation:
   "4": "https://innovation.fitnyc.edu/recycling-textiles-with-chemistry-more/ (Highlights the environmental burden of textile waste, including chemical pollution from landfill leachate.)"
   "5": "https://www.bu.edu/sph/news/articles/2022/the-aftermath-of-fast-fashion-how-discarded-clothes-impact-public-health-and-the-environment/ (Explains the decomposition process in landfills, the release of gas and chemical leachates, and the disproportionate location of landfills.)"
 ---
+
 
 # The Big Apple's Big Textile Problem: Unpacking NYC's Mountain of Clothing Waste
 

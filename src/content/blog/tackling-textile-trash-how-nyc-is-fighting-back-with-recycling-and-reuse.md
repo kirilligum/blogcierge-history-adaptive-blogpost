@@ -1,7 +1,8 @@
 ---
+
 title: "Tackling Textile Trash: How NYC is Fighting Back with Recycling and Reuse"
 author: "Kirill Igumenshchev"
-date: "2025-06-01T07:21:09Z"
+date: "2025-06-01T07:34:57Z"
 description: "NYC combats textile waste through DSNY initiatives like refashionNYC, community efforts like GrowNYC and Fabscrap, and business mandates, though challenges in traditional recycling and donation persist."
 tags:
   - "NYC textile recycling"
@@ -29,6 +30,7 @@ citation:
   "4": "https://news.climate.columbia.edu/2024/07/02/scaling-the-mountains-of-textile-waste-in-new-york-city/"
   "5": "https://thebronxjournal.com/2025/01/03/the-sustainable-fashion-community-center/"
 ---
+
 # Tackling Textile Trash: How NYC is Fighting Back with Recycling and Reuse
 
 After confronting the sheer volume of New York City's textile waste and the role of fast fashion in fueling this crisis, it's time to turn towards solutions. The good news? NYC isn't standing still. A multifaceted approach involving city-led initiatives, community champions, and innovative businesses is actively working to divert clothing and textiles from landfills, aiming to transform that waste mountain into a resource molehill. This post explores how New York City is fighting back through recycling and reuse, while also acknowledging the challenges that remain.
