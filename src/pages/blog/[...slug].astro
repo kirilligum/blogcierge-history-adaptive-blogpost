@@ -87,6 +87,7 @@ const originalMarkdown = entry.body;
 
 let finalContentToRender: string | null = null; // This will hold the personalized Markdown string
 let contentSourceDebug = "original_static_fallback_ssr"; // For debugging the content source
+let currentPostSlug: string | undefined; // Declare currentPostSlug here
 
 // --- BEGIN KV & Runtime Diagnostics ---
 console.log("[SSR Tailoring Diagnostics] Checking Astro.locals.runtime...");
@@ -258,15 +259,22 @@ Focus on clarity and conciseness. The output should be ready-to-render Markdown.
       }
       // If it reaches here and finalContentToRender is still null, it means:
       // - deviceId was present
+      // - currentPostSlug was defined
       // - No cache hit
       // - userInteractionsKV was available
       // - But some condition for LLM call wasn't met (e.g., no history, or API key missing)
       //   (contentSourceDebug would be "original_ssr_no_history" or "original_ssr_no_apikey")
-    } else if (!deviceId) {
-        contentSourceDebug = "original_ssr_no_cookie";
-        console.log(`[SSR Tailoring] No deviceId cookie found. Serving original content for ${currentPostSlug}.`);
+    } else { // This new else corresponds to 'if (currentPostSlug)'
+      console.warn(`[SSR Tailoring] Skipping personalization for device ${deviceId} because currentPostSlug is undefined (problem with entry.slug).`);
+      if (contentSourceDebug === "original_static_fallback_ssr" || contentSourceDebug === "error_entry_slug_problem_ssr") {
+          contentSourceDebug = "skipped_personalization_due_to_bad_slug_ssr";
+      }
     }
-    // If finalContentToRender is still null at this point, the OriginalContentComponent will be used.
+  } else if (!deviceId) { // This 'else if' is for the outer 'if (deviceId)'
+      contentSourceDebug = "original_ssr_no_cookie";
+      console.log(`[SSR Tailoring] No deviceId cookie found. Serving original content for ${currentPostSlug || entry.slug}.`); // Use entry.slug if currentPostSlug is undefined
+  }
+  // If finalContentToRender is still null at this point, the OriginalContentComponent will be used.
 
 let processedMarkdownHtml: string | null = null; // This will hold the HTML string from Markdown
 
