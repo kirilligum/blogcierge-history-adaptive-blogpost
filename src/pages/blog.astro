@@ -17,9 +17,25 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
       {
         allPosts.map((post) => (
           <li class="post-entry">
-            <a href={`/blog/${post.slug}/`} class="post-title-link">
-              <h2>{post.data.title}</h2>
-            </a>
+            <div class="post-title-container">
+              <a href={`/blog/${post.slug}/`} class="post-title-link">
+                <h2 id={`title-h2-${post.slug}`}>{post.data.title}</h2>
+              </a>
+              <span class="read-indicator">
+                <input 
+                  type="checkbox" 
+                  class="read-status-checkbox" 
+                  data-slug={post.slug} 
+                  id={`read-cb-${post.slug}`} 
+                  aria-labelledby={`read-label-${post.slug} title-h2-${post.slug}`}
+                >
+                <label 
+                  for={`read-cb-${post.slug}`} 
+                  id={`read-label-${post.slug}`} 
+                  class="read-status-label"
+                >Read</label>
+              </span>
+            </div>
             <p class="post-meta">
               Published on{" "}
               <time datetime={post.data.date.toISOString()}>
@@ -52,12 +68,133 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
   </div>
 </Layout>
 
+<script>
+  function getOrSetDeviceIDForBlogList() {
+    if (typeof localStorage === 'undefined') {
+      console.warn("localStorage not available for tracking.");
+      return null;
+    }
+    let deviceId = localStorage.getItem("blgcUserDeviceID");
+    if (!deviceId) {
+      deviceId = crypto.randomUUID();
+      localStorage.setItem("blgcUserDeviceID", deviceId);
+    }
+    return deviceId;
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const deviceId = getOrSetDeviceIDForBlogList();
+    if (!deviceId) {
+      console.error("Device ID not available for blog list read status.");
+      // Optionally disable checkboxes or provide feedback
+      document.querySelectorAll('.read-status-checkbox').forEach(cb => (cb as HTMLInputElement).disabled = true);
+      return;
+    }
+
+    const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const postCheckboxes = document.querySelectorAll('.read-status-checkbox');
+
+    if (postCheckboxes.length === 0) return;
+
+    const slugs = Array.from(postCheckboxes).map(cb => (cb as HTMLInputElement).dataset.slug).filter(Boolean) as string[];
+
+    if (slugs.length > 0) {
+      try {
+        const response = await fetch('/api/get-read-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceId, date: currentDate, slugs }),
+        });
+        if (response.ok) {
+          const readStatuses = await response.json(); // Expects { slug: boolean, ... }
+          postCheckboxes.forEach(cbElement => {
+            const cb = cbElement as HTMLInputElement;
+            const slug = cb.dataset.slug;
+            if (slug && typeof readStatuses[slug] === 'boolean') {
+              cb.checked = readStatuses[slug];
+            }
+          });
+        } else {
+          console.error('Failed to fetch read statuses:', await response.text());
+        }
+      } catch (error) {
+        console.error('Error fetching read statuses:', error);
+      }
+    }
+
+    postCheckboxes.forEach(cbElement => {
+      const cb = cbElement as HTMLInputElement;
+      cb.addEventListener('change', async () => {
+        const slug = cb.dataset.slug;
+        const newReadState = cb.checked;
+
+        if (!slug) return;
+
+        try {
+          const trackResponse = await fetch('/api/track-interaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              deviceId,
+              date: currentDate,
+              slug,
+              interactionType: 'read',
+              readState: newReadState 
+            }),
+          });
+          if (!trackResponse.ok) {
+            console.error('Failed to update read status for slug:', slug, await trackResponse.text());
+            // Revert checkbox state on failure to provide immediate feedback
+            cb.checked = !newReadState; 
+          } else {
+            console.log(`Read status for ${slug} updated to ${newReadState}`);
+          }
+        } catch (error) {
+          console.error('Error updating read status for slug:', slug, error);
+          // Revert checkbox state on failure
+          cb.checked = !newReadState;
+        }
+      });
+    });
+  });
+</script>
+
 <style>
   .blog-list-container {
     max-width: 800px;
     margin: 2rem auto; /* Center the container and add some margin */
     padding: 0 1rem; /* Add padding on the sides */
     /* font-family, line-height, background-color, color, font-size inherited from blog.css .blog-list-container or body */
+  }
+
+  .post-title-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem; /* Adjust as needed */
+  }
+
+  .post-title-link h2 {
+    margin-bottom: 0; /* Remove bottom margin from h2 if it's inside flex */
+  }
+
+  .read-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+    font-size: 0.9em; /* Smaller text for "Read" label */
+    color: var(--cstm-text-secondary);
+    margin-left: 1rem; /* Space from the title */
+    flex-shrink: 0; /* Prevent shrinking if title is long */
+  }
+
+  .read-status-checkbox {
+    /* Style checkbox if needed, e.g., vertical-align: middle; */
+    margin-right: 0.1em; /* Tiny space before the label text */
+    cursor: pointer;
+  }
+  .read-status-label {
+    cursor: pointer;
   }
 
   .blog-list-container h1 {

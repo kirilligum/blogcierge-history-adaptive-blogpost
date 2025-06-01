@@ -13,10 +13,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   try {
     const body = await request.json();
-    const { deviceId, date, slug, interactionType } = body;
+    // Add readState to destructuring, it might be undefined
+    const { deviceId, date, slug, interactionType, readState } = body; 
 
     if (!deviceId || !date || !slug || !interactionType) {
-      return new Response(JSON.stringify({ error: "Missing required parameters for interaction tracking." }), { status: 400, headers: { "Content-Type": "application/json" } });
+      // readState is optional, so not included in this primary check
+      return new Response(JSON.stringify({ error: "Missing required parameters for interaction tracking (deviceId, date, slug, interactionType)." }), { status: 400, headers: { "Content-Type": "application/json" } });
     }
 
     // Validate date format (YYYY-MM-DD)
@@ -32,16 +34,22 @@ export const POST: APIRoute = async ({ request, locals }) => {
         (async () => {
           try {
             let currentData = await userInteractionsKV.get<any>(kvKey, { type: "json" });
+            
+            // Determine the new read status:
+            // If readState (boolean) is explicitly passed, use it.
+            // Otherwise, default to true (marking as read).
+            const newReadValue = typeof readState === 'boolean' ? readState : true;
+
             if (!currentData) {
-              currentData = { read: true, messages: [] };
+              currentData = { read: newReadValue, messages: [] };
             } else {
-              currentData.read = true; // Mark as read or ensure it's true
-              if (!currentData.messages) { // Ensure messages array exists if updating old data
+              currentData.read = newReadValue; 
+              if (!currentData.messages) { 
                 currentData.messages = [];
               }
             }
             await userInteractionsKV.put(kvKey, JSON.stringify(currentData));
-            console.log(`Read interaction tracked successfully for KV key: ${kvKey}`);
+            console.log(`Interaction for KV key ${kvKey}: 'read' status set to ${newReadValue}.`);
           } catch (e) {
             console.error(`Error storing read interaction to KV (${kvKey}):`, e);
             // Note: The response to the client might have already been sent by this point
@@ -51,11 +59,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
           }
         })()
       );
-      return new Response(JSON.stringify({ message: "Read interaction tracking initiated." }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ message: "Read interaction processed successfully." }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
     // Add other interactionType handling here if needed in the future
 
-    return new Response(JSON.stringify({ error: "Unknown interaction type." }), { status: 400, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: `Unknown interaction type: ${interactionType}` }), { status: 400, headers: { "Content-Type": "application/json" } });
 
   } catch (error: unknown) {
     console.error("Error processing /api/track-interaction request:", error);
