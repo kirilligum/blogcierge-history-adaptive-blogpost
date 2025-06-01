@@ -1,7 +1,8 @@
 ---
+
 title: "Beyond the Bin: NYC's Journey Towards a Circular Fashion Future"
 author: "Kirill Igumenshchev"
-date: "2025-06-01T07:45:00Z"
+date: "2025-06-01T07:48:15Z"
 description: "NYC is moving towards a circular economy for fashion, where waste becomes a resource. This involves designing out waste, keeping materials in use, and understanding product life cycles."
 tags:
   - "Circular economy fashion"
@@ -29,6 +30,7 @@ citation:
   "4": "https://carbontrail.net/blog/life-cycle-assessment-lca-for-textiles-and-clothing/ (Explains Life Cycle Assessment (LCA) stages for textiles, from raw material extraction to end-of-life, and its role in promoting recycling and reuse.)"
   "5": "https://circ.earth/ (Showcases Circ's work in textile-to-textile recycling of polycotton blends, an example of advanced circular technology.)"
 ---
+
 
 # Beyond the Bin: NYC's Journey Towards a Circular Fashion Future
 
