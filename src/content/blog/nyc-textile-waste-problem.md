@@ -4,6 +4,9 @@ author: "Kirill Igumenshchev"
 date: "2025-06-01T10:00:00Z"
 description: "NYC discards over 200,000 tons of textiles annually, filling landfills, releasing methane, and costing taxpayers. This post explores the shocking scale and local impact of this fashion waste crisis."
 tags: []
+familiar_concepts: []
+new_concepts: []
+citation: {}
 ---
 
 # The Big Apple's Big Textile Problem: Unpacking NYC's Mountain of Clothing Waste
