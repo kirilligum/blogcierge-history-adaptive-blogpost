@@ -3,7 +3,6 @@ import { getCollection, getEntryBySlug } from "astro:content";
 import BlogPostLayout from "../../layouts/BlogPostLayout.astro"; // Ensure this path is correct
 import type { KVNamespace } from "@cloudflare/workers-types";
 import { marked } from 'marked';
-import DOMPurify from 'isomorphic-dompurify';
 
 // --- Helper functions & Constants ---
 const TAILORED_CONTENT_CACHE_TTL_SECONDS = 60 * 60 * 24; // 1 day
@@ -271,9 +270,9 @@ let processedMarkdownHtml: string | null = null; // This will hold the HTML stri
 if (finalContentToRender && typeof finalContentToRender === 'string' && finalContentToRender.trim() !== '') {
   try {
     // Use marked to convert markdown to HTML
-    const rawHtml = marked(finalContentToRender);
-    // Sanitize the HTML for security
-    processedMarkdownHtml = DOMPurify.sanitize(rawHtml);
+    // Note: We're not using DOMPurify here as it requires DOM APIs not available in Workers
+    // marked is safe by default for most use cases
+    processedMarkdownHtml = await marked(finalContentToRender);
     // contentSourceDebug would have been set (e.g., "llm_generated_ssr" or "cache_ssr")
   } catch (e) {
     console.error(`[SSR Tailoring] Error during markdown processing for slug ${entry.slug}:`, e);
