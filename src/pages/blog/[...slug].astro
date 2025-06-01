@@ -532,7 +532,17 @@ console.log(
 
     // Logic for content toggle button
     // This button only exists if personalized content (MD) was available and different from original (MD).
-    if (toggleContentButton && mainContentDisplay && typeof originalMarkdown === 'string' && typeof marked === 'function') {
+    // Attach toggle listener only when prerequisites are met.
+    // `marked` from the CDN is an *object* (with .parse), not a function, so check accordingly.
+    if (
+      toggleContentButton &&
+      mainContentDisplay &&
+      typeof originalMarkdown === 'string' &&
+      marked &&
+      typeof marked.parse === 'function'
+    ) {
+      console.debug('[TOGGLE-BTN] Listener attached. Initial personalized state:',
+        typeof processedMarkdownHtmlFromAstro === 'string' && processedMarkdownHtmlFromAstro.trim() !== '');
       // Determine initial state based on what Astro rendered.
       // Astro renders processedMarkdownHtml (personalized HTML) if it's a non-empty string, otherwise it renders OriginalContentComponent.
       const initiallyShowingPersonalized = (typeof processedMarkdownHtmlFromAstro === 'string' && processedMarkdownHtmlFromAstro.trim() !== "");
@@ -541,7 +551,11 @@ console.log(
       // Prepare original content HTML (client-side parsing of originalMarkdown)
       // It's good practice to ensure originalMarkdown is not empty before parsing,
       // though marked.parse handles empty strings gracefully.
-      const clientSideOriginalHtml = originalMarkdown.trim() === "" ? "" : marked.parse(originalMarkdown);
+      const clientSideOriginalHtml =
+        originalMarkdown.trim() === ""
+          ? ""
+          : marked.parse(originalMarkdown);
+      console.debug('[TOGGLE-BTN] Prepared original HTML length:', clientSideOriginalHtml.length);
 
       // Set initial button text based on what's currently displayed
       if (isShowingPersonalized) {
