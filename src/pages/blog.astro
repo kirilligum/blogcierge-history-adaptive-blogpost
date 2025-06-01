@@ -17,25 +17,25 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
       {
         allPosts.map((post) => (
           <li class="post-entry">
-            <div class="post-title-container">
-              <a href={`/blog/${post.slug}/`} class="post-title-link">
-                <h2 id={`title-h2-${post.slug}`}>{post.data.title}</h2>
-              </a>
-              <span class="read-indicator">
-                <input 
-                  type="checkbox" 
-                  class="read-status-checkbox" 
-                  data-slug={post.slug} 
-                  id={`read-cb-${post.slug}`} 
-                  aria-labelledby={`read-label-${post.slug} title-h2-${post.slug}`}
-                >
-                <label 
-                  for={`read-cb-${post.slug}`} 
-                  id={`read-label-${post.slug}`} 
-                  class="read-status-label"
-                >Read</label>
-              </span>
-            </div>
+            <a href={`/blog/${post.slug}/`} class="post-title-link">
+              <h2 id={`title-h2-${post.slug}`}>
+                {post.data.title}
+                <span class="read-indicator">
+                  <input
+                    type="checkbox"
+                    class="read-status-checkbox"
+                    data-slug={post.slug}
+                    id={`read-cb-${post.slug}`}
+                    aria-labelledby={`read-label-${post.slug} title-h2-${post.slug}`}
+                  />
+                  <label
+                    for={`read-cb-${post.slug}`}
+                    id={`read-label-${post.slug}`}
+                    class="read-status-label"
+                  >Read</label>
+                </span>
+              </h2>
+            </a>
             <p class="post-meta">
               Published on{" "}
               <time datetime={post.data.date.toISOString()}>
@@ -167,27 +167,22 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     /* font-family, line-height, background-color, color, font-size inherited from blog.css .blog-list-container or body */
   }
 
-  .post-title-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.25rem; /* Adjust as needed */
-  }
-
   .post-title-link h2 {
-    margin-bottom: 0; /* Remove bottom margin from h2 if it's inside flex */
+    margin-bottom: 0; 
+    /* Ensure h2 itself can have inline content align nicely if it wraps */
+    /* display: inline; could be an option but h2 is block by default, better to have span inside be inline-block */
   }
 
   .read-indicator {
-    display: flex;
-    align-items: center;
-    gap: 0.3em;
-    font-size: 0.9em; /* Smaller text for "Read" label */
+    display: inline-block; /* Allows it to flow with text but be stylable as a block */
+    font-size: 0.8em; /* Relative to the h2's font size */
     color: var(--cstm-text-secondary);
-    margin-left: 1rem; /* Space from the title */
-    flex-shrink: 0; /* Prevent shrinking if title is long */
+    margin-left: 0.5em; /* Space after the title text */
+    vertical-align: baseline; /* Aligns the bottom of the text with the title's baseline */
+    white-space: nowrap; /* Prevents "[ ] Read" from breaking onto two lines */
   }
 
+  /* Styles for the checkbox and label within the read-indicator */
   .read-status-checkbox {
     /* Style checkbox if needed, e.g., vertical-align: middle; */
     margin-right: 0.1em; /* Tiny space before the label text */
