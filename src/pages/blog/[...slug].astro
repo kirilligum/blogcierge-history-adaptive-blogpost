@@ -288,7 +288,7 @@ Focus on clarity and conciseness. The output should be ready-to-render Markdown.
     }
   }
 } // Close if(deviceId) block
-else if (!deviceId) { // Path D: No deviceId
+if (!deviceId) { // Path D: No deviceId
     contentSourceDebug = "original_ssr_no_cookie";
     console.log(`[SSR Tailoring] No deviceId cookie found. Serving original content for ${currentPostSlug}.`);
 }
