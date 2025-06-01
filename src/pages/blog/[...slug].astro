@@ -2,6 +2,8 @@
 import { getCollection, getEntryBySlug } from "astro:content";
 import BlogPostLayout from "../../layouts/BlogPostLayout.astro"; // Ensure this path is correct
 import type { KVNamespace } from "@cloudflare/workers-types";
+import { marked } from 'marked';
+import DOMPurify from 'isomorphic-dompurify';
 
 // --- Helper functions & Constants ---
 const TAILORED_CONTENT_CACHE_TTL_SECONDS = 60 * 60 * 24; // 1 day
@@ -263,10 +265,6 @@ Focus on clarity and conciseness. The output should be ready-to-render Markdown.
         console.log(`[SSR Tailoring] No deviceId cookie found. Serving original content for ${currentPostSlug}.`);
     }
     // If finalContentToRender is still null at this point, the OriginalContentComponent will be used.
-
-// Import markdown processing utilities
-import { marked } from 'marked';
-import DOMPurify from 'isomorphic-dompurify';
 
 let processedMarkdownHtml: string | null = null; // This will hold the HTML string from Markdown
 
