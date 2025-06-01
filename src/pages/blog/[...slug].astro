@@ -84,6 +84,40 @@ const { Content: OriginalContentComponent } = await entry.render();
 let finalContentToRender: string | null = null; // This will hold the personalized Markdown string
 let contentSourceDebug = "original_static_fallback_ssr"; // For debugging the content source
 
+// --- BEGIN KV & Runtime Diagnostics ---
+console.log("[SSR Tailoring Diagnostics] Checking Astro.locals.runtime...");
+if (Astro.locals.runtime) {
+  console.log("[SSR Tailoring Diagnostics] Astro.locals.runtime object IS PRESENT.");
+  if (Astro.locals.runtime.env) {
+    console.log("[SSR Tailoring Diagnostics] Astro.locals.runtime.env object IS PRESENT.");
+    const envKeys = Object.keys(Astro.locals.runtime.env);
+    console.log(`[SSR Tailoring Diagnostics] Keys in Astro.locals.runtime.env: ${envKeys.length > 0 ? envKeys.join(', ') : 'NONE'}`);
+    
+    const kvBindingNames = ["BLGC_USER_INTERACTIONS_KV", "BLGC_BLOGPOST_AI_CACHE", "BLGC_SITE_CONTENT_CACHE", "BLGC_AI_LOGS_BUCKET", "LLAMA_API_KEY"];
+    kvBindingNames.forEach(name => {
+      const bindingValue = Astro.locals.runtime.env[name];
+      if (typeof bindingValue !== 'undefined') {
+        console.log(`[SSR Tailoring Diagnostics] Binding ${name} IS PRESENT in env. Type: ${typeof bindingValue}`);
+        // Basic check if it quacks like a KV/R2 binding (has a 'get' or 'put' method) or is a string (for API key)
+        if (name === "LLAMA_API_KEY" && typeof bindingValue === 'string') {
+            console.log(`[SSR Tailoring Diagnostics] Binding ${name} appears to be a valid string API key.`);
+        } else if ((typeof bindingValue === 'object' && bindingValue !== null) && (typeof bindingValue.get === 'function' || typeof bindingValue.put === 'function')) {
+          console.log(`[SSR Tailoring Diagnostics] Binding ${name} appears to be a valid KV/R2 namespace object.`);
+        } else if (name !== "LLAMA_API_KEY") {
+          console.warn(`[SSR Tailoring Diagnostics] Binding ${name} IS PRESENT but might NOT be a valid KV/R2 namespace object or expected type. Actual value:`, bindingValue);
+        }
+      } else {
+        console.warn(`[SSR Tailoring Diagnostics] Binding ${name} IS UNDEFINED in env.`);
+      }
+    });
+  } else {
+    console.warn("[SSR Tailoring Diagnostics] Astro.locals.runtime.env object IS UNDEFINED.");
+  }
+} else {
+  console.warn("[SSR Tailoring Diagnostics] Astro.locals.runtime object IS UNDEFINED. Cloudflare bindings will not be available.");
+}
+// --- END KV & Runtime Diagnostics ---
+
 const deviceId = Astro.cookies.get("blgcUserDeviceID_cookie")?.value;
 
 if (deviceId) {
@@ -240,17 +274,19 @@ if (finalContentToRender && typeof finalContentToRender === 'string' && finalCon
     }
   } else {
     // This case should ideally not happen in a standard Astro setup.
-    console.error(`[SSR Tailoring] CRITICAL: Astro.markdown.render is not available for slug ${entry.slug}! Falling back to original content.`);
-    contentSourceDebug += ";markdown_unavailable"; // Append to existing debug info
-    finalContentToRender = null; // Force fallback
+    console.error(`[SSR Tailoring] CRITICAL: Astro.markdown.render is not available in frontmatter for slug ${entry.slug}. Will attempt template rendering if personalized content exists.`);
+    contentSourceDebug += ";markdown_unavailable_in_frontmatter"; // Append to existing debug info
+    // Do NOT null out finalContentToRender here. Let the template try to render it.
+    // processedMarkdownHtml will remain null.
+  }
+} else if (finalContentToRender) { // This 'else if' applies if the outer 'if (finalContentToRender && typeof ...)' was true, but inner conditions failed.
+                                   // Or if finalContentToRender was set, but was not a non-empty string.
+  if (!(typeof finalContentToRender === 'string' && finalContentToRender.trim() !== '')) {
+    console.warn(`[SSR Tailoring] finalContentToRender was not a non-empty string for slug ${entry.slug}. Type: ${typeof finalContentToRender}. Value: '${String(finalContentToRender).substring(0,50)}...' Falling back.`);
+    finalContentToRender = null; // Ensure fallback if it's not a usable string
     processedMarkdownHtml = null;
   }
-} else if (finalContentToRender) {
-  // Handle cases where finalContentToRender might be non-string (e.g. if logic changes) or empty string
-  // This ensures we fall back if it's not a valid non-empty string for rendering.
-  console.warn(`[SSR Tailoring] finalContentToRender was not a non-empty string for slug ${entry.slug}. Type: ${typeof finalContentToRender}. Value: '${String(finalContentToRender).substring(0,50)}...' Falling back.`);
-  finalContentToRender = null; // Ensure fallback
-  processedMarkdownHtml = null;
+  // If it *was* a non-empty string but the Astro.markdown.render check failed, finalContentToRender is preserved, processedMarkdownHtml is null.
 }
 
 
@@ -259,10 +295,12 @@ console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || 'N/A'}
 
 <BlogPostLayout frontmatter={entry.data} slug={entry.slug}>
   <div class="post-body">
-    {finalContentToRender && processedMarkdownHtml ? (
-      <Fragment set:html={processedMarkdownHtml} />
+    {processedMarkdownHtml ? (
+      <Fragment set:html={processedMarkdownHtml} /> /* Preferred: HTML rendered in frontmatter */
+    ) : finalContentToRender && typeof finalContentToRender === 'string' && finalContentToRender.trim() !== '' ? (
+      <Fragment set:html={Astro.markdown.render(finalContentToRender)} /> /* Fallback: Markdown string rendered in template */
     ) : (
-      <OriginalContentComponent />
+      <OriginalContentComponent /> /* Ultimate fallback: Original, non-personalized content */
     )}
     {/* For debugging, you can uncomment this to see the content source on the page: */}
     {/* <p style="font-size: 0.8em; color: grey; margin-top: 2em; text-align: center; background: #f0f0f0; padding: 5px;">Content Source: {contentSourceDebug}</p> */}
