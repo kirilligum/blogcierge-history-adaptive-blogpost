@@ -2,7 +2,7 @@
 import { getCollection, getEntryBySlug } from "astro:content";
 import BlogPostLayout from "../../layouts/BlogPostLayout.astro"; // Ensure this path is correct
 import type { KVNamespace } from "@cloudflare/workers-types";
-import { marked } from 'marked';
+import { marked } from "marked";
 
 // --- Helper functions & Constants ---
 const TAILORED_CONTENT_CACHE_TTL_SECONDS = 60 * 60 * 24; // 1 day
@@ -19,13 +19,16 @@ function getApiKey(locals: Astro.Locals, devMode: boolean): string | undefined {
 }
 
 // Replace with your actual LLM API URL and desired model
-const LLAMA_API_URL = "https://api.llama.com/v1/chat/completions"; 
-const DEFAULT_MODEL = "Llama-4-Maverick-17B-128E-Instruct-FP8"; 
+const LLAMA_API_URL = "https://api.llama.com/v1/chat/completions";
+const DEFAULT_MODEL = "Llama-4-Maverick-17B-128E-Instruct-FP8";
 
-async function getUserInteractionHistory(kv: KVNamespace, deviceId: string): Promise<{ readPostSlugs: string[], chatMessages: any[] }> {
+async function getUserInteractionHistory(
+  kv: KVNamespace,
+  deviceId: string,
+): Promise<{ readPostSlugs: string[]; chatMessages: any[] }> {
   const readPostSlugsSet = new Set<string>();
   const chatMessages: any[] = [];
-  
+
   // KV Key structure: deviceId/YYYY-MM-DD/slug
   // Data structure: { read: boolean, messages: Array<{role: string, content: string, timestamp: string}> }
   const { keys } = await kv.list({ prefix: `${deviceId}/` });
@@ -34,17 +37,20 @@ async function getUserInteractionHistory(kv: KVNamespace, deviceId: string): Pro
     try {
       const data = await kv.get<any>(key.name, { type: "json" });
       if (data) {
-        const parts = key.name.split('/'); 
+        const parts = key.name.split("/");
         if (parts.length === 3 && data.read === true && parts[2]) {
           readPostSlugsSet.add(parts[2]);
         }
         if (data.messages && Array.isArray(data.messages)) {
           // Take last 5 message pairs (10 messages total) to manage context size. Adjust as needed.
-          chatMessages.push(...data.messages.slice(-10)); 
+          chatMessages.push(...data.messages.slice(-10));
         }
       }
     } catch (e) {
-      console.error(`[SSR Tailoring] Error parsing KV data for key ${key.name}:`, e);
+      console.error(
+        `[SSR Tailoring] Error parsing KV data for key ${key.name}:`,
+        e,
+      );
     }
   }
   return { readPostSlugs: Array.from(readPostSlugsSet), chatMessages };
@@ -58,17 +64,22 @@ export async function getStaticPaths() {
   return blogEntries.map((entry) => ({
     params: { slug: entry.slug },
     // props: { entry }, // Props from getStaticPaths are not directly passed to Astro.props in SSR for dynamic routes.
-                       // The entry is fetched below using Astro.params.slug.
+    // The entry is fetched below using Astro.params.slug.
   }));
 }
 
 const { slug } = Astro.params;
 
-if (typeof slug !== 'string') {
+if (typeof slug !== "string") {
   // This should ideally not be reached if the route pattern is matched correctly by Astro.
-  console.error("[SSR Blog Page] Error: Slug is undefined or not a string from Astro.params.");
+  console.error(
+    "[SSR Blog Page] Error: Slug is undefined or not a string from Astro.params.",
+  );
   // Return a 400 Bad Request response as the slug is essential for this page.
-  return new Response("Invalid request: Slug parameter is missing or invalid.", { status: 400 });
+  return new Response(
+    "Invalid request: Slug parameter is missing or invalid.",
+    { status: 400 },
+  );
 }
 
 const entry = await getEntryBySlug("blog", slug);
@@ -92,42 +103,76 @@ let currentPostSlug: string | undefined; // Declare currentPostSlug here
 // --- BEGIN KV & Runtime Diagnostics ---
 console.log("[SSR Tailoring Diagnostics] Checking Astro.locals.runtime...");
 if (Astro.locals.runtime) {
-  console.log("[SSR Tailoring Diagnostics] Astro.locals.runtime object IS PRESENT.");
+  console.log(
+    "[SSR Tailoring Diagnostics] Astro.locals.runtime object IS PRESENT.",
+  );
   if (Astro.locals.runtime.env) {
-    console.log("[SSR Tailoring Diagnostics] Astro.locals.runtime.env object IS PRESENT.");
+    console.log(
+      "[SSR Tailoring Diagnostics] Astro.locals.runtime.env object IS PRESENT.",
+    );
     const envKeys = Object.keys(Astro.locals.runtime.env);
-    console.log(`[SSR Tailoring Diagnostics] Keys in Astro.locals.runtime.env: ${envKeys.length > 0 ? envKeys.join(', ') : 'NONE'}`);
-    
-    const kvBindingNames = ["BLGC_USER_INTERACTIONS_KV", "BLGC_BLOGPOST_AI_CACHE", "BLGC_SITE_CONTENT_CACHE", "BLGC_AI_LOGS_BUCKET", "LLAMA_API_KEY"];
-    kvBindingNames.forEach(name => {
+    console.log(
+      `[SSR Tailoring Diagnostics] Keys in Astro.locals.runtime.env: ${envKeys.length > 0 ? envKeys.join(", ") : "NONE"}`,
+    );
+
+    const kvBindingNames = [
+      "BLGC_USER_INTERACTIONS_KV",
+      "BLGC_BLOGPOST_AI_CACHE",
+      "BLGC_SITE_CONTENT_CACHE",
+      "BLGC_AI_LOGS_BUCKET",
+      "LLAMA_API_KEY",
+    ];
+    kvBindingNames.forEach((name) => {
       const bindingValue = Astro.locals.runtime.env[name];
-      if (typeof bindingValue !== 'undefined') {
-        console.log(`[SSR Tailoring Diagnostics] Binding ${name} IS PRESENT in env. Type: ${typeof bindingValue}`);
+      if (typeof bindingValue !== "undefined") {
+        console.log(
+          `[SSR Tailoring Diagnostics] Binding ${name} IS PRESENT in env. Type: ${typeof bindingValue}`,
+        );
         // Basic check if it quacks like a KV/R2 binding (has a 'get' or 'put' method) or is a string (for API key)
-        if (name === "LLAMA_API_KEY" && typeof bindingValue === 'string') {
-            console.log(`[SSR Tailoring Diagnostics] Binding ${name} appears to be a valid string API key.`);
-        } else if ((typeof bindingValue === 'object' && bindingValue !== null) && (typeof bindingValue.get === 'function' || typeof bindingValue.put === 'function')) {
-          console.log(`[SSR Tailoring Diagnostics] Binding ${name} appears to be a valid KV/R2 namespace object.`);
+        if (name === "LLAMA_API_KEY" && typeof bindingValue === "string") {
+          console.log(
+            `[SSR Tailoring Diagnostics] Binding ${name} appears to be a valid string API key.`,
+          );
+        } else if (
+          typeof bindingValue === "object" &&
+          bindingValue !== null &&
+          (typeof bindingValue.get === "function" ||
+            typeof bindingValue.put === "function")
+        ) {
+          console.log(
+            `[SSR Tailoring Diagnostics] Binding ${name} appears to be a valid KV/R2 namespace object.`,
+          );
         } else if (name !== "LLAMA_API_KEY") {
-          console.warn(`[SSR Tailoring Diagnostics] Binding ${name} IS PRESENT but might NOT be a valid KV/R2 namespace object or expected type. Actual value:`, bindingValue);
+          console.warn(
+            `[SSR Tailoring Diagnostics] Binding ${name} IS PRESENT but might NOT be a valid KV/R2 namespace object or expected type. Actual value:`,
+            bindingValue,
+          );
         }
       } else {
-        console.warn(`[SSR Tailoring Diagnostics] Binding ${name} IS UNDEFINED in env.`);
+        console.warn(
+          `[SSR Tailoring Diagnostics] Binding ${name} IS UNDEFINED in env.`,
+        );
       }
     });
   } else {
-    console.warn("[SSR Tailoring Diagnostics] Astro.locals.runtime.env object IS UNDEFINED.");
+    console.warn(
+      "[SSR Tailoring Diagnostics] Astro.locals.runtime.env object IS UNDEFINED.",
+    );
   }
 } else {
-  console.warn("[SSR Tailoring Diagnostics] Astro.locals.runtime object IS UNDEFINED. Cloudflare bindings will not be available.");
+  console.warn(
+    "[SSR Tailoring Diagnostics] Astro.locals.runtime object IS UNDEFINED. Cloudflare bindings will not be available.",
+  );
 }
 // --- END KV & Runtime Diagnostics ---
 
 const deviceId = Astro.cookies.get("blgcUserDeviceID_cookie")?.value;
 
 if (deviceId) {
-  const userInteractionsKV = Astro.locals.runtime?.env?.BLGC_USER_INTERACTIONS_KV as KVNamespace | undefined;
-  const tailoredContentCache = Astro.locals.runtime?.env?.BLGC_BLOGPOST_AI_CACHE as KVNamespace | undefined;
+  const userInteractionsKV = Astro.locals.runtime?.env
+    ?.BLGC_USER_INTERACTIONS_KV as KVNamespace | undefined;
+  const tailoredContentCache = Astro.locals.runtime?.env
+    ?.BLGC_BLOGPOST_AI_CACHE as KVNamespace | undefined;
   const currentPostSlug = entry.slug;
   const cacheKey = `tailored_ssr::${currentPostSlug}::${deviceId}`;
 
@@ -142,36 +187,47 @@ if (deviceId) {
         console.log(`[SSR Tailoring] Cache MISS for ${cacheKey}`);
       }
     } catch (e) {
-      console.error(`[SSR Tailoring] Error reading from tailoredContentCache for ${cacheKey}:`, e);
+      console.error(
+        `[SSR Tailoring] Error reading from tailoredContentCache for ${cacheKey}:`,
+        e,
+      );
     }
   }
 
   // If not found in cache, and KV for user interactions is available
   if (!finalContentToRender && userInteractionsKV) {
-    const { readPostSlugs, chatMessages } = await getUserInteractionHistory(userInteractionsKV, deviceId);
+    const { readPostSlugs, chatMessages } = await getUserInteractionHistory(
+      userInteractionsKV,
+      deviceId,
+    );
 
     // Only attempt LLM call if there's some history to personalize with
     if (readPostSlugs.length > 0 || chatMessages.length > 0) {
       if (currentPostSlug) {
-      let readPostsCombinedContent = "";
-      for (const readSlug of readPostSlugs) {
-        if (readSlug === currentPostSlug) continue; // Don't include current post in "previously read"
-        try {
-          const readEntry = await getEntryBySlug("blog", readSlug);
-          if (readEntry) {
-            // Truncate for context window management. Consider summarization for production.
-            readPostsCombinedContent += `\n\n--- BEGIN READ BLOG POST: ${readSlug} (Title: ${readEntry.data.title}) ---\n${readEntry.body.substring(0, 2000)}...\n--- END READ BLOG POST: ${readSlug} ---`;
+        let readPostsCombinedContent = "";
+        for (const readSlug of readPostSlugs) {
+          if (readSlug === currentPostSlug) continue; // Don't include current post in "previously read"
+          try {
+            const readEntry = await getEntryBySlug("blog", readSlug);
+            if (readEntry) {
+              // Truncate for context window management. Consider summarization for production.
+              readPostsCombinedContent += `\n\n--- BEGIN READ BLOG POST: ${readSlug} (Title: ${readEntry.data.title}) ---\n${readEntry.body.substring(0, 2000)}...\n--- END READ BLOG POST: ${readSlug} ---`;
+            }
+          } catch (e) {
+            console.warn(
+              `[SSR Tailoring] Could not fetch content for read post ${readSlug}:`,
+              e,
+            );
           }
-        } catch (e) { 
-          console.warn(`[SSR Tailoring] Could not fetch content for read post ${readSlug}:`, e); 
         }
-      }
 
-      // Truncate chat messages for context window management
-      const chatHistoryString = chatMessages.map(msg => `${msg.role}: ${msg.content.substring(0, 200)}...`).join('\n');
-      const originalPostContentForLLM = entry.body; // Full original Markdown body of the current post
+        // Truncate chat messages for context window management
+        const chatHistoryString = chatMessages
+          .map((msg) => `${msg.role}: ${msg.content.substring(0, 200)}...`)
+          .join("\n");
+        const originalPostContentForLLM = entry.body; // Full original Markdown body of the current post
 
-      const systemPrompt = `
+        const systemPrompt = `
 You are an expert blog post author. Rewrite the following "ORIGINAL BLOG POST CONTENT" for a reader with the provided "READER'S HISTORY".
 
 READER'S HISTORY (Device ID: ${deviceId}):
@@ -198,91 +254,135 @@ If the history is minimal or uninformative for personalization, the rewritten co
 The goal is to make the post maximally informative and engaging for *this specific reader*.
 Focus on clarity and conciseness. The output should be ready-to-render Markdown.
 `;
-          const apiKey = getApiKey(Astro.locals, import.meta.env.DEV);
-          if (apiKey) {
-            const payload = {
-              model: DEFAULT_MODEL,
-              messages: [{ role: "system", content: systemPrompt }],
-              max_tokens: 4000, // Adjust based on expected output length and model capabilities
-              temperature: 0.5, // Adjust for creativity vs. factuality
-            };
-            try {
-              console.log(`[SSR Tailoring] Calling LLM for ${currentPostSlug}, user ${deviceId}. Model: ${DEFAULT_MODEL}`);
-              const llmResponse = await fetch(LLAMA_API_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-                body: JSON.stringify(payload),
-              });
+        const apiKey = getApiKey(Astro.locals, import.meta.env.DEV);
+        if (apiKey) {
+          const payload = {
+            model: DEFAULT_MODEL,
+            messages: [{ role: "system", content: systemPrompt }],
+            max_tokens: 4000, // Adjust based on expected output length and model capabilities
+            temperature: 0.5, // Adjust for creativity vs. factuality
+          };
+          try {
+            console.log(
+              `[SSR Tailoring] Calling LLM for ${currentPostSlug}, user ${deviceId}. Model: ${DEFAULT_MODEL}`,
+            );
+            const llmResponse = await fetch(LLAMA_API_URL, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify(payload),
+            });
 
-              if (llmResponse.ok) {
-                const llmData = await llmResponse.json();
-                // Adjust based on your LLM's actual response structure
-                const llmGeneratedMarkdown = llmData.completion_message?.content?.text || llmData.choices?.[0]?.message?.content; 
+            if (llmResponse.ok) {
+              const llmData = await llmResponse.json();
+              // Adjust based on your LLM's actual response structure
+              const llmGeneratedMarkdown =
+                llmData.completion_message?.content?.text ||
+                llmData.choices?.[0]?.message?.content;
 
-                if (llmGeneratedMarkdown && llmGeneratedMarkdown.trim() !== "") {
-                  finalContentToRender = llmGeneratedMarkdown;
-                  contentSourceDebug = "llm_generated_ssr";
-                  console.log(`[SSR Tailoring] LLM generated content for ${currentPostSlug}, user ${deviceId}.`);
-                  if (tailoredContentCache) {
-                    Astro.locals.runtime.ctx.waitUntil(
-                      tailoredContentCache.put(cacheKey, finalContentToRender, { expirationTtl: TAILORED_CONTENT_CACHE_TTL_SECONDS })
-                        .then(() => console.log(`[SSR Tailoring] Successfully cached tailored content for ${cacheKey}`))
-                        .catch(e => console.error(`[SSR Tailoring] Error caching tailored content for ${cacheKey}:`, e))
-                    );
-                  }
-                } else {
-                  contentSourceDebug = "llm_error_empty_content_ssr";
-                  console.warn(`[SSR Tailoring] LLM returned empty content for ${currentPostSlug}, user ${deviceId}.`);
+              if (llmGeneratedMarkdown && llmGeneratedMarkdown.trim() !== "") {
+                finalContentToRender = llmGeneratedMarkdown;
+                contentSourceDebug = "llm_generated_ssr";
+                console.log(
+                  `[SSR Tailoring] LLM generated content for ${currentPostSlug}, user ${deviceId}.`,
+                );
+                if (tailoredContentCache) {
+                  Astro.locals.runtime.ctx.waitUntil(
+                    tailoredContentCache
+                      .put(cacheKey, finalContentToRender, {
+                        expirationTtl: TAILORED_CONTENT_CACHE_TTL_SECONDS,
+                      })
+                      .then(() =>
+                        console.log(
+                          `[SSR Tailoring] Successfully cached tailored content for ${cacheKey}`,
+                        ),
+                      )
+                      .catch((e) =>
+                        console.error(
+                          `[SSR Tailoring] Error caching tailored content for ${cacheKey}:`,
+                          e,
+                        ),
+                      ),
+                  );
                 }
               } else {
-                contentSourceDebug = `llm_error_api_status_${llmResponse.status}_ssr`;
-                console.error(`[SSR Tailoring] LLM API error for ${currentPostSlug}, user ${deviceId}: Status ${llmResponse.status}`, await llmResponse.text());
+                contentSourceDebug = "llm_error_empty_content_ssr";
+                console.warn(
+                  `[SSR Tailoring] LLM returned empty content for ${currentPostSlug}, user ${deviceId}.`,
+                );
               }
-            } catch (error) {
-              contentSourceDebug = "llm_error_fetch_exception_ssr";
-              console.error(`[SSR Tailoring] LLM fetch exception for ${currentPostSlug}, user ${deviceId}:`, error);
+            } else {
+              contentSourceDebug = `llm_error_api_status_${llmResponse.status}_ssr`;
+              console.error(
+                `[SSR Tailoring] LLM API error for ${currentPostSlug}, user ${deviceId}: Status ${llmResponse.status}`,
+                await llmResponse.text(),
+              );
             }
-          } else {
-            contentSourceDebug = "original_ssr_no_apikey";
+          } catch (error) {
+            contentSourceDebug = "llm_error_fetch_exception_ssr";
+            console.error(
+              `[SSR Tailoring] LLM fetch exception for ${currentPostSlug}, user ${deviceId}:`,
+              error,
+            );
           }
         } else {
-          contentSourceDebug = "original_ssr_no_history";
-          console.log(`[SSR Tailoring] No significant interaction history for ${deviceId} on ${currentPostSlug}. Serving original content.`);
+          contentSourceDebug = "original_ssr_no_apikey";
         }
-      } else if (finalContentToRender) {
-        // This case means content was found (e.g., from cache), so no LLM call was needed.
-        // contentSourceDebug would already be "cache_ssr".
-        console.log(`[SSR Tailoring] Content already available (source: ${contentSourceDebug}), skipping LLM call for ${currentPostSlug}.`);
-      } else if (!userInteractionsKV) {
-        // This case means content was NOT found in cache AND userInteractionsKV is not available.
-        contentSourceDebug = "original_ssr_no_kv_access";
-        console.warn(`[SSR Tailoring] User Interactions KV not available AND no cached content. Serving original content for ${currentPostSlug}.`);
+      } else {
+        contentSourceDebug = "original_ssr_no_history";
+        console.log(
+          `[SSR Tailoring] No significant interaction history for ${deviceId} on ${currentPostSlug}. Serving original content.`,
+        );
       }
-        // If it reaches here and finalContentToRender is still null, it means:
-        // - deviceId was present
-        // - currentPostSlug was defined
-        // - No cache hit
-        // - userInteractionsKV was available
-        // - But some condition for LLM call wasn't met (e.g., no history, or API key missing)
-        //   (contentSourceDebug would be "original_ssr_no_history" or "original_ssr_no_apikey")
-      } else { // This new else corresponds to 'if (currentPostSlug)'
-        console.warn(`[SSR Tailoring] Skipping personalization for device ${deviceId} because currentPostSlug is undefined (problem with entry.slug).`);
-        if (contentSourceDebug === "original_static_fallback_ssr" || contentSourceDebug === "error_entry_slug_problem_ssr") {
-            contentSourceDebug = "skipped_personalization_due_to_bad_slug_ssr";
-        }
-      }
-    } else {
-      contentSourceDebug = "original_ssr_no_history";
-      console.log(`[SSR Tailoring] No significant interaction history for ${deviceId} on ${currentPostSlug}. Serving original content.`);
-    } else if (!deviceId) { // This 'else if' is for the outer 'if (deviceId)'
-    contentSourceDebug = "original_ssr_no_cookie";
-    console.log(`[SSR Tailoring] No deviceId cookie found. Serving original content for ${currentPostSlug || entry.slug}.`); // Use entry.slug if currentPostSlug is undefined
+    } else if (finalContentToRender) {
+      // This case means content was found (e.g., from cache), so no LLM call was needed.
+      // contentSourceDebug would already be "cache_ssr".
+      console.log(
+        `[SSR Tailoring] Content already available (source: ${contentSourceDebug}), skipping LLM call for ${currentPostSlug}.`,
+      );
+    } else if (!userInteractionsKV) {
+      // This case means content was NOT found in cache AND userInteractionsKV is not available.
+      contentSourceDebug = "original_ssr_no_kv_access";
+      console.warn(
+        `[SSR Tailoring] User Interactions KV not available AND no cached content. Serving original content for ${currentPostSlug}.`,
+      );
+    }
+    // If it reaches here and finalContentToRender is still null, it means:
+    // - deviceId was present
+    // - currentPostSlug was defined
+    // - No cache hit
+    // - userInteractionsKV was available
+    // - But some condition for LLM call wasn't met (e.g., no history, or API key missing)
+    //   (contentSourceDebug would be "original_ssr_no_history" or "original_ssr_no_apikey")
+  } else {
+    // This new else corresponds to 'if (currentPostSlug)'
+    console.warn(
+      `[SSR Tailoring] Skipping personalization for device ${deviceId} because currentPostSlug is undefined (problem with entry.slug).`,
+    );
+    if (
+      contentSourceDebug === "original_static_fallback_ssr" ||
+      contentSourceDebug === "error_entry_slug_problem_ssr"
+    ) {
+      contentSourceDebug = "skipped_personalization_due_to_bad_slug_ssr";
+    }
+  }
+} else {
+  contentSourceDebug = "original_ssr_no_history";
+  console.log(
+    `[SSR Tailoring] No significant interaction history for ${deviceId} on ${currentPostSlug}. Serving original content.`,
+  );
 }
 // If finalContentToRender is still null at this point, the OriginalContentComponent will be used.
 
 let processedMarkdownHtml: string | null = null; // This will hold the HTML string from Markdown
 
-if (finalContentToRender && typeof finalContentToRender === 'string' && finalContentToRender.trim() !== '') {
+if (
+  finalContentToRender &&
+  typeof finalContentToRender === "string" &&
+  finalContentToRender.trim() !== ""
+) {
   try {
     // Use marked to convert markdown to HTML
     // Note: We're not using DOMPurify here as it requires DOM APIs not available in Workers
@@ -290,50 +390,72 @@ if (finalContentToRender && typeof finalContentToRender === 'string' && finalCon
     processedMarkdownHtml = await marked(finalContentToRender);
     // contentSourceDebug would have been set (e.g., "llm_generated_ssr" or "cache_ssr")
   } catch (e) {
-    console.error(`[SSR Tailoring] Error during markdown processing for slug ${entry.slug}:`, e);
+    console.error(
+      `[SSR Tailoring] Error during markdown processing for slug ${entry.slug}:`,
+      e,
+    );
     contentSourceDebug += ";markdown_render_error";
     finalContentToRender = null; // Force fallback
     processedMarkdownHtml = null;
   }
 } else if (finalContentToRender) {
   // This case handles if finalContentToRender was set but was not a non-empty string.
-  console.warn(`[SSR Tailoring] finalContentToRender was not a non-empty string for slug ${entry.slug}. Type: ${typeof finalContentToRender}. Value: '${String(finalContentToRender).substring(0,50)}...' Falling back.`);
+  console.warn(
+    `[SSR Tailoring] finalContentToRender was not a non-empty string for slug ${entry.slug}. Type: ${typeof finalContentToRender}. Value: '${String(finalContentToRender).substring(0, 50)}...' Falling back.`,
+  );
   finalContentToRender = null; // Ensure fallback
   processedMarkdownHtml = null;
 }
 // If finalContentToRender was null initially (e.g. no deviceId, error fetching history), it remains null, and OriginalContentComponent will be used.
 
-
-console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || 'N/A'}, Source: ${contentSourceDebug}`);
+console.log(
+  `[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || "N/A"}, Source: ${contentSourceDebug}`,
+);
 ---
 
 <BlogPostLayout frontmatter={entry.data} slug={entry.slug}>
   <div class="post-body">
-    {processedMarkdownHtml ? (
-      <Fragment set:html={processedMarkdownHtml} /> /* Use if frontmatter rendering was successful */
-    ) : (
-      <OriginalContentComponent /> /* Fallback to original if personalized content couldn't be rendered */
-    )}
+    {
+      processedMarkdownHtml ? (
+        <Fragment
+          set:html={processedMarkdownHtml}
+        /> /* Use if frontmatter rendering was successful */
+      ) : (
+        <OriginalContentComponent /> /* Fallback to original if personalized content couldn't be rendered */
+      )
+    }
 
-      {/* ADDED: Diff button and container */}
-      {/* This will also be part of the content slotted into BlogPostLayout's .post-body div */}
-      {finalContentToRender && finalContentToRender !== originalMarkdown && (
+    {/* ADDED: Diff button and container */}
+    {
+      /* This will also be part of the content slotted into BlogPostLayout's .post-body div */
+    }
+    {
+      finalContentToRender && finalContentToRender !== originalMarkdown && (
         <div id="diff-container-wrapper">
-          <button id="show-diff-button" type="button">Show Personalized Changes</button>
+          <button id="show-diff-button" type="button">
+            Show Personalized Changes
+          </button>
           <div id="diff-output" class="hidden">
             {/* Diff content will be rendered here by the client-side script */}
           </div>
         </div>
-      )}
-    {/* For debugging, you can uncomment this to see the content source on the page: */}
-    {/* <p style="font-size: 0.8em; color: grey; margin-top: 2em; text-align: center; background: #f0f0f0; padding: 5px;">Content Source: {contentSourceDebug}</p> */}
+      )
+    }
+    {
+      /* For debugging, you can uncomment this to see the content source on the page: */
+    }
+    {
+      /* <p style="font-size: 0.8em; color: grey; margin-top: 2em; text-align: center; background: #f0f0f0; padding: 5px;">Content Source: {contentSourceDebug}</p> */
+    }
   </div>
 </BlogPostLayout>
 
-<script define:vars={{ originalMarkdown, tailoredMarkdown: finalContentToRender }}>
+<script
+  define:vars={{ originalMarkdown, tailoredMarkdown: finalContentToRender }}
+>
   function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') {
-      return '';
+    if (typeof unsafe !== "string") {
+      return "";
     }
     return unsafe
       .replace(/&/g, "&amp;")
@@ -343,60 +465,61 @@ console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || 'N/A'}
       .replace(/'/g, "&#039;");
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const showDiffButton = document.getElementById('show-diff-button');
-    const diffOutputDiv = document.getElementById('diff-output');
+  document.addEventListener("DOMContentLoaded", () => {
+    const showDiffButton = document.getElementById("show-diff-button");
+    const diffOutputDiv = document.getElementById("diff-output");
 
     if (showDiffButton && diffOutputDiv) {
-      showDiffButton.addEventListener('click', () => {
-        const currentTailoredMarkdown = typeof tailoredMarkdown === 'string' ? tailoredMarkdown : '';
+      showDiffButton.addEventListener("click", () => {
+        const currentTailoredMarkdown =
+          typeof tailoredMarkdown === "string" ? tailoredMarkdown : "";
 
-        if (diffOutputDiv.classList.contains('hidden')) {
+        if (diffOutputDiv.classList.contains("hidden")) {
           // Generate diff using jsdiff
           const diff = Diff.structuredPatch(
-            'original.md',
-            'personalized.md', 
+            "original.md",
+            "personalized.md",
             originalMarkdown,
             currentTailoredMarkdown,
-            '',
-            '',
-            { context: 3 } // Show 3 lines of context around changes
+            "",
+            "",
+            { context: 3 }, // Show 3 lines of context around changes
           );
 
           // Build the diff view HTML
           let diffHtml = '<pre class="diff-view-output">';
-          
+
           // Add file headers
           diffHtml += `<span class="diff-meta">--- Original Content</span>\n`;
           diffHtml += `<span class="diff-meta">+++ Personalized Content</span>\n`;
-          
+
           // Process hunks
-          diff.hunks.forEach(hunk => {
+          diff.hunks.forEach((hunk) => {
             diffHtml += `<span class="diff-hunk-header">@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@</span>\n`;
-            
-            hunk.lines.forEach(line => {
+
+            hunk.lines.forEach((line) => {
               const operation = line[0];
               const content = line.slice(1);
-              
-              if (operation === '+') {
+
+              if (operation === "+") {
                 diffHtml += `<span class="diff-added">+${escapeHtml(content)}</span>\n`;
-              } else if (operation === '-') {
+              } else if (operation === "-") {
                 diffHtml += `<span class="diff-removed">-${escapeHtml(content)}</span>\n`;
               } else {
                 diffHtml += `<span class="diff-context"> ${escapeHtml(content)}</span>\n`;
               }
             });
           });
-          
-          diffHtml += '</pre>';
-          
+
+          diffHtml += "</pre>";
+
           diffOutputDiv.innerHTML = diffHtml;
-          diffOutputDiv.classList.remove('hidden');
-          showDiffButton.textContent = 'Hide Personalized Changes';
+          diffOutputDiv.classList.remove("hidden");
+          showDiffButton.textContent = "Hide Personalized Changes";
         } else {
-          diffOutputDiv.classList.add('hidden');
-          diffOutputDiv.innerHTML = '';
-          showDiffButton.textContent = 'Show Personalized Changes';
+          diffOutputDiv.classList.add("hidden");
+          diffOutputDiv.innerHTML = "";
+          showDiffButton.textContent = "Show Personalized Changes";
         }
       });
     }
@@ -421,7 +544,9 @@ console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || 'N/A'}
     font-weight: bold;
     font-family: var(--font-body);
     font-size: 0.95rem;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
     margin-bottom: 1.5rem;
   }
 
