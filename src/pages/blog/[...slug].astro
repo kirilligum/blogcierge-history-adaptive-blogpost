@@ -335,33 +335,55 @@ console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || 'N/A'}
     const showDiffButton = document.getElementById('show-diff-button');
     const diffOutputDiv = document.getElementById('diff-output');
 
-    // 'originalMarkdown' and 'tailoredMarkdown' are available here from define:vars.
-    // The button and diffOutputDiv will only exist if finalContentToRender was present
-    // and different from originalMarkdown, due to Astro's conditional rendering.
-
     if (showDiffButton && diffOutputDiv) {
       showDiffButton.addEventListener('click', () => {
-        // Ensure tailoredMarkdown is treated as a string, even if it might be null/undefined
-        // though Astro's conditional rendering should prevent that if the button exists.
         const currentTailoredMarkdown = typeof tailoredMarkdown === 'string' ? tailoredMarkdown : '';
 
         if (diffOutputDiv.classList.contains('hidden')) {
-          // Generate and display diff (simple side-by-side preformatted text)
-          diffOutputDiv.innerHTML = `
-            <div class="diff-section">
-              <h3>Original Content</h3>
-              <pre class="diff-content-pre">${escapeHtml(originalMarkdown)}</pre>
-            </div>
-            <div class="diff-section">
-              <h3>Personalized Content</h3>
-              <pre class="diff-content-pre">${escapeHtml(currentTailoredMarkdown)}</pre>
-            </div>
-          `;
+          // Generate diff using jsdiff
+          const diff = Diff.structuredPatch(
+            'original.md',
+            'personalized.md', 
+            originalMarkdown,
+            currentTailoredMarkdown,
+            '',
+            '',
+            { context: 3 } // Show 3 lines of context around changes
+          );
+
+          // Build the diff view HTML
+          let diffHtml = '<pre class="diff-view-output">';
+          
+          // Add file headers
+          diffHtml += `<span class="diff-meta">--- Original Content</span>\n`;
+          diffHtml += `<span class="diff-meta">+++ Personalized Content</span>\n`;
+          
+          // Process hunks
+          diff.hunks.forEach(hunk => {
+            diffHtml += `<span class="diff-hunk-header">@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@</span>\n`;
+            
+            hunk.lines.forEach(line => {
+              const operation = line[0];
+              const content = line.slice(1);
+              
+              if (operation === '+') {
+                diffHtml += `<span class="diff-added">+${escapeHtml(content)}</span>\n`;
+              } else if (operation === '-') {
+                diffHtml += `<span class="diff-removed">-${escapeHtml(content)}</span>\n`;
+              } else {
+                diffHtml += `<span class="diff-context"> ${escapeHtml(content)}</span>\n`;
+              }
+            });
+          });
+          
+          diffHtml += '</pre>';
+          
+          diffOutputDiv.innerHTML = diffHtml;
           diffOutputDiv.classList.remove('hidden');
           showDiffButton.textContent = 'Hide Personalized Changes';
         } else {
           diffOutputDiv.classList.add('hidden');
-          diffOutputDiv.innerHTML = ''; // Clear content when hiding
+          diffOutputDiv.innerHTML = '';
           showDiffButton.textContent = 'Show Personalized Changes';
         }
       });
@@ -371,10 +393,10 @@ console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || 'N/A'}
 
 <style>
   #diff-container-wrapper {
-    margin-top: 3rem; /* Space above the diff section */
-    padding-top: 2rem; /* Padding above the button */
-    border-top: 1px solid var(--cstm-main-surface-secondary, #eee); /* Separator line */
-    text-align: center; /* Center the button */
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--cstm-main-surface-secondary, #eee);
+    text-align: center;
   }
 
   #show-diff-button {
@@ -388,7 +410,7 @@ console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || 'N/A'}
     font-family: var(--font-body);
     font-size: 0.95rem;
     transition: background-color 0.2s ease, color 0.2s ease;
-    margin-bottom: 1.5rem; /* Space below the button */
+    margin-bottom: 1.5rem;
   }
 
   #show-diff-button:hover {
@@ -400,42 +422,59 @@ console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || 'N/A'}
     border: 1px solid var(--cstm-main-surface-secondary, #ddd);
     padding: 1.5rem;
     margin-top: 1rem;
-    background-color: #fdfdfd; /* Slightly off-white background for the diff area */
-    text-align: left; /* Reset text-align for content */
+    background-color: #fdfdfd;
+    text-align: left;
   }
 
   #diff-output.hidden {
     display: none;
   }
 
-  .diff-section {
-    margin-bottom: 2rem;
-  }
-  .diff-section:last-child {
-    margin-bottom: 0;
-  }
-
-  .diff-section h3 {
-    margin-top: 0;
-    margin-bottom: 0.75rem;
-    font-family: var(--font-body);
-    color: var(--cstm-text-primary);
-    font-size: 1.2rem;
-    border-bottom: 1px solid var(--cstm-main-surface-secondary, #eee);
-    padding-bottom: 0.5rem;
-  }
-
-  .diff-content-pre {
-    white-space: pre-wrap; /* Allows text to wrap */
-    word-wrap: break-word; /* Breaks long words to prevent overflow */
+  .diff-view-output {
+    white-space: pre-wrap;
+    word-wrap: break-word;
     background-color: #fff;
     padding: 1rem;
     border: 1px solid var(--cstm-main-surface-secondary, #eee);
     border-radius: 4px;
-    max-height: 400px; /* Limits height */
-    overflow-y: auto;   /* Adds scrollbar if content exceeds max-height */
+    max-height: 600px;
+    overflow-y: auto;
     font-family: monospace;
     font-size: 0.9em;
     line-height: 1.5;
+    margin: 0;
+  }
+
+  .diff-added {
+    background-color: #e6ffed;
+    color: #24292e;
+    display: block;
+  }
+
+  .diff-removed {
+    background-color: #ffeef0;
+    color: #24292e;
+    display: block;
+  }
+
+  .diff-context {
+    color: #586069;
+    display: block;
+  }
+
+  .diff-hunk-header {
+    color: #0366d6;
+    background-color: #f1f8ff;
+    display: block;
+    padding: 0.2em 0.5em;
+    margin: 0.5em -1rem;
+    font-weight: bold;
+  }
+
+  .diff-meta {
+    color: #586069;
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.5em;
   }
 </style>
