@@ -3,10 +3,31 @@ title: "The Big Apple's Big Textile Problem: Unpacking NYC's Mountain of Clothin
 author: "Kirill Igumenshchev"
 date: "2025-06-01T10:00:00Z"
 description: "NYC discards over 200,000 tons of textiles annually, filling landfills, releasing methane, and costing taxpayers. This post explores the shocking scale and local impact of this fashion waste crisis."
-tags: []
-familiar_concepts: []
-new_concepts: []
-citation: {}
+tags:
+  - "NYC textile waste"
+  - "clothing waste New York"
+  - "fashion waste NYC"
+  - "landfill impact"
+  - "DSNY textile recycling"
+  - "environmental cost of clothes"
+  - "NYC sustainability"
+  - "textile pollution"
+familiar_concepts:
+  - 'Basic understanding of "waste" and "landfills."'
+  - "General awareness of New York City."
+  - "The idea that clothing is eventually discarded."
+new_concepts:
+  - "The specific scale of textile waste in NYC (e.g., over 200,000 tons annually, average per person, percentage of total residential waste)."
+  - "That the primary disposal method for these textiles is landfilling."
+  - "Key environmental impacts of textiles in landfills, such as methane (CH4) gas production and the potential for toxic leachate."
+  - "The financial cost of textile waste management to NYC taxpayers."
+  - "The local impact on NYC and the missed opportunity for resource recovery."
+citation:
+  "1": "https://www.nyc.gov/assets/dsny/docs/about/2017-06-Textile-Pilot-Report_draft10.pdf (Provides the core statistic of over 200,000 tons of textile waste annually in NYC and details DSNY's perspective and pilot programs.)"
+  "2": "https://news.climate.columbia.edu/2024/07/02/scaling-the-mountains-of-textile-waste-in-new-york-city/ (Discusses the scale of NYC's textile waste, likening it to the Empire State Building, and the environmental impact in landfills, including methane.)"
+  "3": "https://www.baruch.cuny.edu/nycdata/environmental/textiles-recycling.htm (States the average textile waste per New Yorker and its percentage of the residential waste stream, and mentions landfill as the normal destination.)"
+  "4": "https://innovation.fitnyc.edu/recycling-textiles-with-chemistry-more/ (Highlights the environmental burden of textile waste, including chemical pollution from landfill leachate.)"
+  "5": "https://www.bu.edu/sph/news/articles/2022/the-aftermath-of-fast-fashion-how-discarded-clothes-impact-public-health-and-the-environment/ (Explains the decomposition process in landfills, the release of gas and chemical leachates, and the disproportionate location of landfills.)"
 ---
 
 # The Big Apple's Big Textile Problem: Unpacking NYC's Mountain of Clothing Waste
