@@ -531,19 +531,37 @@ console.log(
     // originalMarkdown, tailoredMarkdown, processedMarkdownHtmlFromAstro are from define:vars
 
     // Logic for content toggle button
-    // This button only exists if personalized content was available and different.
-    if (toggleContentButton && mainContentDisplay && typeof originalMarkdown === 'string' && typeof processedMarkdownHtmlFromAstro === 'string' && typeof marked === 'function') {
-      let isShowingPersonalized = true; // Personalized content is shown by default if this button exists
-      const clientSideOriginalHtml = marked.parse(originalMarkdown); // Use marked.parse()
+    // This button only exists if personalized content (MD) was available and different from original (MD).
+    if (toggleContentButton && mainContentDisplay && typeof originalMarkdown === 'string' && typeof marked === 'function') {
+      // Determine initial state based on what Astro rendered.
+      // Astro renders processedMarkdownHtml (personalized HTML) if it's a non-empty string, otherwise it renders OriginalContentComponent.
+      const initiallyShowingPersonalized = (typeof processedMarkdownHtmlFromAstro === 'string' && processedMarkdownHtmlFromAstro.trim() !== "");
+      let isShowingPersonalized = initiallyShowingPersonalized;
 
-      toggleContentButton.textContent = "Show Original Content"; // Initial button text
+      // Prepare original content HTML (client-side parsing of originalMarkdown)
+      // It's good practice to ensure originalMarkdown is not empty before parsing,
+      // though marked.parse handles empty strings gracefully.
+      const clientSideOriginalHtml = originalMarkdown.trim() === "" ? "" : marked.parse(originalMarkdown);
+
+      // Set initial button text based on what's currently displayed
+      if (isShowingPersonalized) {
+        // Personalized HTML is currently shown. Button should offer to show Original.
+        toggleContentButton.textContent = "Show Original Content";
+      } else {
+        // Original HTML is currently shown (either as default or because personalized HTML was null/empty).
+        // Button should offer to show Personalized.
+        toggleContentButton.textContent = "Show Personalized Content";
+      }
 
       toggleContentButton.addEventListener("click", () => {
         if (isShowingPersonalized) {
+          // Was showing personalized, switch to original
           mainContentDisplay.innerHTML = clientSideOriginalHtml;
           toggleContentButton.textContent = "Show Personalized Content";
         } else {
-          mainContentDisplay.innerHTML = processedMarkdownHtmlFromAstro; // This is already HTML
+          // Was showing original, switch to personalized
+          // If processedMarkdownHtmlFromAstro is null/empty, this will show that (e.g. blank or minimal HTML).
+          mainContentDisplay.innerHTML = processedMarkdownHtmlFromAstro || ""; // Fallback to empty string if null/undefined
           toggleContentButton.textContent = "Show Original Content";
         }
         isShowingPersonalized = !isShowingPersonalized;
