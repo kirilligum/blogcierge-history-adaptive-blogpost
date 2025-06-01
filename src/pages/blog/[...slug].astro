@@ -287,8 +287,7 @@ Focus on clarity and conciseness. The output should be ready-to-render Markdown.
       console.warn(`[SSR Tailoring] User Interactions KV evaluated as falsy (type: ${typeof userInteractionsKV}) AND no cached content. Serving original content for ${currentPostSlug}.`);
     }
   }
-} // Close if(deviceId) block
-if (!deviceId) { // Path D: No deviceId
+} else { // Path D: No deviceId
     contentSourceDebug = "original_ssr_no_cookie";
     console.log(`[SSR Tailoring] No deviceId cookie found. Serving original content for ${currentPostSlug}.`);
 }
