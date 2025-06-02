@@ -2,27 +2,33 @@
 
 An AI-adaptive, interactive blog platform that personalizes content based on user reading history and AI interactions.
 
+https://youtu.be/ceV-guUP6oU
+
 ## 🌟 Features
 
 ### 🎯 Personalized Content
+
 - **Adaptive Blog Posts**: Content automatically adjusts based on your reading history
 - **Smart Summarization**: Removes redundant information you've already learned
 - **Contextual Explanations**: Expands on new concepts based on your knowledge gaps
 - **Real-time Personalization**: Uses SSR (Server-Side Rendering) for instant content adaptation
 
 ### 🤖 AI Assistant
+
 - **Interactive Q&A**: Ask questions about blog posts with contextual AI responses
 - **Word-level Interaction**: Click on any word to add it to your question
 - **Conversation History**: Maintains context across your reading sessions
 - **Smart Filtering**: AI determines if questions are relevant to the content
 
 ### 📊 Analytics & Tracking
+
 - **Reading Analytics**: Track user interactions and reading patterns
 - **Device-based Tracking**: Anonymous user identification across sessions
 - **Conversation Analytics**: Query and analyze user interactions with AI
 - **Read Status Tracking**: Mark posts as read with persistent state
 
 ### 🔄 Circular Economy Focus
+
 - **Sustainability Content**: Specialized blog content about NYC's circular fashion economy
 - **Educational Framework**: Structured learning with familiar vs. new concepts
 - **Citation System**: Comprehensive source attribution and referencing
@@ -30,34 +36,40 @@ An AI-adaptive, interactive blog platform that personalizes content based on use
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - Yarn package manager
 - Cloudflare account (for deployment)
 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/kirilligum/blogcierge-history-adaptive-blogpost.git
    cd blogcierge-history-adaptive-blogpost
    ```
 
 2. **Install dependencies**
+
    ```bash
    yarn install
    ```
 
 3. **Set up environment variables**
+
    ```bash
    cp .env.example .env
    ```
-   
+
    Configure your `.env` file with:
+
    ```env
    LLAMA_API_KEY=your_llama_api_key_here
    ```
 
 4. **Start development server**
+
    ```bash
    yarn dev
    ```
@@ -70,6 +82,7 @@ An AI-adaptive, interactive blog platform that personalizes content based on use
 ## 🏗️ Architecture
 
 ### Technology Stack
+
 - **Framework**: Astro 4.x with SSR
 - **Deployment**: Cloudflare Pages
 - **Storage**: Cloudflare KV (caching) + R2 (logs)
@@ -149,21 +162,27 @@ binding = "BLGC_AI_LOGS_BUCKET"         # Conversation logs
 ## 🎨 Key Components
 
 ### BlogAssistant
+
 Interactive AI chat component that:
+
 - Handles user questions about blog content
 - Maintains conversation history
 - Provides feedback mechanisms (like/dislike)
 - Integrates with word-level content interaction
 
 ### Content Personalization Engine
+
 Server-side system that:
+
 - Analyzes user reading history
 - Generates personalized content via LLM
 - Caches results for performance
 - Falls back gracefully when personalization fails
 
 ### Analytics Dashboard
+
 Administrative interface for:
+
 - Viewing user interaction patterns
 - Querying conversation data
 - Understanding content engagement
@@ -174,11 +193,13 @@ Administrative interface for:
 ### Cloudflare Pages Deployment
 
 1. **Build the project**
+
    ```bash
    yarn build
    ```
 
 2. **Deploy to Cloudflare**
+
    ```bash
    yarn deploy
    ```
@@ -195,18 +216,21 @@ yarn preview
 ## 📊 Usage Examples
 
 ### Reading a Blog Post
+
 1. Visit any blog post (e.g., `/blog/nyc-textile-waste-problem/`)
 2. Content automatically personalizes based on your history
 3. Use the AI assistant to ask questions
 4. Click words to add them to your questions
 
 ### Analytics Queries
+
 1. Visit `/analytics/`
 2. Select user devices to analyze
 3. Ask questions about user interactions
 4. View aggregated conversation data
 
 ### Content Management
+
 1. Add new blog posts to `src/content/blog/`
 2. Use frontmatter for metadata and learning objectives
 3. Include citations and concept categorization
@@ -221,6 +245,7 @@ yarn preview
 5. Open a Pull Request
 
 ### Development Guidelines
+
 - Follow the existing code style and conventions
 - Add appropriate TypeScript types
 - Test AI interactions thoroughly
@@ -230,19 +255,25 @@ yarn preview
 ## 🔍 API Reference
 
 ### `/api/ask`
+
 Handles AI questions about blog content
+
 - **Method**: POST
 - **Body**: `{ messages, slug, readerId, sessionId, currentUserQuestion }`
 - **Response**: `{ answer, source }`
 
 ### `/api/feedback`
+
 Collects user feedback on AI responses
-- **Method**: POST  
+
+- **Method**: POST
 - **Body**: `{ slug, readerId, sessionId, aiResponseContent, userQuestionContext, rating }`
 - **Response**: `{ message }`
 
 ### `/api/track-interaction`
+
 Tracks user reading behavior
+
 - **Method**: POST
 - **Body**: `{ deviceId, date, slug, interactionType, readState }`
 - **Response**: `{ message }`
@@ -252,16 +283,19 @@ Tracks user reading behavior
 ### Common Issues
 
 **AI responses not working**
+
 - Check `LLAMA_API_KEY` environment variable
 - Verify Cloudflare KV bindings are configured
 - Check browser console for API errors
 
 **Content not personalizing**
+
 - Ensure user has reading history
 - Check SSR is enabled (`output: 'server'` in astro.config.mjs)
 - Verify device ID cookie is being set
 
 **Analytics not loading**
+
 - Confirm KV namespace bindings in Cloudflare
 - Check user interaction data exists
 - Verify API endpoints are accessible
