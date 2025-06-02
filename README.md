@@ -4,6 +4,18 @@ An AI-adaptive, interactive blog platform that personalizes content based on use
 
 https://youtu.be/ceV-guUP6oU
 
+## 📱 Mobile Experience
+
+BlogCierge is fully responsive and optimized for mobile devices. Here's how it looks on your phone:
+
+<div align="center">
+  <img src="screenshots/blogcierge_Screenshot_20250602-091220.png" alt="BlogCierge Homepage Mobile" width="200" style="margin: 10px;">
+  <img src="screenshots/blogcierge_Screenshot_20250602-091419.png" alt="Blog List Mobile View" width="200" style="margin: 10px;">
+  <img src="screenshots/blogcierge_Screenshot_20250602-091532.png" alt="Blog Post Mobile Reading" width="200" style="margin: 10px;">
+  <img src="screenshots/blogcierge_Screenshot_20250602-091600.png" alt="AI Assistant Mobile Interface" width="200" style="margin: 10px;">
+  <img src="screenshots/blogcierge_Screenshot_20250602-091704.png" alt="Analytics Mobile Dashboard" width="200" style="margin: 10px;">
+</div>
+
 ## 🌟 Features
 
 ### 🎯 Personalized Content
