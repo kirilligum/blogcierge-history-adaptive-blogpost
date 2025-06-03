@@ -12,5 +12,10 @@ export default defineConfig({
       enabled: true
     }
   }),
-  integrations: [tailwind(), sitemap()]
+  integrations: [tailwind(), sitemap()],
+  vite: {
+    ssr: {
+      noExternal: ['scrypt-js']
+    }
+  }
 });
