@@ -1,6 +1,6 @@
 // src/pages/api/auth/logout.ts
 import type { APIRoute } from 'astro';
-import { kvKeys } from '../../../utils/kvKeys';
+import { kvKeys } from '@/utils/kvKeys';
 
 export const POST: APIRoute = async ({ cookies, locals }) => {
   const sessionId = cookies.get('session_id')?.value;

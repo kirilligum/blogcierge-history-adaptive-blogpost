@@ -1,8 +1,8 @@
 // src/pages/api/track-interaction.ts
 import type { APIRoute } from 'astro';
 import type { KVNamespace } from "@cloudflare/workers-types";
-import { User } from '../../../types/user'; // Assuming User type is available
-import { kvKeys } from '../../../utils/kvKeys'; // Assuming kvKeys is available
+import { User } from '@/types/user'; // Assuming User type is available
+import { kvKeys } from '@/utils/kvKeys'; // Assuming kvKeys is available
 
 export const prerender = false;
 

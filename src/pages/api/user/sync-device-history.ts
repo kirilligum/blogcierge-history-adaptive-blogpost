@@ -1,7 +1,7 @@
 // src/pages/api/user/sync-device-history.ts
 import type { APIRoute } from 'astro';
-import { User } from '../../../types/user';
-import { kvKeys } from '../../../utils/kvKeys';
+import { User } from '@/types/user';
+import { kvKeys } from '@/utils/kvKeys';
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const { user: currentUser, runtime } = locals;
