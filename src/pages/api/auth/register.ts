@@ -1,6 +1,6 @@
 // src/pages/api/auth/register.ts
 import type { APIRoute } from 'astro';
-import { User } from '@/types/user';
+import type { User } from '@/types/user';
 import { kvKeys } from '@/utils/kvKeys'; // Assuming kvKeys includes a general key or we add one
 import { nanoid } from 'nanoid';
 import * as scrypt from "scrypt-js";

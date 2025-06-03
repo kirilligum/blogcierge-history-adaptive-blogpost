@@ -1,6 +1,6 @@
 // src/pages/api/auth/login.ts
 import type { APIRoute } from 'astro';
-import { User, Session } from '@/types/user';
+import type { User, Session } from '@/types/user';
 import { kvKeys } from '@/utils/kvKeys';
 import { nanoid } from 'nanoid';
 import * as scrypt from "scrypt-js"; // Import scrypt-js
