@@ -1,193 +1,240 @@
 ---
 import Layout from "../layouts/Layout.astro"; // Assuming a general layout
+
+const { user } = Astro.locals;
+
+if (!user) {
+  // Not logged in, redirect to login page, with a redirect back to analytics
+  return Astro.redirect("/login?redirect=/analytics", 307);
+}
+
+if (!user.isAdmin) {
+  // Logged in, but not an admin
+  // Option 1: Redirect to homepage
+  // return Astro.redirect("/", 307);
+
+  // Option 2: Render an access denied message (more explicit)
+  // We'll go with rendering a message within the layout.
+  // To do this properly, we might need to pass a flag to the Layout
+  // or render a different component. For simplicity here, we'll conditionally
+  // render the main content or an error message.
+}
+
 const pageTitle = "User Interaction Analytics";
 ---
 
 <Layout title={pageTitle}>
-  <main class="analytics-container">
-    <h1>{pageTitle}</h1>
+  {user && user.isAdmin ? (
+    <main class="analytics-container">
+      <h1>{pageTitle}</h1>
 
-    <div class="content-wrapper">
-      <div class="device-list-section">
-        <h2>Device IDs</h2>
-        <div class="select-all-container">
-          <input type="checkbox" id="selectAllDevices" />
-          <label for="selectAllDevices">Select All</label>
+      <div class="content-wrapper">
+        <div class="device-list-section">
+          <h2>Device IDs</h2>
+          <div class="select-all-container">
+            <input type="checkbox" id="selectAllDevices" />
+            <label for="selectAllDevices">Select All</label>
+          </div>
+          <ul id="deviceList" class="device-list">
+            {/* Device IDs will be populated here */}
+          </ul>
         </div>
-        <ul id="deviceList" class="device-list">
-          <!-- Device IDs will be populated here -->
-        </ul>
-      </div>
 
-      <div class="preview-section">
-        <h2>Preview Pane (Selected Device Messages)</h2>
-        <textarea id="previewPane" readonly class="preview-pane"></textarea>
-      </div>
+        <div class="preview-section">
+          <h2>Preview Pane (Selected Device Messages)</h2>
+          <textarea id="previewPane" readonly class="preview-pane"></textarea>
+        </div>
 
-      <div class="query-section">
-        <h2>Ask LLM about selected device interactions</h2>
-        <textarea
-          id="analyticsQuestion"
-          rows="3"
-          placeholder="e.g., What are common questions from these users?"
-          class="question-input"></textarea>
-        <button id="runAnalytics" class="run-button">Ask LLM</button>
-        <pre id="analyticsAnswer" class="answer-pane"></pre>
+        <div class="query-section">
+          <h2>Ask LLM about selected device interactions</h2>
+          <textarea
+            id="analyticsQuestion"
+            rows="3"
+            placeholder="e.g., What are common questions from these users?"
+            class="question-input"></textarea>
+          <button id="runAnalytics" class="run-button">Ask LLM</button>
+          <pre id="analyticsAnswer" class="answer-pane"></pre>
+        </div>
       </div>
-    </div>
-  </main>
+    </main>
+  ) : (
+    <main class="container" style="text-align: center; padding-top: 2rem;">
+      <h1>Access Denied</h1>
+      <p>You do not have permission to view this page.</p>
+      <a href="/">Go to Homepage</a>
+    </main>
+  )}
 </Layout>
 
 <script>
-  document.addEventListener("DOMContentLoaded", async () => {
-    const deviceListUl = document.getElementById("deviceList");
-    const previewPane = document.getElementById("previewPane") as HTMLTextAreaElement;
-    const selectAllCheckbox = document.getElementById("selectAllDevices") as HTMLInputElement;
-    const analyticsQuestion = document.getElementById("analyticsQuestion") as HTMLTextAreaElement;
-    const runAnalyticsButton = document.getElementById("runAnalytics");
-    const analyticsAnswerPre = document.getElementById("analyticsAnswer");
+  // The existing script tag and its content remain unchanged.
+  // It will only effectively run if the admin content is rendered.
+  // Consider wrapping the script's event listener setup in a check
+  // if (document.getElementById('deviceList')) { ... } if needed,
+  // but Astro's island architecture might handle this fine.
+  // For safety, ensure script doesn't run if admin content isn't there.
 
-    let allDeviceMessagesData = {};
+  if (document.querySelector('.analytics-container')) {
+    document.addEventListener("DOMContentLoaded", async () => {
+      const deviceListUl = document.getElementById("deviceList");
+      // Null check for deviceListUl in case the admin content isn't rendered
+      if (!deviceListUl) return;
 
-    async function fetchDeviceMessages() {
-      try {
-        const response = await fetch("/api/list-device-messages");
-        if (!response.ok) {
-          console.error("Failed to fetch device messages:", response.statusText);
-          deviceListUl.innerHTML = `<li>Error loading device data.</li>`;
+      const previewPane = document.getElementById("previewPane") as HTMLTextAreaElement;
+      const selectAllCheckbox = document.getElementById("selectAllDevices") as HTMLInputElement;
+      const analyticsQuestion = document.getElementById("analyticsQuestion") as HTMLTextAreaElement;
+      const runAnalyticsButton = document.getElementById("runAnalytics");
+      const analyticsAnswerPre = document.getElementById("analyticsAnswer");
+
+      let allDeviceMessagesData = {};
+
+      async function fetchDeviceMessages() {
+        try {
+          const response = await fetch("/api/list-device-messages");
+          if (!response.ok) {
+            console.error("Failed to fetch device messages:", response.statusText);
+            if (deviceListUl) deviceListUl.innerHTML = `<li>Error loading device data.</li>`;
+            return;
+          }
+          allDeviceMessagesData = await response.json();
+          populateDeviceList();
+        } catch (error) {
+          console.error("Error fetching device messages:", error);
+          if (deviceListUl) deviceListUl.innerHTML = `<li>Error loading device data.</li>`;
+        }
+      }
+
+      function populateDeviceList() {
+        if (!deviceListUl) return;
+        deviceListUl.innerHTML = ""; // Clear previous list
+        const deviceIds = Object.keys(allDeviceMessagesData);
+        if (deviceIds.length === 0) {
+          deviceListUl.innerHTML = "<li>No device data found.</li>";
           return;
         }
-        allDeviceMessagesData = await response.json();
-        populateDeviceList();
-      } catch (error) {
-        console.error("Error fetching device messages:", error);
-        deviceListUl.innerHTML = `<li>Error loading device data.</li>`;
-      }
-    }
+        deviceIds.forEach((deviceId) => {
+          const messages = allDeviceMessagesData[deviceId]?.messages || [];
+          const listItem = document.createElement("li");
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.dataset.deviceid = deviceId;
+          checkbox.id = `device-${deviceId}`;
+          checkbox.addEventListener("change", () => {
+            updatePreviewPane();
+            updateSelectAllCheckboxState();
+          });
 
-    function populateDeviceList() {
-      deviceListUl.innerHTML = ""; // Clear previous list
-      const deviceIds = Object.keys(allDeviceMessagesData);
-      if (deviceIds.length === 0) {
-        deviceListUl.innerHTML = "<li>No device data found.</li>";
-        return;
-      }
-      deviceIds.forEach((deviceId) => {
-        const messages = allDeviceMessagesData[deviceId]?.messages || [];
-        const listItem = document.createElement("li");
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.dataset.deviceid = deviceId;
-        checkbox.id = `device-${deviceId}`;
-        checkbox.addEventListener("change", () => {
-          updatePreviewPane();
-          updateSelectAllCheckboxState();
+          const label = document.createElement("label");
+          label.htmlFor = `device-${deviceId}`;
+          label.textContent = ` ${deviceId} (${messages.length} messages)`;
+
+          listItem.appendChild(checkbox);
+          listItem.appendChild(label);
+          deviceListUl.appendChild(listItem);
         });
+      }
 
-        const label = document.createElement("label");
-        label.htmlFor = `device-${deviceId}`;
-        label.textContent = ` ${deviceId} (${messages.length} messages)`;
+      function updatePreviewPane() {
+        if (!deviceListUl || !previewPane) return;
+        const selectedCheckboxes = deviceListUl.querySelectorAll(
+          "input[type='checkbox']:checked",
+        );
+        let previewContent = "";
+        selectedCheckboxes.forEach((checkbox) => {
+          const deviceId = (checkbox as HTMLInputElement).dataset.deviceid;
+          if (deviceId && allDeviceMessagesData[deviceId]?.messages) {
+            const deviceMessages = allDeviceMessagesData[deviceId].messages
+              .map((msg) => `${msg.role}: ${msg.content}`)
+              .join("\n—\n"); // Corrected join character
+            previewContent += `--- Device: ${deviceId} ---\n${deviceMessages}\n\n`;
+          }
+        });
+        previewPane.value = previewContent;
+        previewPane.style.height = "auto";
+        previewPane.style.height = previewPane.scrollHeight + "px";
+      }
 
-        listItem.appendChild(checkbox);
-        listItem.appendChild(label);
-        deviceListUl.appendChild(listItem);
-      });
-    }
-
-    function updatePreviewPane() {
-      const selectedCheckboxes = deviceListUl.querySelectorAll(
-        "input[type='checkbox']:checked",
-      );
-      let previewContent = "";
-      selectedCheckboxes.forEach((checkbox) => {
-        const deviceId = (checkbox as HTMLInputElement).dataset.deviceid;
-        if (deviceId && allDeviceMessagesData[deviceId]?.messages) {
-          const deviceMessages = allDeviceMessagesData[deviceId].messages
-            .map((msg) => `${msg.role}: ${msg.content}`)
-            .join("\n—\n");
-          previewContent += `--- Device: ${deviceId} ---\n${deviceMessages}\n\n`;
+      function updateSelectAllCheckboxState() {
+        if (!deviceListUl || !selectAllCheckbox) return;
+        const allDeviceCheckboxes = deviceListUl.querySelectorAll("input[type='checkbox']");
+        if (allDeviceCheckboxes.length === 0) {
+          selectAllCheckbox.checked = false;
+          selectAllCheckbox.indeterminate = false;
+          return;
         }
-      });
-      previewPane.value = previewContent;
-      // Auto-expand textarea
-      previewPane.style.height = "auto";
-      previewPane.style.height = previewPane.scrollHeight + "px";
-    }
+        const checkedCount = Array.from(allDeviceCheckboxes).filter(cb => (cb as HTMLInputElement).checked).length;
 
-    function updateSelectAllCheckboxState() {
-      const allDeviceCheckboxes = deviceListUl.querySelectorAll("input[type='checkbox']");
-      if (allDeviceCheckboxes.length === 0) {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.indeterminate = false;
-        return;
-      }
-      const checkedCount = Array.from(allDeviceCheckboxes).filter(cb => (cb as HTMLInputElement).checked).length;
-      
-      if (checkedCount === 0) {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.indeterminate = false;
-      } else if (checkedCount === allDeviceCheckboxes.length) {
-        selectAllCheckbox.checked = true;
-        selectAllCheckbox.indeterminate = false;
-      } else {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.indeterminate = true;
-      }
-    }
-
-    selectAllCheckbox.addEventListener("change", () => {
-      const allDeviceCheckboxes = deviceListUl.querySelectorAll("input[type='checkbox']");
-      allDeviceCheckboxes.forEach(cb => {
-        (cb as HTMLInputElement).checked = selectAllCheckbox.checked;
-      });
-      updatePreviewPane();
-      // No need to call updateSelectAllCheckboxState here as it's directly set
-    });
-
-    runAnalyticsButton.addEventListener("click", async () => {
-      const selectedCheckboxes = deviceListUl.querySelectorAll(
-        "input[type='checkbox']:checked",
-      );
-      const deviceIds = Array.from(selectedCheckboxes).map(
-        (cb) => (cb as HTMLInputElement).dataset.deviceid,
-      ).filter(Boolean) as string[];
-
-      const question = analyticsQuestion.value.trim();
-
-      if (deviceIds.length === 0) {
-        analyticsAnswerPre.textContent = "Error: Please select at least one Device ID.";
-        return;
-      }
-      if (!question) {
-        analyticsAnswerPre.textContent = "Error: Please enter a question.";
-        return;
-      }
-
-      analyticsAnswerPre.textContent = "Loading…";
-
-      try {
-        const response = await fetch("/api/analytics-query", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deviceIds, question }),
-        });
-        const result = await response.json();
-        if (response.ok) {
-          analyticsAnswerPre.textContent = result.answer;
+        if (checkedCount === 0) {
+          selectAllCheckbox.checked = false;
+          selectAllCheckbox.indeterminate = false;
+        } else if (checkedCount === allDeviceCheckboxes.length) {
+          selectAllCheckbox.checked = true;
+          selectAllCheckbox.indeterminate = false;
         } else {
-          analyticsAnswerPre.textContent = `Error: ${result.error || response.statusText}`;
+          selectAllCheckbox.checked = false;
+          selectAllCheckbox.indeterminate = true;
         }
-      } catch (error) {
-        console.error("Error running analytics query:", error);
-        analyticsAnswerPre.textContent = `Error: ${error.message}`;
       }
-    });
 
-    await fetchDeviceMessages();
-  });
+      if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener("change", () => {
+          const allDeviceCheckboxes = deviceListUl.querySelectorAll("input[type='checkbox']");
+          allDeviceCheckboxes.forEach(cb => {
+            (cb as HTMLInputElement).checked = selectAllCheckbox.checked;
+          });
+          updatePreviewPane();
+        });
+      }
+
+      if (runAnalyticsButton) {
+        runAnalyticsButton.addEventListener("click", async () => {
+          if (!deviceListUl || !analyticsQuestion || !analyticsAnswerPre) return;
+          const selectedCheckboxes = deviceListUl.querySelectorAll(
+            "input[type='checkbox']:checked",
+          );
+          const deviceIds = Array.from(selectedCheckboxes).map(
+            (cb) => (cb as HTMLInputElement).dataset.deviceid,
+          ).filter(Boolean) as string[];
+
+          const question = analyticsQuestion.value.trim();
+
+          if (deviceIds.length === 0) {
+            analyticsAnswerPre.textContent = "Error: Please select at least one Device ID.";
+            return;
+          }
+          if (!question) {
+            analyticsAnswerPre.textContent = "Error: Please enter a question.";
+            return;
+          }
+
+          analyticsAnswerPre.textContent = "Loading…";
+
+          try {
+            const response = await fetch("/api/analytics-query", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ deviceIds, question }),
+            });
+            const result = await response.json();
+            if (response.ok) {
+              analyticsAnswerPre.textContent = result.answer;
+            } else {
+              analyticsAnswerPre.textContent = `Error: ${result.error || response.statusText}`;
+            }
+          } catch (error) {
+            console.error("Error running analytics query:", error);
+            analyticsAnswerPre.textContent = `Error: ${error.message}`;
+          }
+        });
+      }
+      await fetchDeviceMessages();
+    });
+  }
 </script>
 
+<!-- Styles remain unchanged -->
 <style>
+  /* Styles from original file go here */
   .analytics-container {
     display: flex;
     flex-direction: column;

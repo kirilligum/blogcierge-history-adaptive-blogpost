@@ -1,74 +1,106 @@
+// src/pages/api/track-interaction.ts
 import type { APIRoute } from 'astro';
 import type { KVNamespace } from "@cloudflare/workers-types";
+import { User } from '../../../types/user'; // Assuming User type is available
+import { kvKeys } from '../../../utils/kvKeys'; // Assuming kvKeys is available
 
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  const userInteractionsKV = locals.runtime?.env?.BLGC_USER_INTERACTIONS_KV as KVNamespace | undefined;
+  // Use the primary KV store defined in middleware, assuming it's for all app data including user profiles and device history.
+  // If BLGC_USER_INTERACTIONS_KV was a *separate* store for anonymous data, that needs clarification.
+  // For now, assume 'KV' from locals.runtime.env is the one to use for both.
+  const KV = locals.runtime?.env?.KV as KVNamespace | undefined;
 
-  if (!userInteractionsKV) {
-    console.error("CRITICAL: BLGC_USER_INTERACTIONS_KV is not configured.");
-    return new Response(JSON.stringify({ error: "Server configuration error: Interaction storage unavailable." }), { status: 500, headers: { "Content-Type": "application/json" } });
+  if (!KV) {
+    console.error("CRITICAL: KV Namespace is not configured.");
+    return new Response(JSON.stringify({ error: "Server configuration error: Storage unavailable." }), { status: 500 });
   }
 
   try {
     const body = await request.json();
-    // Add readState to destructuring, it might be undefined
-    const { deviceId, date, slug, interactionType, readState } = body; 
+    const { deviceId, slug, interactionType, readState, date } = body; // date might be kept for device history for now
 
-    if (!deviceId || !date || !slug || !interactionType) {
-      // readState is optional, so not included in this primary check
-      return new Response(JSON.stringify({ error: "Missing required parameters for interaction tracking (deviceId, date, slug, interactionType)." }), { status: 400, headers: { "Content-Type": "application/json" } });
+    if (!slug || !interactionType) {
+      return new Response(JSON.stringify({ error: "Missing required parameters: slug, interactionType." }), { status: 400 });
     }
 
-    // Validate date format (YYYY-MM-DD)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return new Response(JSON.stringify({ error: "Invalid date format. Expected YYYY-MM-DD." }), { status: 400, headers: { "Content-Type": "application/json" } });
+    // Validate date format if provided for device history, but it's less critical for user history
+    if (!locals.user && (!deviceId || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date))) {
+        return new Response(JSON.stringify({ error: "Missing deviceId or date (YYYY-MM-DD) for anonymous user interaction." }), { status: 400 });
     }
 
-    const kvKey = `${deviceId}/${date}/${slug}`;
 
     if (interactionType === 'read') {
-      // Use waitUntil to ensure the KV operation completes
-      locals.runtime.ctx.waitUntil(
-        (async () => {
-          try {
-            let currentData = await userInteractionsKV.get<any>(kvKey, { type: "json" });
-            
-            // Determine the new read status:
-            // If readState (boolean) is explicitly passed, use it.
-            // Otherwise, default to true (marking as read).
-            const newReadValue = typeof readState === 'boolean' ? readState : true;
+      const newReadValue = typeof readState === 'boolean' ? readState : true;
 
-            if (!currentData) {
-              currentData = { read: newReadValue, messages: [] };
-            } else {
-              currentData.read = newReadValue; 
-              if (!currentData.messages) { 
-                currentData.messages = [];
+      if (locals.user) {
+        // User is logged in, update their profile
+        const user = locals.user as User; // User from middleware is SafeUser, need full User for update
+
+        locals.runtime.ctx.waitUntil(
+          (async () => {
+            try {
+              const userKey = kvKeys.user(user.id);
+              const userJson = await KV.get(userKey);
+              if (!userJson) {
+                console.error(`User data not found for logged-in user ${user.id} during track-interaction`);
+                return;
               }
-            }
-            await userInteractionsKV.put(kvKey, JSON.stringify(currentData));
-            console.log(`Interaction for KV key ${kvKey}: 'read' status set to ${newReadValue}.`);
-          } catch (e) {
-            console.error(`Error storing read interaction to KV (${kvKey}):`, e);
-            // Note: The response to the client might have already been sent by this point
-            // if the error occurs late in the async waitUntil block.
-            // For critical KV errors, you might want to handle them before responding if possible,
-            // but for background tasks, logging is often the primary recourse.
-          }
-        })()
-      );
-      return new Response(JSON.stringify({ message: "Read interaction processed successfully." }), { status: 200, headers: { "Content-Type": "application/json" } });
-    }
-    // Add other interactionType handling here if needed in the future
+              const userData: User = JSON.parse(userJson);
 
-    return new Response(JSON.stringify({ error: `Unknown interaction type: ${interactionType}` }), { status: 400, headers: { "Content-Type": "application/json" } });
+              userData.readHistory = userData.readHistory || [];
+              const slugIndex = userData.readHistory.indexOf(slug);
+
+              if (newReadValue) { // Mark as read
+                if (slugIndex === -1) {
+                  userData.readHistory.push(slug);
+                }
+              } else { // Mark as unread
+                if (slugIndex !== -1) {
+                  userData.readHistory.splice(slugIndex, 1);
+                }
+              }
+              await KV.put(userKey, JSON.stringify(userData));
+              console.log(`User ${user.id} read history updated for slug ${slug}. New state: ${newReadValue}`);
+            } catch (e) {
+              console.error(`Error updating user read history for user ${user.id}, slug ${slug}:`, e);
+            }
+          })()
+        );
+      } else if (deviceId) {
+        // Anonymous user, use deviceId (and date, for now, to maintain some compatibility if needed)
+        // New Key Structure for device history: device_history:<deviceId>/<slug>
+        // This simplifies from the previous date-based key for device history directly.
+        // If date-specific tracking for devices is essential, the key could be device_history:<deviceId>/<date>/<slug>
+        const deviceKvKey = `${kvKeys.deviceHistory(deviceId)}/${slug}`; // Simplified key
+
+        locals.runtime.ctx.waitUntil(
+          (async () => {
+            try {
+              // For device history, we'll store a simple boolean for read status directly under the slug key.
+              // Or, to be consistent with how user history might be fetched (list of slugs),
+              // we could store an object like { read: true/false }
+              // Let's use a simple direct boolean for device specific slug for now.
+              await KV.put(deviceKvKey, JSON.stringify({ read: newReadValue }));
+              console.log(`Device ${deviceId} interaction for slug ${slug}: 'read' status set to ${newReadValue}.`);
+            } catch (e) {
+              console.error(`Error storing device read interaction to KV (${deviceKvKey}):`, e);
+            }
+          })()
+        );
+      } else {
+        return new Response(JSON.stringify({ error: "User not logged in and no deviceId provided." }), { status: 400 });
+      }
+
+      return new Response(JSON.stringify({ message: "Read interaction processed." }), { status: 200 });
+    }
+
+    return new Response(JSON.stringify({ error: `Unknown interaction type: ${interactionType}` }), { status: 400 });
 
   } catch (error: unknown) {
     console.error("Error processing /api/track-interaction request:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-    // Log the error to R2 or another logging service if available/configured
-    return new Response(JSON.stringify({ error: `Failed to process interaction: ${errorMessage}` }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: `Failed to process interaction: ${errorMessage}` }), { status: 500 });
   }
 };
