@@ -20,10 +20,7 @@ if (Astro.locals.user) {
         <label for="password">Password (min. 8 characters):</label>
         <input type="password" id="password" name="password" required minlength="8" />
       </div>
-      <div class="form-group">
-        <label for="confirmPassword">Confirm Password:</label>
-        <input type="password" id="confirmPassword" name="confirmPassword" required minlength="8" />
-      </div>
+      <!-- Removed Confirm Password field -->
       <button type="submit" class="btn">Register</button>
       <p id="formError" class="error-message" style="display:none;"></p>
     </form>
@@ -37,7 +34,7 @@ if (Astro.locals.user) {
   const form = document.getElementById('registerForm') as HTMLFormElement;
   const emailInput = document.getElementById('email') as HTMLInputElement;
   const passwordInput = document.getElementById('password') as HTMLInputElement;
-  const confirmPasswordInput = document.getElementById('confirmPassword') as HTMLInputElement;
+  // confirmPasswordInput removed
   const formError = document.getElementById('formError') as HTMLParagraphElement;
 
   form.addEventListener('submit', async (event) => {
@@ -47,13 +44,9 @@ if (Astro.locals.user) {
 
     const email = emailInput.value;
     const password = passwordInput.value;
-    const confirmPassword = confirmPasswordInput.value;
+    // confirmPassword variable removed
 
-    if (password !== confirmPassword) {
-      formError.textContent = 'Passwords do not match.';
-      formError.style.display = 'block';
-      return;
-    }
+    // Removed password !== confirmPassword check
 
     if (password.length < 8) {
       formError.textContent = 'Password must be at least 8 characters long.';
