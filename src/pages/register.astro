@@ -1,0 +1,150 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const pageTitle = "Register";
+
+// Check if user is already logged in, if so, redirect to homepage
+if (Astro.locals.user) {
+  return Astro.redirect('/', 307);
+}
+---
+<Layout title={pageTitle}>
+  <main class="container auth-form">
+    <h1>Create Account</h1>
+    <form id="registerForm">
+      <div class="form-group">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password (min. 8 characters):</label>
+        <input type="password" id="password" name="password" required minlength="8" />
+      </div>
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password:</label>
+        <input type="password" id="confirmPassword" name="confirmPassword" required minlength="8" />
+      </div>
+      <button type="submit" class="btn">Register</button>
+      <p id="formError" class="error-message" style="display:none;"></p>
+    </form>
+    <p class="auth-link">
+      Already have an account? <a href="/login">Login here</a>
+    </p>
+  </main>
+</Layout>
+
+<script>
+  const form = document.getElementById('registerForm') as HTMLFormElement;
+  const emailInput = document.getElementById('email') as HTMLInputElement;
+  const passwordInput = document.getElementById('password') as HTMLInputElement;
+  const confirmPasswordInput = document.getElementById('confirmPassword') as HTMLInputElement;
+  const formError = document.getElementById('formError') as HTMLParagraphElement;
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    formError.style.display = 'none';
+    formError.textContent = '';
+
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    const confirmPassword = confirmPasswordInput.value;
+
+    if (password !== confirmPassword) {
+      formError.textContent = 'Passwords do not match.';
+      formError.style.display = 'block';
+      return;
+    }
+
+    if (password.length < 8) {
+      formError.textContent = 'Password must be at least 8 characters long.';
+      formError.style.display = 'block';
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Registration successful, redirect to login page or directly log them in
+        window.location.href = '/login?message=Registration successful! Please log in.';
+      } else {
+        formError.textContent = data.error || 'Registration failed. Please try again.';
+        formError.style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      formError.textContent = 'An unexpected error occurred. Please try again.';
+      formError.style.display = 'block';
+    }
+  });
+</script>
+
+<style>
+  .auth-form {
+    max-width: 400px;
+    margin: 2rem auto;
+    padding: 2rem;
+    border: 1px solid var(--cstm-border-color, #e0e0e0);
+    border-radius: 8px;
+    background-color: var(--cstm-background-secondary, #fff);
+  }
+  .auth-form h1 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    font-family: var(--font-heading, serif);
+  }
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+  }
+  .form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--cstm-input-border, #ccc);
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 1rem;
+  }
+  .btn {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: var(--cstm-primary-color, #007bff);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  .btn:hover {
+    background-color: var(--cstm-primary-hover, #0056b3);
+  }
+  .error-message {
+    color: var(--cstm-error-color, red);
+    margin-top: 1rem;
+    text-align: center;
+  }
+  .auth-link {
+    text-align: center;
+    margin-top: 1.5rem;
+  }
+  .auth-link a {
+    color: var(--cstm-link-color, #007bff);
+    text-decoration: none;
+  }
+  .auth-link a:hover {
+    text-decoration: underline;
+  }
+</style>

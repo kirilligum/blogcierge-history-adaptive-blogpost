@@ -1,20 +1,27 @@
 // src/pages/api/auth/register.ts
 import type { APIRoute } from 'astro';
 import { User } from '../../../types/user';
-import { kvKeys } from '../../../utils/kvKeys';
-// A simple hashing function (replace with a proper library like bcrypt in production)
+import { kvKeys } from '../../../utils/kvKeys'; // Assuming kvKeys includes a general key or we add one
 import { nanoid } from 'nanoid';
+import * as scrypt from "scrypt-js";
 
-async function simpleHash(password: string): Promise<string> {
-  // In a real application, use a strong hashing algorithm like bcrypt or Argon2
-  // This is a placeholder and NOT secure for production.
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return hashHex;
+// Helper function to convert ArrayBuffer to hex string
+function bufferToHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
+
+// Helper function to convert hex string to Uint8Array
+function hexToBuffer(hexString: string): Uint8Array {
+  const bytes = new Uint8Array(hexString.length / 2);
+  for (let i = 0; i < hexString.length; i += 2) {
+    bytes[i / 2] = parseInt(hexString.substring(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+const ADMIN_CREATED_FLAG_KEY = "system_flags:admin_user_created";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const { email, password } = await request.json();
@@ -29,32 +36,63 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   const { KV } = locals.runtime.env;
 
-  // Check if user already exists
   const existingUserKey = kvKeys.userByEmail(email);
-  const existingUser = await KV.get(existingUserKey);
+  const existingUserId = await KV.get(existingUserKey);
 
-  if (existingUser) {
+  if (existingUserId) {
     return new Response(JSON.stringify({ error: 'User already exists.' }), { status: 409 });
   }
 
   const userId = nanoid();
-  const passwordHash = await simpleHash(password);
 
-  const newUser: User = {
-    id: userId,
-    email,
-    passwordHash,
-    isAdmin: false, // Default to not admin
-    readHistory: [],
-  };
+  const N = 16384, r = 8, p = 1, dkLen = 32;
+  const salt = crypto.getRandomValues(new Uint8Array(16));
 
   try {
-    await KV.put(kvKeys.user(userId), JSON.stringify(newUser));
-    await KV.put(kvKeys.userByEmail(email), userId); // Store a mapping from email to userId
+    const passwordBuffer = new TextEncoder().encode(password);
+    const derivedKey = await scrypt.scrypt(passwordBuffer, salt, N, r, p, dkLen);
+    const passwordHashWithSalt = `${bufferToHex(salt)}:${bufferToHex(derivedKey)}`;
 
-    return new Response(JSON.stringify({ message: 'User registered successfully.', userId }), { status: 201 });
+    let isAdminUser = false;
+    const adminCreatedFlag = await KV.get(ADMIN_CREATED_FLAG_KEY);
+
+    if (!adminCreatedFlag || adminCreatedFlag.toLowerCase() !== 'true') {
+      isAdminUser = true;
+    }
+
+    const newUser: User = {
+      id: userId,
+      email,
+      passwordHash: passwordHashWithSalt,
+      isAdmin: isAdminUser, // Set admin status
+      readHistory: [],
+    };
+
+    // Use a transaction or careful ordering if possible, though KV is not transactional in the traditional sense.
+    // We'll put the user first, then the flag. If flag setting fails, the first user is still admin.
+    // If user setting fails, flag isn't set, next user can become admin.
+    await KV.put(kvKeys.user(userId), JSON.stringify(newUser));
+    await KV.put(kvKeys.userByEmail(email), userId);
+
+    if (isAdminUser) {
+      // Set the flag only if this user was made admin and all previous KV puts succeeded
+      await KV.put(ADMIN_CREATED_FLAG_KEY, "true");
+      console.log(`User ${email} registered as the first admin user.`);
+    }
+
+    return new Response(JSON.stringify({ message: 'User registered successfully.', userId, isAdmin: isAdminUser }), { status: 201 });
   } catch (error) {
-    console.error('Error during registration:', error);
-    return new Response(JSON.stringify({ error: 'Failed to register user.' }), { status: 500 });
+    console.error('Error during registration (admin check/scrypt):', error);
+    // Potentially roll back KV puts if that's feasible, or log for manual check.
+    // For now, just return a generic error.
+    let errorMessage = 'Failed to register user.';
+    if (error instanceof Error) { // Check if error is an instance of Error
+        if (error.message.toLowerCase().includes('scrypt')) {
+            errorMessage = 'Failed to register user due to a hashing process error.';
+        } else {
+            errorMessage = `Failed to register user: ${error.message}`;
+        }
+    }
+    return new Response(JSON.stringify({ error: errorMessage }), { status: 500 });
   }
 };

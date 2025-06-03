@@ -1,9 +1,12 @@
 ---
+// src/components/Header.astro
 interface Props {
   title?: string;
 }
 
 const { title = "BlogCierge" } = Astro.props;
+const user = Astro.locals.user; // Get user from Astro.locals
+const currentPath = new URL(Astro.request.url).pathname;
 ---
 
 <div class="main-header">
@@ -13,12 +16,55 @@ const { title = "BlogCierge" } = Astro.props;
   <div class="header-content">
     <span class="header-links">
       <a href="/" class="header-link">Home</a>
-      <!-- <a href="/about/" class="header-link">About</a> -->
       <a href="/blog/" class="header-link">Blog</a>
-      <a href="/analytics/" class="header-link">Analytics</a>
+      {user && user.isAdmin && (
+        <a href="/analytics/" class="header-link">Analytics</a>
+      )}
+    </span>
+    <span class="auth-links">
+      {user ? (
+        <>
+          <span class="user-greeting">Hello, {user.email.split('@')[0]}</span>
+          <a href="#" id="logoutLink" class="header-link">Logout</a>
+        </>
+      ) : (
+        <>
+          <a href={`/login?redirect=${encodeURIComponent(currentPath)}`} class="header-link">Login</a>
+          <a href="/register" class="header-link">Register</a>
+        </>
+      )}
     </span>
   </div>
 </div>
+
+{user && (
+  <script>
+    // Client-side script for logout
+    const logoutLink = document.getElementById('logoutLink');
+    if (logoutLink) {
+      logoutLink.addEventListener('click', async (event) => {
+        event.preventDefault();
+        try {
+          const response = await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json', // Optional for logout if no body
+            }
+          });
+          if (response.ok) {
+            window.location.href = '/'; // Redirect to homepage after logout
+          } else {
+            console.error('Logout failed:', await response.text());
+            alert('Logout failed. Please try again.');
+          }
+        } catch (error) {
+          console.error('Error during logout:', error);
+          alert('An error occurred during logout.');
+        }
+      });
+    }
+  </script>
+)}
 
 <style>
   .main-header {
@@ -27,20 +73,22 @@ const { title = "BlogCierge" } = Astro.props;
     align-items: center;
     padding: 0rem 1rem;
     padding-top: 0.5rem;
-    height: 2rem;
+    height: auto; /* Adjust height to auto for two lines if needed */
+    min-height: 2rem;
     background-color: var(--hero-gradient-start);
+    flex-wrap: wrap; /* Allow wrapping for smaller screens */
   }
 
   .header-blogcierge {
     font-family: var(--font-heading);
     font-size: 1.5em;
     font-weight: 500;
-    margin-top: -1em;
-    margin-bottom: -0.7em;
+    margin-top: -0.5em; /* Adjusted for better alignment if header wraps */
+    margin-bottom: -0.2em; /* Adjusted */
     color: var(--hf-color);
   }
 
-  .header-symbol {
+  .header-symbol { /* This class was in the original but not used, kept for reference */
     font-size: 1.5em;
     position: relative;
     top: -0.12em;
@@ -49,13 +97,19 @@ const { title = "BlogCierge" } = Astro.props;
 
   .header-content {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 1rem;
+    align-items: center; /* Align items in the center vertically */
+    gap: 1rem; /* Gap between page links and auth links */
+    flex-wrap: wrap; /* Allow auth links to wrap too */
   }
 
-  .header-links {
-    text-align: right;
+  .header-links, .auth-links {
+    display: flex; /* Make links align horizontally */
+    align-items: center;
+    gap: 1rem; /* Spacing between individual links */
+  }
+
+  .auth-links {
+    margin-left: 1rem; /* Add some space between page links and auth links */
   }
 
   .home-link-style {
@@ -66,12 +120,50 @@ const { title = "BlogCierge" } = Astro.props;
   .home-link-style:hover {
     text-decoration: underline;
   }
+
   .header-link {
-    margin-left: 1rem;
+    /* margin-left removed as gap is used now */
     text-decoration: none;
     color: inherit;
+    white-space: nowrap; /* Prevent links from breaking into two lines */
   }
+
   .header-link:hover {
     text-decoration: underline;
+  }
+
+  .user-greeting {
+    color: inherit; /* Or a different color if desired */
+    margin-right: 0.5rem; /* Space before logout link */
+    font-size: 0.9em;
+    white-space: nowrap;
+  }
+
+  /* Responsive adjustments if needed */
+  @media (max-width: 600px) {
+    .main-header {
+      flex-direction: column;
+      align-items: flex-start;
+      height: auto;
+      padding-bottom: 0.5rem;
+    }
+    .header-blogcierge {
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+    }
+    .header-content {
+      flex-direction: column;
+      align-items: flex-start;
+      width: 100%;
+    }
+    .header-links, .auth-links {
+      flex-direction: column; /* Stack links vertically on small screens */
+      align-items: flex-start;
+      gap: 0.5rem; /* Adjust gap for vertical layout */
+    }
+    .auth-links {
+      margin-left: 0; /* Remove margin when stacked */
+      margin-top: 0.5rem; /* Add space above stacked auth links */
+    }
   }
 </style>
