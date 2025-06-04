@@ -1,11 +1,9 @@
 // src/env.d.ts
 /// <reference types="astro/client" />
-import type { KVNamespace } from "@cloudflare/workers-types"; // Added import
+import type { KVNamespace } from "@cloudflare/workers-types";
 
-// Add User definition to Astro's Locals
-// Make sure this User type doesn't include sensitive data like passwordHash
-// Assuming User type itself will define readHistory: string[]
-type UserForLocals = Omit<import('./types/user').User, 'passwordHash'>;
+// Assuming User type itself will define readHistory: string[] which is then included here
+type UserForLocals = Omit<import('@/types/user').User, 'passwordHash'>;
 
 
 declare namespace App {
@@ -13,38 +11,34 @@ declare namespace App {
     user?: UserForLocals; // User object, undefined if not logged in
     runtime: {
       env: {
-        KV: KVNamespace;
-        // Add BLGC_USER_INTERACTIONS_KV if it's a separate KV namespace and still needed.
-        // For now, assuming all goes into a single 'KV' namespace based on previous steps.
-        // If other KV namespaces from the original Env are needed, they should be added here.
+        AUTH_KV: KVNamespace; // For user accounts, sessions
+        BLGC_USER_INTERACTIONS_KV: KVNamespace; // For anonymous device history
+        // Add any other KV namespaces or bindings your app uses from wrangler.toml here
+        // For example, if you still have general site content cache:
+        // BLGC_SITE_CONTENT_CACHE?: KVNamespace;
       };
-      // ctx needed for waitUntil
+      // ctx needed for waitUntil, usually provided by Cloudflare adapter
       ctx: {
         waitUntil: (promise: Promise<any>) => void;
       };
     };
-    // If other properties from the original `Runtime` (like `cf`, `caches`) are needed elsewhere,
-    // this definition of App.Locals would need to be expanded or merged with the previous `extends Runtime`
+    // If you were extending the Cloudflare Runtime before, ensure any other necessary properties
+    // from that runtime (like 'cf', 'caches') are added here if used elsewhere.
+    // For instance:
+    // cf?: CfProperties;
+    // caches?: CacheStorage;
   }
 }
 
-// Note: The original Env interface and ImportMetaEnv are removed in this version from the prompt.
-// This might be an oversight if they are used for Cloudflare bindings elsewhere or for process.env typing.
-// For now, sticking to the provided snippet for this specific subtask.
-// A more robust change would merge the new `user` and `runtime.ctx` fields with the existing `Locals extends Runtime` structure.
-// For example:
-// interface Env { /* ... as before ... */ KV: KVNamespace; }
-// type Runtime = import("@astrojs/cloudflare").Runtime<Env>;
-// declare namespace App {
-//   interface Locals extends Runtime { // Still extends Runtime
-//     user?: UserForLocals;
-//     // runtime.env.KV would come from Env
-//     // runtime.ctx would be automatically available from @astrojs/cloudflare adapter
-//   }
+// Note: If you have an `Env` interface for `wrangler pages dev --compatibility-date=... --kv=...`,
+// ensure that `AUTH_KV` and `BLGC_USER_INTERACTIONS_KV` are defined there as well
+// for local development with Wrangler.
+// Example:
+// interface Env {
+//   AUTH_KV: KVNamespace;
+//   BLGC_USER_INTERACTIONS_KV: KVNamespace;
+//   // other bindings
 // }
-// However, the prompt explicitly provided the new structure without `extends Runtime`.
-// I've added the KVNamespace import that was missing.
-// The `User` type in `types/user.ts` is assumed to have `readHistory: string[]` (non-optional).
-// The middleware (`src/middleware.ts`) should ensure that `locals.user` (if set) includes `readHistory`.
-// The `register.ts` endpoint should initialize `readHistory: []` for new users.
-// These points are for overall consistency but not directly changed by this overwrite.
+// Then your Astro context might look like:
+// interface Locals extends PagesRuntime<Env> { ... }
+// For simplicity, this file focuses on the direct App.Locals definition as per recent prompts.

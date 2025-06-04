@@ -30,18 +30,22 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
     return new Response(JSON.stringify({ error: 'Email and password are required.' }), { status: 400 });
   }
 
-  const { KV } = locals.runtime.env;
+  if (!locals.runtime?.env?.AUTH_KV) {
+    console.error("CRITICAL: AUTH_KV namespace is not available in login.ts.");
+    return new Response(JSON.stringify({ error: "Server configuration error." }), { status: 500 });
+  }
+  const { AUTH_KV } = locals.runtime.env;
 
   try {
     const userIdKey = kvKeys.userByEmail(email);
-    const userId = await KV.get(userIdKey);
+    const userId = await AUTH_KV.get(userIdKey);
 
     if (!userId) {
       return new Response(JSON.stringify({ error: 'Invalid credentials.' }), { status: 401 });
     }
 
     const userKey = kvKeys.user(userId);
-    const userJSON = await KV.get(userKey);
+    const userJSON = await AUTH_KV.get(userKey);
 
     if (!userJSON) {
       console.error(`User data not found for userId: ${userId}`);
@@ -78,7 +82,7 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
       expiresAt,
     };
 
-    await KV.put(kvKeys.session(sessionId), JSON.stringify(session), { expirationTtl: SESSION_DURATION });
+    await AUTH_KV.put(kvKeys.session(sessionId), JSON.stringify(session), { expirationTtl: SESSION_DURATION });
 
     cookies.set('session_id', sessionId, {
       path: '/',

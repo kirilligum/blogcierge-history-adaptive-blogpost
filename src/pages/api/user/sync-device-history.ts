@@ -5,11 +5,16 @@ import { kvKeys } from '@/utils/kvKeys';
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const { user: currentUser, runtime } = locals;
-  const { KV } = runtime.env;
 
   if (!currentUser || !currentUser.id) { // Ensure currentUser and its id are present
     return new Response(JSON.stringify({ error: 'Unauthorized. User not logged in.' }), { status: 401 });
   }
+
+  if (!runtime?.env?.AUTH_KV) {
+    console.error("CRITICAL: AUTH_KV namespace is not available in sync-device-history.ts.");
+    return new Response(JSON.stringify({ error: "Server configuration error." }), { status: 500 });
+  }
+  const { AUTH_KV } = runtime.env;
 
   try {
     const { slugs: deviceSlugs } = await request.json();
@@ -23,7 +28,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const userKey = kvKeys.user(currentUser.id);
-    const userJson = await KV.get(userKey);
+    const userJson = await AUTH_KV.get(userKey);
 
     if (!userJson) {
       console.error(`User data not found for logged-in user ${currentUser.id} during sync-device-history`);
@@ -46,7 +51,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     if (newSlugsAdded > 0) {
       userData.readHistory = Array.from(userReadHistory);
-      await KV.put(userKey, JSON.stringify(userData));
+      await AUTH_KV.put(userKey, JSON.stringify(userData));
       return new Response(JSON.stringify({ message: `Successfully synced ${newSlugsAdded} new read items.` }), { status: 200 });
     } else {
       return new Response(JSON.stringify({ message: 'Read history already up to date.' }), { status: 200 });

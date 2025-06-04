@@ -34,10 +34,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return new Response(JSON.stringify({ error: 'Password must be at least 8 characters long.' }), { status: 400 });
   }
 
-  const { KV } = locals.runtime.env;
+  // Ensure runtime and env are defined before trying to access AUTH_KV
+  if (!locals.runtime?.env?.AUTH_KV) {
+    console.error("CRITICAL: AUTH_KV namespace is not available in register.ts.");
+    return new Response(JSON.stringify({ error: "Server configuration error." }), { status: 500 });
+  }
+  const { AUTH_KV } = locals.runtime.env;
 
   const existingUserKey = kvKeys.userByEmail(email);
-  const existingUserId = await KV.get(existingUserKey);
+  const existingUserId = await AUTH_KV.get(existingUserKey);
 
   if (existingUserId) {
     return new Response(JSON.stringify({ error: 'User already exists.' }), { status: 409 });
@@ -54,7 +59,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const passwordHashWithSalt = `${bufferToHex(salt)}:${bufferToHex(derivedKey)}`;
 
     let isAdminUser = false;
-    const adminCreatedFlag = await KV.get(ADMIN_CREATED_FLAG_KEY);
+    const adminCreatedFlag = await AUTH_KV.get(ADMIN_CREATED_FLAG_KEY);
 
     if (!adminCreatedFlag || adminCreatedFlag.toLowerCase() !== 'true') {
       isAdminUser = true;
@@ -71,12 +76,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // Use a transaction or careful ordering if possible, though KV is not transactional in the traditional sense.
     // We'll put the user first, then the flag. If flag setting fails, the first user is still admin.
     // If user setting fails, flag isn't set, next user can become admin.
-    await KV.put(kvKeys.user(userId), JSON.stringify(newUser));
-    await KV.put(kvKeys.userByEmail(email), userId);
+    await AUTH_KV.put(kvKeys.user(userId), JSON.stringify(newUser));
+    await AUTH_KV.put(kvKeys.userByEmail(email), userId);
 
     if (isAdminUser) {
       // Set the flag only if this user was made admin and all previous KV puts succeeded
-      await KV.put(ADMIN_CREATED_FLAG_KEY, "true");
+      await AUTH_KV.put(ADMIN_CREATED_FLAG_KEY, "true");
       console.log(`User ${email} registered as the first admin user.`);
     }
 

@@ -44,11 +44,15 @@ const createMockAPIContext = (kvStore: InMemoryKV, requestBody: any): Partial<AP
       // @ts-ignore - We are mocking a subset of the runtime
       runtime: {
         env: {
-          KV: kvStore,
+          AUTH_KV: kvStore, // Changed from KV to AUTH_KV
+          // BLGC_USER_INTERACTIONS_KV could be mocked here if the test involved it
         },
+        // @ts-ignore
+        ctx: { // Add ctx mock for waitUntil if any tested paths use it (register doesn't currently)
+            waitUntil: globalThis.vi ? globalThis.vi.fn(promise => promise) : (promise => promise),
+        }
       },
     },
-    // Mock cookies if your endpoint uses them for reads/writes directly
     cookies: {
         // @ts-ignore
         get: globalThis.vi ? globalThis.vi.fn() : () => {},

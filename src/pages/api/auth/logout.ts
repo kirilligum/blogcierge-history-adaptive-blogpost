@@ -10,11 +10,17 @@ export const POST: APIRoute = async ({ cookies, locals }) => {
     return new Response(JSON.stringify({ message: 'Not logged in or session expired.' }), { status: 200 });
   }
 
-  const { KV } = locals.runtime.env;
+  if (!locals.runtime?.env?.AUTH_KV) {
+    console.error("CRITICAL: AUTH_KV namespace is not available in logout.ts.");
+    // Still attempt to clear cookie, but log the server config issue.
+    cookies.delete('session_id', { path: '/' });
+    return new Response(JSON.stringify({ error: "Server configuration error." }), { status: 500 });
+  }
+  const { AUTH_KV } = locals.runtime.env;
 
   try {
     // 1. Remove the session from KV store
-    await KV.delete(kvKeys.session(sessionId));
+    await AUTH_KV.delete(kvKeys.session(sessionId));
 
     // 2. Instruct the client to delete the session cookie
     cookies.delete('session_id', {
