@@ -17,29 +17,29 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
       {
         allPosts.map((post) => (
           <li class="post-entry">
-            <!-- ADD THE NEW BUTTON HERE, before the title's <a> tag -->
-            <a href={`/blog/${post.slug}/`} class="post-title-link">
-              <h2 id={`title-h2-${post.slug}`}>
+            <!-- HTML structure changed: <a> now only wraps the title text -->
+            <h2 id={`title-h2-${post.slug}`}>
+              <a href={`/blog/${post.slug}/`} class="post-title-link">
                 {post.data.title}
-                <button type="button" class="personalize-button" data-slug={post.slug} aria-label={`Personalize post: ${post.data.title}`}>
-                  Personalize
-                </button>
-                <span class="read-indicator">
-                  <input
-                    type="checkbox"
-                    class="read-status-checkbox"
-                    data-slug={post.slug}
-                    id={`read-cb-${post.slug}`}
-                    aria-labelledby={`read-label-${post.slug} title-h2-${post.slug}`}
-                  />
-                  <label
-                    for={`read-cb-${post.slug}`}
-                    id={`read-label-${post.slug}`}
-                    class="read-status-label"
-                  >Read</label>
-                </span>
-              </h2>
-            </a>
+              </a>
+              <button type="button" class="personalize-button" data-slug={post.slug} aria-label={`Personalize post: ${post.data.title}`}>
+                Personalize
+              </button>
+              <span class="read-indicator">
+                <input
+                  type="checkbox"
+                  class="read-status-checkbox"
+                  data-slug={post.slug}
+                  id={`read-cb-${post.slug}`}
+                  aria-labelledby={`read-label-${post.slug} title-h2-${post.slug}`}
+                />
+                <label
+                  for={`read-cb-${post.slug}`}
+                  id={`read-label-${post.slug}`}
+                  class="read-status-label"
+                >Read</label>
+              </span>
+            </h2>
             <div id={`personalize-explanation-${post.slug}`} class="personalization-explanation hidden">
               {/* Content will be injected by JavaScript */}
             </div>
@@ -269,20 +269,11 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
       });
     });
 
-    // Add click listeners to all read-indicator spans to prevent parent link navigation
-    document.querySelectorAll('.read-indicator').forEach(indicatorSpan => {
-      indicatorSpan.addEventListener('click', (event) => {
-        // We want to allow the checkbox to toggle, but prevent the <a> tag from navigating.
-        // Clicking the label also toggles the checkbox.
-        // So, we only need to stop the event from bubbling up to the <a>.
-        event.stopPropagation();
-
-        // If the click was directly on the span and not the input/label,
-        // and you want to prevent any default action of the span itself (if any),
-        // you could add event.preventDefault(), but it's usually not necessary for a span.
-        // The main goal is to stop propagation to the link.
-      });
-    });
+    // The click listener on .read-indicator for stopPropagation is no longer needed
+    // for navigation prevention due to the HTML structural change.
+    // Removing it simplifies the script.
+    // If it served other event management purposes, it could be kept, but
+    // its primary role (preventing link navigation) is now handled by structure.
 
   });
 </script>
@@ -362,13 +353,13 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     border-bottom: none; /* Remove underline from link itself */
   }
 
-  .post-title-link:hover h2 {
-    /* Style h2 on link hover */
-    color: var(--cstm-text-secondary); /* Subtle hover color for title */
-  }
+  /* The h2 itself is no longer hovered via the link, so this rule is not needed for h2 color change. */
+  /* The :hover effect is now directly on .post-title-link for the text itself. */
   .post-title-link:hover {
-    /* Ensure link itself doesn't get an underline from global styles */
-    border-bottom: none;
+    color: var(--cstm-text-secondary); /* Subtle hover color for title text */
+    text-decoration: underline; /* Optional: Add underline on hover for the text link */
+    /* Ensure link itself doesn't get an underline from global styles if not desired by default */
+    /* border-bottom: none; /* This might be redundant if text-decoration is used */
   }
 
   .post-meta {
@@ -452,10 +443,8 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     /* For now, default block behavior for h2 and inline-block for button might work, or adjust .post-title-link */
   }
   .post-title-link {
-    /* If personalize button is before this, you might want to adjust margins or display properties */
-    /* For example, to ensure it flows correctly with the button: */
-    display: inline-block; /* Or adjust as per your layout needs */
-    vertical-align: middle;
+    text-decoration: none; /* Remove underline from link itself */
+    color: inherit; /* Inherit color from h2 */
   }
 
   .personalization-explanation {
