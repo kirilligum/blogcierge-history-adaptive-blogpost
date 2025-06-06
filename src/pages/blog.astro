@@ -207,13 +207,21 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
       }
     });
 
-    postCheckboxes.forEach(cbElement => {
+    // Setup checkbox change listeners
+    document.querySelectorAll('.read-status-checkbox').forEach(cbElement => {
       const cb = cbElement as HTMLInputElement;
       cb.addEventListener('change', async () => {
+        // Fetch deviceId and currentDate fresh inside the event listener
+        const deviceIdForEvent = getOrSetDeviceIDForBlogList();
+        const currentDateForEvent = new Date().toISOString().split('T')[0];
+
         const slug = cb.dataset.slug;
         const newReadState = cb.checked;
 
-        if (!slug) return;
+        if (!slug || !deviceIdForEvent) {
+            if(!deviceIdForEvent) console.error("Device ID not available for tracking read status change.");
+            return;
+        }
 
         try {
           const trackResponse = await fetch('/api/track-interaction', {
@@ -224,13 +232,13 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
               date: currentDateForEvent,
               slug,
               interactionType: 'read',
-              readState: newReadState 
+              readState: newReadState
             }),
           });
           if (!trackResponse.ok) {
             console.error('Failed to update read status for slug:', slug, await trackResponse.text());
             // Revert checkbox state on failure to provide immediate feedback
-            cb.checked = !newReadState; 
+            cb.checked = !newReadState;
           } else {
             console.log(`Read status for ${slug} updated to ${newReadState}`);
           }
