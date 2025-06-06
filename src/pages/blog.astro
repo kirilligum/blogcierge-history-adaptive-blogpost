@@ -119,9 +119,84 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     return deviceId;
   }
 
+  // Helper function to get or set device ID
+  function getOrSetDeviceIDForBlogList() {
+    if (typeof localStorage === 'undefined') {
+      console.warn("localStorage not available for tracking.");
+      return null;
+    }
+    let deviceId = localStorage.getItem("blgcUserDeviceID");
+    if (!deviceId) {
+      deviceId = crypto.randomUUID();
+      localStorage.setItem("blgcUserDeviceID", deviceId);
+    }
+    return deviceId;
+  }
+
+  // Helper function to hide all personalization explanation messages
+  function hideAllExplanations() {
+    document.querySelectorAll('.personalization-explanation').forEach(div => {
+      div.classList.add('hidden');
+    });
+  }
+
+  // NEW: Reusable function to fetch and update read statuses
+  async function fetchAndUpdateReadStatuses() {
+    const deviceId = getOrSetDeviceIDForBlogList();
+    if (!deviceId) {
+      console.error("Device ID not available for fetching read statuses.");
+      document.querySelectorAll('.read-status-checkbox').forEach(cb => (cb as HTMLInputElement).disabled = true);
+      return;
+    }
+
+    const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const postCheckboxes = document.querySelectorAll('.read-status-checkbox');
+
+    if (postCheckboxes.length === 0) return;
+
+    const slugs = Array.from(postCheckboxes).map(cb => (cb as HTMLInputElement).dataset.slug).filter(Boolean) as string[];
+
+    if (slugs.length > 0) {
+      try {
+        const response = await fetch('/api/get-read-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceId, date: currentDate, slugs }),
+        });
+        if (response.ok) {
+          const readStatuses = await response.json();
+          postCheckboxes.forEach(cbElement => {
+            const cb = cbElement as HTMLInputElement;
+            const slug = cb.dataset.slug;
+            if (slug && typeof readStatuses[slug] === 'boolean') {
+              cb.checked = readStatuses[slug];
+            } else if (slug) {
+              // If a slug is present but not in readStatuses, assume not read
+              cb.checked = false;
+            }
+          });
+        } else {
+          console.error('Failed to fetch read statuses:', await response.text());
+        }
+      } catch (error) {
+        console.error('Error fetching read statuses:', error);
+      }
+    }
+  }
+  
+  const EXPLANATION_HTML = `
+              <p><strong>Rewriting this article for you...</strong></p>
+              <ul>
+                <li>Concepts you're familiar with (from your reading history or AI chats) will be summarized.</li>
+                <li>New or confusing topics will be explained in more detail, connecting to your interests.</li>
+                <li>The core message and facts will remain the same.</li>
+              </ul>
+              <p><em>Please wait while we tailor your reading experience!</em></p>
+            `;
+
   document.addEventListener('DOMContentLoaded', async () => {
     // Helper function to hide all personalization explanation messages
-    function hideAllExplanations() {
+    // function hideAllExplanations() { // MOVED TO OUTER SCOPE
       document.querySelectorAll('.personalization-explanation').forEach(div => {
         div.classList.add('hidden');
       });
@@ -189,8 +264,8 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              deviceId,
-              date: currentDate,
+              deviceId: deviceIdForEvent,
+              date: currentDateForEvent,
               slug,
               interactionType: 'read',
               readState: newReadState 
