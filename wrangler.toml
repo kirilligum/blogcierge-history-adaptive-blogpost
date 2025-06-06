@@ -6,35 +6,12 @@ pages_build_output_dir = "./dist"
 
 # NOTE: How bindings are configured.
 #
-# For local development (`yarn preview`), bindings are injected via command-line
-# flags by the `scripts/preview.js` script. This script reads resource IDs from
-# the `.dev.vars` file.
+# For local development (`yarn preview`), bindings are injected via command-line flags
+# by the `scripts/preview.js` script, which reads resource IDs from the `.dev.vars` file.
+# This `wrangler.toml` file does not contain any binding definitions.
 #
-# For production (`wrangler pages deploy`), bindings MUST be configured in the
-# Cloudflare Pages dashboard (Settings > Functions > Production bindings).
-# The `preview_id` and `preview_bucket_name` fields below are placeholders for
-# local development and are ignored during a Pages deployment, which prevents
-# conflicts with the dashboard configuration.
-
-[[kv_namespaces]]
-binding = "BLGC_ADMIN_KV"
-preview_id = "00000000000000000000000000000000"
-
-[[kv_namespaces]]
-binding = "BLGC_BLOGPOST_AI_CACHE"
-preview_id = "00000000000000000000000000000000"
-
-[[kv_namespaces]]
-binding = "BLGC_SITE_CONTENT_CACHE"
-preview_id = "00000000000000000000000000000000"
-
-[[kv_namespaces]]
-binding = "BLGC_USER_INTERACTIONS_KV"
-preview_id = "00000000000000000000000000000000"
-
-[[r2_buckets]]
-binding = "BLGC_AI_LOGS_BUCKET"
-preview_bucket_name = "placeholder-for-prod-dashboard-config"
+# For production, bindings MUST be configured in the Cloudflare Pages dashboard
+# (under your project's Settings > Functions > Production bindings).
 
 # Automatically place your workloads in an optimal location to minimize latency.
 # If you are running back-end logic in a Pages Function, running it closer to your back-end infrastructure
