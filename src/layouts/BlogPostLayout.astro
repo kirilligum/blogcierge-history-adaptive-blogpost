@@ -568,10 +568,9 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
       // This script is separate from the word highlighting and FAB logic below.
       // It uses the postSlug passed from Astro props via define:vars.
       function getOrSetDeviceIDForTracking() {
-        // Ensure localStorage is available
         if (typeof localStorage === 'undefined') {
           console.warn("localStorage not available for tracking.");
-          return null; 
+          return null;
         }
         let deviceId = localStorage.getItem("blgcUserDeviceID");
         if (!deviceId) {
@@ -583,29 +582,56 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
 
       document.addEventListener('DOMContentLoaded', () => {
         const deviceId = getOrSetDeviceIDForTracking();
-        if (!deviceId) return; // Don't proceed if deviceId couldn't be obtained
+        if (!deviceId) return;
 
-        const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const currentDate = new Date().toISOString().split('T')[0];
+        let hasTrackedRead = false;
+        let visibilityTimeout = null;
 
-        // The 'postSlug' variable is directly available here due to define:vars={{ postSlug: slug }}
-        fetch('/api/track-interaction', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            deviceId: deviceId,
-            date: currentDate,
-            slug: postSlug, 
-            interactionType: 'read'
-          }),
-        })
-        .then(response => {
-          if (!response.ok) {
-            response.text().then(text => console.error('Failed to track blog post read. Server response:', text));
+        function trackReadInteraction() {
+          if (hasTrackedRead) return;
+          hasTrackedRead = true;
+
+          console.log(`Attempting to track read for slug: ${postSlug} after 3s visibility.`);
+          fetch('/api/track-interaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              deviceId: deviceId,
+              date: currentDate,
+              slug: postSlug,
+              interactionType: 'read',
+              readState: true // Explicitly set readState to true
+            }),
+          })
+          .then(response => {
+            if (!response.ok) {
+              response.text().then(text => console.error('Failed to track blog post read. Server response:', text));
+            } else {
+              console.log('Blog post read tracked successfully for slug:', postSlug);
+            }
+          })
+          .catch(err => console.error('Error tracking blog post read for slug:', postSlug, err));
+        }
+
+        function handleVisibilityChange() {
+          if (document.visibilityState === 'visible') {
+            if (!hasTrackedRead && visibilityTimeout === null) {
+              console.log(`Page visible. Starting 3s timer for read tracking of slug: ${postSlug}`);
+              visibilityTimeout = setTimeout(trackReadInteraction, 3000);
+            }
           } else {
-            console.log('Blog post read tracked successfully.');
+            if (visibilityTimeout !== null) {
+              console.log(`Page hidden. Clearing timer for read tracking of slug: ${postSlug}`);
+              clearTimeout(visibilityTimeout);
+              visibilityTimeout = null;
+            }
           }
-        })
-        .catch(err => console.error('Error tracking blog post read:', err));
+        }
+
+        // Initial check and setup listener
+        handleVisibilityChange();
+        document.addEventListener('visibilitychange', handleVisibilityChange);
       });
     </script>
 

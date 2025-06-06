@@ -119,10 +119,8 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     return deviceId;
   }
 
-  // Helper function to get or set device ID
-  function getOrSetDeviceIDForBlogList() {
-    if (typeof localStorage === 'undefined') {
-      console.warn("localStorage not available for tracking.");
+  // Helper function to hide all personalization explanation messages
+  function hideAllExplanations() {
       return null;
     }
     let deviceId = localStorage.getItem("blgcUserDeviceID");
