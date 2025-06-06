@@ -19,27 +19,27 @@ pages_build_output_dir = "./dist"
 
 [[kv_namespaces]]
 binding = "BLGC_ADMIN_KV"
-id = "placeholder_id_for_prod_dashboard_config"
+id = "00000000000000000000000000000000"
 preview_id = "${BLGC_ADMIN_KV_ID}"
 
 [[kv_namespaces]]
 binding = "BLGC_BLOGPOST_AI_CACHE"
-id = "placeholder_id_for_prod_dashboard_config"
+id = "00000000000000000000000000000000"
 preview_id = "${BLGC_BLOGPOST_AI_CACHE_ID}"
 
 [[kv_namespaces]]
 binding = "BLGC_SITE_CONTENT_CACHE"
-id = "placeholder_id_for_prod_dashboard_config"
+id = "00000000000000000000000000000000"
 preview_id = "${BLGC_SITE_CONTENT_CACHE_ID}"
 
 [[kv_namespaces]]
 binding = "BLGC_USER_INTERACTIONS_KV"
-id = "placeholder_id_for_prod_dashboard_config"
+id = "00000000000000000000000000000000"
 preview_id = "${BLGC_USER_INTERACTIONS_KV_ID}"
 
 [[r2_buckets]]
 binding = "BLGC_AI_LOGS_BUCKET"
-bucket_name = "placeholder_name_for_prod_dashboard_config"
+bucket_name = "placeholder-for-prod-dashboard-config"
 preview_bucket_name = "${BLGC_AI_LOGS_BUCKET_NAME}"
 
 # Automatically place your workloads in an optimal location to minimize latency.
