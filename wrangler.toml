@@ -83,8 +83,8 @@ preview_id = "85199e6b7bc24882a6f7891a00910730" # Replace with actual ID for pre
 # and replace the placeholder IDs below with your actual namespace IDs.
 [[kv_namespaces]]
 binding = "BLGC_ADMIN_KV"
-id = "YOUR_PRODUCTION_KV_ID_HERE"
-preview_id = "YOUR_PREVIEW_KV_ID_HERE"
+id = "2a9d5353e231403d823a105f3f78535a"
+preview_id = "2a9d5353e231403d823a105f3f78535a"
 
 # Bind another Worker service. Use this binding to call another Worker without network overhead.
 # Docs: https://developers.cloudflare.com/pages/functions/bindings/#service-bindings
