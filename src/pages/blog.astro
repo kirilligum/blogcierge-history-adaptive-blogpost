@@ -40,6 +40,9 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
                 </span>
               </h2>
             </a>
+            <div id={`personalize-explanation-${post.slug}`} class="personalization-explanation hidden">
+              {/* Content will be injected by JavaScript */}
+            </div>
             <p class="post-meta">
               Published on{" "}
               <time datetime={post.data.date.toISOString()}>
@@ -163,9 +166,25 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
     const personalizeButtons = document.querySelectorAll('.personalize-button');
     personalizeButtons.forEach(button => {
-      button.addEventListener('click', () => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault(); // Prevent the parent <a> tag's navigation
+        event.stopPropagation(); // Stop event from bubbling
+
         const slug = (button as HTMLButtonElement).dataset.slug;
         if (slug) {
+          const explanationDiv = document.getElementById(`personalize-explanation-${slug}`);
+          if (explanationDiv) {
+            explanationDiv.innerHTML = `
+              <p><strong>Rewriting this article for you...</strong></p>
+              <ul>
+                <li>Concepts you're familiar with (from your reading history or AI chats) will be summarized.</li>
+                <li>New or confusing topics will be explained in more detail, connecting to your interests.</li>
+                <li>The core message and facts will remain the same.</li>
+              </ul>
+              <p><em>Please wait while we tailor your reading experience!</em></p>
+            `;
+            explanationDiv.classList.remove('hidden');
+          }
           // The getOrSetDeviceIDForBlogList() function is called at the beginning of DOMContentLoaded,
           // so the deviceId cookie required by the blog post page for personalization should already be set.
           window.location.href = `/blog/${slug}/?personalize=true`;
@@ -344,5 +363,31 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     /* For example, to ensure it flows correctly with the button: */
     display: inline-block; /* Or adjust as per your layout needs */
     vertical-align: middle;
+  }
+
+  .personalization-explanation {
+    background-color: #f0f8ff; /* AliceBlue */
+    border: 1px solid #add8e6; /* LightBlue */
+    padding: 1em;
+    margin-top: 0.75em; /* Space below the title block */
+    margin-bottom: 1em; /* Space before the post meta */
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #333;
+  }
+  .personalization-explanation p,
+  .personalization-explanation ul {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+  }
+  .personalization-explanation ul {
+    padding-left: 1.5em;
+  }
+  .personalization-explanation li {
+    margin-bottom: 0.25em;
+  }
+
+  .hidden {
+    display: none;
   }
 </style>
