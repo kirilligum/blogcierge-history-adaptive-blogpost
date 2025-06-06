@@ -79,13 +79,30 @@ pages_build_output_dir = "./dist"
 # Docs: https://developers.cloudflare.com/pages/functions/wrangler-configuration#environment-specific-overrides
 
 ######## PREVIEW environment config ########
+# These bindings are used by `wrangler pages dev` for local development.
+# The actual IDs and names are pulled from the `.dev.vars` file.
 
-# [env.preview.vars]
-# API_KEY = "xyz789"
+[env.preview]
 
-# [[env.preview.kv_namespaces]]
-# binding = "MY_KV_NAMESPACE"
-# id = "<PREVIEW_NAMESPACE_ID>"
+[[env.preview.kv_namespaces]]
+binding = "BLGC_ADMIN_KV"
+id = "${BLGC_ADMIN_KV_ID}"
+
+[[env.preview.kv_namespaces]]
+binding = "BLGC_BLOGPOST_AI_CACHE"
+id = "${BLGC_BLOGPOST_AI_CACHE_ID}"
+
+[[env.preview.kv_namespaces]]
+binding = "BLGC_SITE_CONTENT_CACHE"
+id = "${BLGC_SITE_CONTENT_CACHE_ID}"
+
+[[env.preview.kv_namespaces]]
+binding = "BLGC_USER_INTERACTIONS_KV"
+id = "${BLGC_USER_INTERACTIONS_KV_ID}"
+
+[[env.preview.r2_buckets]]
+binding = "BLGC_AI_LOGS_BUCKET"
+bucket_name = "${BLGC_AI_LOGS_BUCKET_NAME}"
 
 ######## PRODUCTION environment config ########
 
