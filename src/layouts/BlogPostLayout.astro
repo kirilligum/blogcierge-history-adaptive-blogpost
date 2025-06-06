@@ -587,12 +587,13 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
         const currentDate = new Date().toISOString().split('T')[0];
         let hasTrackedRead = false;
         let visibilityTimeout = null;
+        let isWindowFocused = document.hasFocus(); // Track window focus state
 
         function trackReadInteraction() {
           if (hasTrackedRead) return;
           hasTrackedRead = true;
 
-          console.log(`Attempting to track read for slug: ${postSlug} after 3s visibility.`);
+          console.log(`Attempting to track read for slug: ${postSlug} after 3s visibility and focus.`);
           fetch('/api/track-interaction', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -614,24 +615,37 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
           .catch(err => console.error('Error tracking blog post read for slug:', postSlug, err));
         }
 
-        function handleVisibilityChange() {
-          if (document.visibilityState === 'visible') {
+        function handleVisibilityAndFocusChange() {
+          if (document.visibilityState === 'visible' && isWindowFocused) {
             if (!hasTrackedRead && visibilityTimeout === null) {
-              console.log(`Page visible. Starting 3s timer for read tracking of slug: ${postSlug}`);
+              console.log(`Page visible and focused. Starting 3s timer for read tracking of slug: ${postSlug}`);
               visibilityTimeout = setTimeout(trackReadInteraction, 3000);
             }
           } else {
             if (visibilityTimeout !== null) {
-              console.log(`Page hidden. Clearing timer for read tracking of slug: ${postSlug}`);
+              console.log(`Page hidden or unfocused. Clearing timer for read tracking of slug: ${postSlug}`);
               clearTimeout(visibilityTimeout);
               visibilityTimeout = null;
             }
           }
         }
 
-        // Initial check and setup listener
-        handleVisibilityChange();
-        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', () => {
+          isWindowFocused = true;
+          console.log(`Window focused for slug: ${postSlug}`);
+          handleVisibilityAndFocusChange();
+        });
+
+        window.addEventListener('blur', () => {
+          isWindowFocused = false;
+          console.log(`Window blurred for slug: ${postSlug}`);
+          handleVisibilityAndFocusChange();
+        });
+        
+        document.addEventListener('visibilitychange', handleVisibilityAndFocusChange);
+
+        // Initial check
+        handleVisibilityAndFocusChange();
       });
     </script>
 

@@ -268,6 +268,22 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
         }
       });
     });
+
+    // Add click listeners to all read-indicator spans to prevent parent link navigation
+    document.querySelectorAll('.read-indicator').forEach(indicatorSpan => {
+      indicatorSpan.addEventListener('click', (event) => {
+        // We want to allow the checkbox to toggle, but prevent the <a> tag from navigating.
+        // Clicking the label also toggles the checkbox.
+        // So, we only need to stop the event from bubbling up to the <a>.
+        event.stopPropagation();
+
+        // If the click was directly on the span and not the input/label,
+        // and you want to prevent any default action of the span itself (if any),
+        // you could add event.preventDefault(), but it's usually not necessary for a span.
+        // The main goal is to stop propagation to the link.
+      });
+    });
+
   });
 </script>
 
