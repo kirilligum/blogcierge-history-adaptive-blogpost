@@ -1,0 +1,66 @@
+---
+// src/pages/blog/admin/list.astro
+import { getCollection } from "astro:content";
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import { formatDate } from "../../../utils/formatDate";
+
+const pageTitle = "Manage Blog Posts";
+let allPosts = await getCollection("blog");
+allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<AdminLayout title={pageTitle}>
+  <main class="admin-main">
+    <h1>{pageTitle}</h1>
+    <p>
+      Here you can manage blog posts. Functionality to delete posts will be
+      added soon.
+    </p>
+    <ul class="post-list">
+      {
+        allPosts.map((post) => (
+          <li class="post-item">
+            <a href={`/blog/${post.slug}/`} target="_blank">
+              {post.data.title}
+            </a>
+            <span class="post-date">
+              - Published on {formatDate(post.data.date)}
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+</AdminLayout>
+
+<style>
+  .admin-main {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: #fff;
+    border-radius: 8px;
+  }
+  .admin-main h1 {
+    font-family: var(--font-heading);
+    margin-top: 0;
+  }
+  .post-list {
+    list-style: none;
+    padding: 0;
+  }
+  .post-item {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #eee;
+  }
+  .post-item:last-child {
+    border-bottom: none;
+  }
+  .post-item a {
+    font-weight: bold;
+  }
+  .post-date {
+    font-size: 0.9em;
+    color: #555;
+  }
+</style>

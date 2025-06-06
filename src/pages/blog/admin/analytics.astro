@@ -1,0 +1,313 @@
+---
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+const pageTitle = "User Interaction Analytics";
+---
+
+<AdminLayout title={pageTitle}>
+  <main class="analytics-container">
+    <h1>{pageTitle}</h1>
+
+    <div class="content-wrapper">
+      <div class="device-list-section">
+        <h2>Device IDs</h2>
+        <div class="select-all-container">
+          <input type="checkbox" id="selectAllDevices" />
+          <label for="selectAllDevices">Select All</label>
+        </div>
+        <ul id="deviceList" class="device-list">
+          <!-- Device IDs will be populated here -->
+        </ul>
+      </div>
+
+      <div class="preview-section">
+        <h2>Preview Pane (Selected Device Messages)</h2>
+        <textarea id="previewPane" readonly class="preview-pane"></textarea>
+      </div>
+
+      <div class="query-section">
+        <h2>Ask LLM about selected device interactions</h2>
+        <textarea
+          id="analyticsQuestion"
+          rows="3"
+          placeholder="e.g., What are common questions from these users?"
+          class="question-input"></textarea>
+        <button id="runAnalytics" class="run-button">Ask LLM</button>
+        <pre id="analyticsAnswer" class="answer-pane"></pre>
+      </div>
+    </div>
+  </main>
+</AdminLayout>
+
+<script>
+  document.addEventListener("DOMContentLoaded", async () => {
+    const deviceListUl = document.getElementById("deviceList");
+    const previewPane = document.getElementById("previewPane") as HTMLTextAreaElement;
+    const selectAllCheckbox = document.getElementById("selectAllDevices") as HTMLInputElement;
+    const analyticsQuestion = document.getElementById("analyticsQuestion") as HTMLTextAreaElement;
+    const runAnalyticsButton = document.getElementById("runAnalytics");
+    const analyticsAnswerPre = document.getElementById("analyticsAnswer");
+
+    let allDeviceMessagesData = {};
+
+    async function fetchDeviceMessages() {
+      try {
+        const response = await fetch("/api/list-device-messages");
+        if (!response.ok) {
+          console.error("Failed to fetch device messages:", response.statusText);
+          deviceListUl.innerHTML = `<li>Error loading device data.</li>`;
+          return;
+        }
+        allDeviceMessagesData = await response.json();
+        populateDeviceList();
+      } catch (error) {
+        console.error("Error fetching device messages:", error);
+        deviceListUl.innerHTML = `<li>Error loading device data.</li>`;
+      }
+    }
+
+    function populateDeviceList() {
+      deviceListUl.innerHTML = ""; // Clear previous list
+      const deviceIds = Object.keys(allDeviceMessagesData);
+      if (deviceIds.length === 0) {
+        deviceListUl.innerHTML = "<li>No device data found.</li>";
+        return;
+      }
+      deviceIds.forEach((deviceId) => {
+        const messages = allDeviceMessagesData[deviceId]?.messages || [];
+        const listItem = document.createElement("li");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.dataset.deviceid = deviceId;
+        checkbox.id = `device-${deviceId}`;
+        checkbox.addEventListener("change", () => {
+          updatePreviewPane();
+          updateSelectAllCheckboxState();
+        });
+
+        const label = document.createElement("label");
+        label.htmlFor = `device-${deviceId}`;
+        label.textContent = ` ${deviceId} (${messages.length} messages)`;
+
+        listItem.appendChild(checkbox);
+        listItem.appendChild(label);
+        deviceListUl.appendChild(listItem);
+      });
+    }
+
+    function updatePreviewPane() {
+      const selectedCheckboxes = deviceListUl.querySelectorAll(
+        "input[type='checkbox']:checked",
+      );
+      let previewContent = "";
+      selectedCheckboxes.forEach((checkbox) => {
+        const deviceId = (checkbox as HTMLInputElement).dataset.deviceid;
+        if (deviceId && allDeviceMessagesData[deviceId]?.messages) {
+          const deviceMessages = allDeviceMessagesData[deviceId].messages
+            .map((msg) => `${msg.role}: ${msg.content}`)
+            .join("\n—\n");
+          previewContent += `--- Device: ${deviceId} ---\n${deviceMessages}\n\n`;
+        }
+      });
+      previewPane.value = previewContent;
+      // Auto-expand textarea
+      previewPane.style.height = "auto";
+      previewPane.style.height = previewPane.scrollHeight + "px";
+    }
+
+    function updateSelectAllCheckboxState() {
+      const allDeviceCheckboxes = deviceListUl.querySelectorAll("input[type='checkbox']");
+      if (allDeviceCheckboxes.length === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+        return;
+      }
+      const checkedCount = Array.from(allDeviceCheckboxes).filter(cb => (cb as HTMLInputElement).checked).length;
+      
+      if (checkedCount === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+      } else if (checkedCount === allDeviceCheckboxes.length) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+      } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+      }
+    }
+
+    selectAllCheckbox.addEventListener("change", () => {
+      const allDeviceCheckboxes = deviceListUl.querySelectorAll("input[type='checkbox']");
+      allDeviceCheckboxes.forEach(cb => {
+        (cb as HTMLInputElement).checked = selectAllCheckbox.checked;
+      });
+      updatePreviewPane();
+      // No need to call updateSelectAllCheckboxState here as it's directly set
+    });
+
+    runAnalyticsButton.addEventListener("click", async () => {
+      const selectedCheckboxes = deviceListUl.querySelectorAll(
+        "input[type='checkbox']:checked",
+      );
+      const deviceIds = Array.from(selectedCheckboxes).map(
+        (cb) => (cb as HTMLInputElement).dataset.deviceid,
+      ).filter(Boolean) as string[];
+
+      const question = analyticsQuestion.value.trim();
+
+      if (deviceIds.length === 0) {
+        analyticsAnswerPre.textContent = "Error: Please select at least one Device ID.";
+        return;
+      }
+      if (!question) {
+        analyticsAnswerPre.textContent = "Error: Please enter a question.";
+        return;
+      }
+
+      analyticsAnswerPre.textContent = "Loading…";
+
+      try {
+        const response = await fetch("/api/analytics-query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceIds, question }),
+        });
+        const result = await response.json();
+        if (response.ok) {
+          analyticsAnswerPre.textContent = result.answer;
+        } else {
+          analyticsAnswerPre.textContent = `Error: ${result.error || response.statusText}`;
+        }
+      } catch (error) {
+        console.error("Error running analytics query:", error);
+        analyticsAnswerPre.textContent = `Error: ${error.message}`;
+      }
+    });
+
+    await fetchDeviceMessages();
+  });
+</script>
+
+<style>
+  .analytics-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem;
+    max-width: 1000px;
+    margin: 0 auto;
+    font-family: var(--font-body, sans-serif);
+  }
+
+  .analytics-container h1 {
+    text-align: center;
+    font-family: var(--font-heading, serif);
+    color: var(--cstm-text-primary, #333);
+  }
+
+  .content-wrapper {
+    display: flex;
+    flex-direction: column; /* Stack sections vertically */
+    gap: 1.5rem;
+  }
+
+  .device-list-section,
+  .preview-section,
+  .query-section {
+    border: 1px solid #ccc;
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+  }
+
+  .device-list-section h2,
+  .preview-section h2,
+  .query-section h2 {
+    margin-top: 0;
+    font-family: var(--font-heading, serif);
+    color: var(--cstm-text-secondary, #555);
+    font-size: 1.2em;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .select-all-container {
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem; /* Align with list item padding */
+  }
+
+  .select-all-container label {
+    margin-left: 0.25rem;
+    cursor: pointer;
+  }
+  
+  .select-all-container input[type="checkbox"] {
+    cursor: pointer;
+  }
+
+  .device-list {
+    list-style: none;
+    padding: 0;
+    max-height: 200px; /* Fixed height */
+    overflow-y: auto; /* Scrollable */
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.5rem;
+  }
+
+  .device-list li {
+    padding: 0.25rem 0;
+  }
+
+  .preview-pane {
+    width: 100%;
+    min-height: 100px; /* Initial min height */
+    font-family: monospace;
+    font-size: 0.85em;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.5rem;
+    box-sizing: border-box;
+    resize: vertical; /* Allow vertical resize by user */
+    overflow-y: auto; /* Ensure scrollbar appears if content exceeds height */
+  }
+
+  .question-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin-bottom: 0.75rem;
+    font-family: inherit;
+    font-size: 1em;
+  }
+
+  .run-button {
+    padding: 0.6rem 1.2rem;
+    background-color: var(--cstm-text-primary, #333);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s;
+  }
+
+  .run-button:hover {
+    background-color: var(--cstm-text-secondary, #555);
+  }
+
+  .answer-pane {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #fff;
+    white-space: pre-wrap; /* Preserve whitespace and newlines */
+    word-wrap: break-word;
+    min-height: 50px;
+    font-family: monospace;
+    font-size: 0.9em;
+  }
+</style>

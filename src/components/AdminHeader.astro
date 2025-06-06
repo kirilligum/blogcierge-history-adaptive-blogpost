@@ -1,26 +1,22 @@
 ---
-interface Props {
-  title?: string;
-}
-
-const { title = "BlogCierge" } = Astro.props;
+// src/components/AdminHeader.astro
 ---
 
-<div class="main-header">
+<div class="admin-header">
   <span class="header-blogcierge text-nowrap">
-    <a href="/" class="home-link-style">BlogCierge</a>
+    <a href="/blog/admin" class="home-link-style">BlogCierge Admin</a>
   </span>
   <div class="header-content">
     <span class="header-links">
-      <a href="/" class="header-link">Home</a>
-      <!-- <a href="/about/" class="header-link">About</a> -->
-      <a href="/blog/" class="header-link">Blog</a>
+      <a href="/blog/admin/analytics" class="header-link">Analytics</a>
+      <a href="/blog/admin/list" class="header-link">Posts</a>
+      <a href="/" class="header-link" title="Back to main site">Exit Admin</a>
     </span>
   </div>
 </div>
 
 <style>
-  .main-header {
+  .admin-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -28,6 +24,7 @@ const { title = "BlogCierge" } = Astro.props;
     padding-top: 0.5rem;
     height: 2rem;
     background-color: var(--hero-gradient-start);
+    border-bottom: 2px solid var(--cstm-text-secondary);
   }
 
   .header-blogcierge {
@@ -37,13 +34,6 @@ const { title = "BlogCierge" } = Astro.props;
     margin-top: -1em;
     margin-bottom: -0.7em;
     color: var(--hf-color);
-  }
-
-  .header-symbol {
-    font-size: 1.5em;
-    position: relative;
-    top: -0.12em;
-    margin-right: 0.25em;
   }
 
   .header-content {

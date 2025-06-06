@@ -1,0 +1,90 @@
+---
+// src/layouts/AdminLayout.astro
+interface Props {
+  title: string;
+}
+
+import AdminHeader from "../components/AdminHeader.astro";
+import Footer from "../components/Footer.astro";
+
+const { title = "BlogCierge Admin" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Questrial&family=Spectral:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <meta
+      name="description"
+      content="Admin panel for BlogCierge."
+    />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <header>
+      <AdminHeader />
+    </header>
+    <slot />
+    <Footer />
+  </body>
+
+  <style is:global>
+    :root {
+      /* Colors */
+      --hf-color: #4d4d4d;
+      --hf-bg-color: #ebf5f7;
+      --cstm-main-surface-primary: #f7f5f2;
+      --cstm-main-surface-secondary: #e6d9ce;
+      --cstm-text-primary: #3d3d3d;
+      --cstm-text-secondary: #5d5d5d;
+      --cstm-text-tertiary: #b4b4b4;
+      --hero-gradient-start: #f2e6de;
+
+      /* Typography */
+      --font-heading: "Libre Baskerville", serif;
+      --font-body: "Questrial", sans-serif; /* Reverted to default */
+      --font-weight-bold: 700;
+      --line-height-body: 1.6; /* Reverted to default */
+      --text-lg: 1.2em;
+    }
+
+    /* Base styles */
+    html {
+      font-family: var(--font-body); /* Uses default Questrial */
+      color: var(--cstm-text-primary); /* Default site text color */
+      line-height: var(--line-height-body); /* Default 1.6 */
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(
+        --cstm-main-surface-primary
+      ); /* Default site background */
+    }
+
+    footer {
+      text-align: center;
+      padding: 1rem;
+      background-color: var(--cstm-main-surface-primary);
+      color: var(--hf-color);
+      padding-top: 4rem;
+    }
+  </style>
+</html>

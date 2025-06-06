@@ -1,0 +1,39 @@
+---
+// src/pages/blog/admin/index.astro
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+---
+
+<AdminLayout title="Admin Panel">
+  <main class="admin-main">
+    <h1>Admin Panel</h1>
+    <p>Welcome to the admin panel. Please select a section to continue.</p>
+    <ul class="admin-links">
+      <li><a href="/blog/admin/analytics">User Interaction Analytics</a></li>
+      <li><a href="/blog/admin/list">Manage Blog Posts</a></li>
+    </ul>
+  </main>
+</AdminLayout>
+
+<style>
+  .admin-main {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: #fff;
+    border-radius: 8px;
+  }
+  .admin-main h1 {
+    font-family: var(--font-heading);
+    margin-top: 0;
+  }
+  .admin-links {
+    list-style: disc;
+    padding-left: 2rem;
+  }
+  .admin-links li {
+    margin-bottom: 1rem;
+  }
+  .admin-links a {
+    font-size: 1.1em;
+  }
+</style>
