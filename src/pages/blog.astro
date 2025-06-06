@@ -90,6 +90,23 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
+    // Helper function to hide all personalization explanation messages
+    function hideAllExplanations() {
+      document.querySelectorAll('.personalization-explanation').forEach(div => {
+        div.classList.add('hidden');
+      });
+    }
+
+    // Hide all explanations on initial load
+    hideAllExplanations();
+
+    // Hide all explanations if the page is shown from bfcache
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        hideAllExplanations();
+      }
+    });
+
     const deviceId = getOrSetDeviceIDForBlogList();
     if (!deviceId) {
       console.error("Device ID not available for blog list read status.");
@@ -172,6 +189,9 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
         const slug = (button as HTMLButtonElement).dataset.slug;
         if (slug) {
+          // Hide any other potentially visible explanations first
+          hideAllExplanations();
+          
           const explanationDiv = document.getElementById(`personalize-explanation-${slug}`);
           if (explanationDiv) {
             explanationDiv.innerHTML = `
