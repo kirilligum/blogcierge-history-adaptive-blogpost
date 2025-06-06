@@ -53,7 +53,7 @@ yarn setup:cloudflare
 This script will:
 1.  Execute `wrangler` commands to create all necessary KV namespaces and the R2 bucket in your Cloudflare account.
 2.  Create a `.dev.vars` file in your project root with the IDs of these new resources. This file is used for local development.
-3.  Print a list of the created resources and their IDs. **You will need this for Step 5.**
+3.  Print a list of the created resources and their IDs. **You will need this for Step 6.**
 
 ### Step 4: Add API Keys for Local Development
 
@@ -70,7 +70,17 @@ LLAMA_API_KEY="llm-..."
 ```
 **Note:** `.dev.vars` is included in `.gitignore` and should never be committed to your repository.
 
-### Step 5: Create and Configure Your Cloudflare Pages Project
+### Step 5: Local Development
+
+To run the project locally, use the `preview` script. This command first builds the Astro site and then starts a local server using `wrangler`, simulating the Cloudflare environment.
+
+```bash
+yarn preview
+```
+
+This uses a special script (`scripts/preview.js`) that reads your `.dev.vars` file and provides your local KV and R2 bindings to the server. This allows you to test all features, including those that rely on Cloudflare bindings, on your local machine.
+
+### Step 6: Create and Configure Your Cloudflare Pages Project
 
 1.  Go to your [Cloudflare Dashboard](https://dash.cloudflare.com).
 2.  Navigate to **Workers & Pages** and click **Create application**.
@@ -90,13 +100,13 @@ LLAMA_API_KEY="llm-..."
     *   `LLAMA_API_KEY`
     *   `OPENROUTER_API_KEY`
 
-### Step 6: Redeploy
+### Step 7: Redeploy
 
 Once all environment variables and bindings are configured in the dashboard, go to the "Deployments" tab of your Pages project and click **Retry deployment** on the failed build.
 
 Your site should now build and deploy successfully!
 
-### Step 7: First-Time Admin Setup
+### Step 8: First-Time Admin Setup
 
 After your site is live, you need to create your admin account.
 1.  Navigate to `https://your-project-name.pages.dev/blog/admin`.
