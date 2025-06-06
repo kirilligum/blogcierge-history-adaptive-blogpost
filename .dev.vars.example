@@ -1,10 +1,6 @@
 OPENROUTER_API_KEY=""
 LLAMA_API_KEY=""
 
-# Cloudflare Resource IDs for Local Development
-# Copy this file to .dev.vars and fill in your actual IDs from the Cloudflare dashboard.
-BLGC_BLOGPOST_AI_CACHE_ID="e05a15d829484001a8d3d37ba61cbe5f"
-BLGC_USER_INTERACTIONS_KV_ID="de3646218ddd4be9ab12ca81bf6c8690"
-BLGC_SITE_CONTENT_CACHE_ID="85199e6b7bc24882a6f7891a00910730"
-BLGC_ADMIN_KV_ID="2a9d5353e231403d823a105f3f78535a"
-BLGC_AI_LOGS_BUCKET_NAME="blgc-blogpost-ai-turns"
+# This file contains secrets for local development.
+# Copy this file to .dev.vars and fill in your API keys.
+# `wrangler` will automatically load this file for `yarn preview`.

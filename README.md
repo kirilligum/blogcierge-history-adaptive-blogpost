@@ -52,17 +52,17 @@ yarn setup:cloudflare
 
 This script will:
 1.  Execute `wrangler` commands to create all necessary KV namespaces and the R2 bucket in your Cloudflare account.
-2.  Create a `.dev.vars` file in your project root with the IDs of these new resources. This file is used for local development.
-3.  Print a list of the created resources and their IDs. **You will need this for Step 6.**
+2.  Automatically update your `wrangler.toml` file with the IDs of the newly created resources.
+3.  Create a `.dev.vars` file if one doesn't exist, for you to add your API keys.
+
+**Note:** The setup script modifies `wrangler.toml`. Do not commit these changes to version control.
 
 ### Step 4: Add API Keys for Local Development
 
-The setup script created a `.dev.vars` file. Open it and add your API keys for the LLM providers you intend to use.
+If the setup script created a `.dev.vars` file, open it and add your API keys for the LLM providers you intend to use. If it already existed, ensure your keys are present.
 
 ```ini
 # .dev.vars
-
-# ... (generated resource IDs will be here) ...
 
 # Add your secret API keys below
 OPENROUTER_API_KEY="sk-or-..."
@@ -72,41 +72,29 @@ LLAMA_API_KEY="llm-..."
 
 ### Step 5: Local Development
 
-To run the project locally, use the `preview` script. This command first builds the Astro site and then starts a local server using `wrangler`, simulating the Cloudflare environment.
+To run the project locally, use the `preview` script. This command first builds the Astro site and then starts a local server using `wrangler`.
 
 ```bash
 yarn preview
 ```
 
-This uses a special script (`scripts/preview.js`) that reads your `.dev.vars` file and provides your local KV and R2 bindings to the server. This allows you to test all features, including those that rely on Cloudflare bindings, on your local machine.
+Wrangler automatically reads the resource bindings from your modified `wrangler.toml` and the secret keys from your `.dev.vars` file to simulate the Cloudflare environment.
 
-### Step 6: Create and Configure Your Cloudflare Pages Project
+### Step 6: Deploy to Cloudflare Pages
 
 1.  Go to your [Cloudflare Dashboard](https://dash.cloudflare.com).
 2.  Navigate to **Workers & Pages** and click **Create application**.
 3.  Select the **Pages** tab and click **Connect to Git**.
 4.  Connect your GitHub account and select your forked `blogcierge-history-adaptive-blogpost` repository.
 5.  In the "Build settings", select **Astro** as the framework preset. This should configure the build command (`astro build`) and output directory (`/dist`) correctly.
-6.  Click **Save and Deploy**. Cloudflare will start the first deployment, which may fail because the bindings are not yet configured. This is expected.
-7.  After the project is created, go to its settings page: **Settings > Functions**.
-8.  Under **KV namespace bindings** and **R2 bucket bindings**, add a binding for each resource. Use the output from the `yarn setup:cloudflare` script (from Step 3) to fill these in.
-    *   Click **Add binding** for each resource:
-        *   **`BLGC_ADMIN_KV`**: Variable name `BLGC_ADMIN_KV`, select the corresponding KV namespace.
-        *   **`BLGC_BLOGPOST_AI_CACHE`**: Variable name `BLGC_BLOGPOST_AI_CACHE`, select the corresponding KV namespace.
-        *   **`BLGC_SITE_CONTENT_CACHE`**: Variable name `BLGC_SITE_CONTENT_CACHE`, select the corresponding KV namespace.
-        *   **`BLGC_USER_INTERACTIONS_KV`**: Variable name `BLGC_USER_INTERACTIONS_KV`, select the corresponding KV namespace.
-        *   **`BLGC_AI_LOGS_BUCKET`**: Variable name `BLGC_AI_LOGS_BUCKET`, select the corresponding R2 bucket.
-9.  Next, go to **Settings > Environment variables** and add your secret API keys for production:
+6.  Go to **Settings > Environment variables** and add your secret API keys for production:
     *   `LLAMA_API_KEY`
     *   `OPENROUTER_API_KEY`
+7.  Click **Save and Deploy**.
 
-### Step 7: Redeploy
+Your site should now build and deploy successfully. Bindings are handled automatically by `wrangler.toml`.
 
-Once all environment variables and bindings are configured in the dashboard, go to the "Deployments" tab of your Pages project and click **Retry deployment** on the failed build.
-
-Your site should now build and deploy successfully!
-
-### Step 8: First-Time Admin Setup
+### Step 7: First-Time Admin Setup
 
 After your site is live, you need to create your admin account.
 1.  Navigate to `https://your-project-name.pages.dev/blog/admin`.
