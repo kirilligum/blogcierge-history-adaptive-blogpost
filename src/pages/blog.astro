@@ -121,18 +121,6 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
   // Helper function to hide all personalization explanation messages
   function hideAllExplanations() {
-      return null;
-    }
-    let deviceId = localStorage.getItem("blgcUserDeviceID");
-    if (!deviceId) {
-      deviceId = crypto.randomUUID();
-      localStorage.setItem("blgcUserDeviceID", deviceId);
-    }
-    return deviceId;
-  }
-
-  // Helper function to hide all personalization explanation messages
-  function hideAllExplanations() {
     document.querySelectorAll('.personalization-explanation').forEach(div => {
       div.classList.add('hidden');
     });
