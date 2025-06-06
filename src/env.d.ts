@@ -11,6 +11,7 @@ interface Env {
   BLGC_USER_INTERACTIONS_KV: KVNamespace; // KV namespace for user interactions
   // ADD: New KV namespace for all blog posts content
   BLGC_SITE_CONTENT_CACHE: KVNamespace;
+  BLGC_ADMIN_KV: KVNamespace; // KV for admin password hash and sessions
   // Add other Cloudflare bindings (D1, R2, etc.) here if you use them
 }
 

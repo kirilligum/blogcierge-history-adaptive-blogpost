@@ -78,6 +78,14 @@ binding = "BLGC_SITE_CONTENT_CACHE"
 id = "85199e6b7bc24882a6f7891a00910730"         # Replace with actual ID from Cloudflare dashboard
 preview_id = "85199e6b7bc24882a6f7891a00910730" # Replace with actual ID for preview (can be same as id)
 
+# ADD: New KV namespace for admin credentials and sessions
+# IMPORTANT: You must create a new KV namespace in your Cloudflare dashboard
+# and replace the placeholder IDs below with your actual namespace IDs.
+[[kv_namespaces]]
+binding = "BLGC_ADMIN_KV"
+id = "YOUR_PRODUCTION_KV_ID_HERE"
+preview_id = "YOUR_PREVIEW_KV_ID_HERE"
+
 # Bind another Worker service. Use this binding to call another Worker without network overhead.
 # Docs: https://developers.cloudflare.com/pages/functions/bindings/#service-bindings
 # [[services]]

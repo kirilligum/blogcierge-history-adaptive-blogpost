@@ -1,0 +1,108 @@
+---
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Questrial&family=Spectral:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <title>{title} | BlogCierge Admin</title>
+  </head>
+  <body>
+    <main>
+      <slot />
+    </main>
+  </body>
+
+  <style is:global>
+    :root {
+      --hf-color: #4d4d4d;
+      --cstm-main-surface-primary: #f7f5f2;
+      --cstm-text-primary: #3d3d3d;
+      --cstm-text-secondary: #5d5d5d;
+      --font-heading: "Libre Baskerville", serif;
+      --font-body: "Questrial", sans-serif;
+      --line-height-body: 1.6;
+    }
+    html {
+      font-family: var(--font-body);
+      color: var(--cstm-text-primary);
+      line-height: var(--line-height-body);
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--cstm-main-surface-primary);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    main {
+      width: 100%;
+      max-width: 400px;
+      padding: 2rem;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      font-family: var(--font-heading);
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    label {
+      font-weight: bold;
+    }
+    input[type="password"] {
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    button {
+      padding: 0.75rem;
+      border: none;
+      border-radius: 4px;
+      background-color: var(--cstm-text-primary);
+      color: white;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: var(--cstm-text-secondary);
+    }
+    .error {
+      color: #d32f2f;
+      background-color: #ffcdd2;
+      border: 1px solid #ef9a9a;
+      padding: 0.75rem;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .info {
+      font-size: 0.9em;
+      color: var(--cstm-text-secondary);
+      text-align: center;
+      margin-top: 1.5rem;
+    }
+  </style>
+</html>
