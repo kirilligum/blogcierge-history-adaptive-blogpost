@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import type { KVNamespace } from "@cloudflare/workers-types";
 
-export const POST: APIRoute = async ({ request, locals, redirect }) => {
+export const POST: APIRoute = async ({ request, locals, cookies, redirect }) => {
   const adminKV = locals.runtime?.env?.BLGC_ADMIN_KV as
     | KVNamespace
     | undefined;
@@ -49,7 +49,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     expirationTtl: sessionTTL,
   });
 
-  locals.cookies.set("admin_session", sessionId, {
+  cookies.set("admin_session", sessionId, {
     path: "/",
     httpOnly: true,
     secure: import.meta.env.PROD,
