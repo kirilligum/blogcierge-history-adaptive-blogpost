@@ -18,12 +18,12 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
         allPosts.map((post) => (
           <li class="post-entry">
             <!-- ADD THE NEW BUTTON HERE, before the title's <a> tag -->
-            <button type="button" class="personalize-button" data-slug={post.slug} aria-label={`Personalize post: ${post.data.title}`}>
-              Personalize
-            </button>
             <a href={`/blog/${post.slug}/`} class="post-title-link">
               <h2 id={`title-h2-${post.slug}`}>
                 {post.data.title}
+                <button type="button" class="personalize-button" data-slug={post.slug} aria-label={`Personalize post: ${post.data.title}`}>
+                  Personalize
+                </button>
                 <span class="read-indicator">
                   <input
                     type="checkbox"
@@ -324,8 +324,9 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     transition:
       background-color 0.2s ease,
       color 0.2s ease;
-    margin-right: 0.75rem; /* Space between personalize button and title */
-    vertical-align: middle; /* Align with the title text if they are inline-block or similar */
+    margin-left: 0.5em; /* Space after the title text, before this button */
+    margin-right: 0.5em; /* Space after this button, before read indicator */
+    vertical-align: baseline; /* Align with the title text and read indicator */
   }
 
   .personalize-button:hover {
