@@ -204,52 +204,17 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
     // Hide all explanations on initial load
     hideAllExplanations();
+    // Fetch and update read statuses on initial load
+    await fetchAndUpdateReadStatuses();
 
-    // Hide all explanations if the page is shown from bfcache
-    window.addEventListener('pageshow', (event) => {
+    // Handle bfcache (back/forward cache)
+    window.addEventListener('pageshow', async (event) => {
       if (event.persisted) {
+        console.log("Page shown from bfcache.");
         hideAllExplanations();
+        await fetchAndUpdateReadStatuses(); // Re-fetch and update read statuses
       }
     });
-
-    const deviceId = getOrSetDeviceIDForBlogList();
-    if (!deviceId) {
-      console.error("Device ID not available for blog list read status.");
-      // Optionally disable checkboxes or provide feedback
-      document.querySelectorAll('.read-status-checkbox').forEach(cb => (cb as HTMLInputElement).disabled = true);
-      return;
-    }
-
-    const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const postCheckboxes = document.querySelectorAll('.read-status-checkbox');
-
-    if (postCheckboxes.length === 0) return;
-
-    const slugs = Array.from(postCheckboxes).map(cb => (cb as HTMLInputElement).dataset.slug).filter(Boolean) as string[];
-
-    if (slugs.length > 0) {
-      try {
-        const response = await fetch('/api/get-read-status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceId, date: currentDate, slugs }),
-        });
-        if (response.ok) {
-          const readStatuses = await response.json(); // Expects { slug: boolean, ... }
-          postCheckboxes.forEach(cbElement => {
-            const cb = cbElement as HTMLInputElement;
-            const slug = cb.dataset.slug;
-            if (slug && typeof readStatuses[slug] === 'boolean') {
-              cb.checked = readStatuses[slug];
-            }
-          });
-        } else {
-          console.error('Failed to fetch read statuses:', await response.text());
-        }
-      } catch (error) {
-        console.error('Error fetching read statuses:', error);
-      }
-    }
 
     postCheckboxes.forEach(cbElement => {
       const cb = cbElement as HTMLInputElement;
