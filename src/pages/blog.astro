@@ -17,6 +17,10 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
       {
         allPosts.map((post) => (
           <li class="post-entry">
+            {* ADD THE NEW BUTTON HERE, before the title's <a> tag *}
+            <button type="button" class="personalize-button" data-slug={post.slug} aria-label={`Personalize post: ${post.data.title}`}>
+              Personalize
+            </button>
             <a href={`/blog/${post.slug}/`} class="post-title-link">
               <h2 id={`title-h2-${post.slug}`}>
                 {post.data.title}
@@ -153,6 +157,18 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
           console.error('Error updating read status for slug:', slug, error);
           // Revert checkbox state on failure
           cb.checked = !newReadState;
+        }
+      });
+    });
+
+    const personalizeButtons = document.querySelectorAll('.personalize-button');
+    personalizeButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const slug = (button as HTMLButtonElement).dataset.slug;
+        if (slug) {
+          // The getOrSetDeviceIDForBlogList() function is called at the beginning of DOMContentLoaded,
+          // so the deviceId cookie required by the blog post page for personalization should already be set.
+          window.location.href = `/blog/${slug}/?personalize=true`;
         }
       });
     });
@@ -293,5 +309,39 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     border-radius: 12px;
     font-size: 0.8em;
     border: 1px solid var(--cstm-main-surface-secondary);
+  }
+
+  .personalize-button {
+    background-color: var(--cstm-main-surface-secondary, #e6d9ce);
+    color: var(--cstm-text-primary, #3d3d3d);
+    border: 1px solid var(--cstm-text-secondary, #5d5d5d);
+    padding: 0.4em 0.8em; /* Slightly smaller padding than other buttons */
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-family: var(--font-body);
+    font-size: 0.85rem; /* Smaller font size */
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+    margin-right: 0.75rem; /* Space between personalize button and title */
+    vertical-align: middle; /* Align with the title text if they are inline-block or similar */
+  }
+
+  .personalize-button:hover {
+    background-color: var(--cstm-text-secondary, #5d5d5d);
+    color: white;
+  }
+
+  /* Optional: Adjust layout if title and button are on the same line */
+  .post-entry h2, .personalize-button {
+    /* If you want them to align nicely on the same line, consider display: inline-block for h2 or flex for parent */
+    /* For now, default block behavior for h2 and inline-block for button might work, or adjust .post-title-link */
+  }
+  .post-title-link {
+    /* If personalize button is before this, you might want to adjust margins or display properties */
+    /* For example, to ensure it flows correctly with the button: */
+    display: inline-block; /* Or adjust as per your layout needs */
+    vertical-align: middle;
   }
 </style>

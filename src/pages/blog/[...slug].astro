@@ -390,6 +390,7 @@ if (Astro.locals.runtime) {
 // --- END KV & Runtime Diagnostics ---
 
 const deviceId = Astro.cookies.get("blgcUserDeviceID_cookie")?.value;
+const shouldPersonalize = Astro.url.searchParams.get('personalize') === 'true'; // ADD THIS LINE
 
 if (!deviceId) {
   contentSourceDebug = "original_ssr_no_deviceid_cookie";
@@ -398,6 +399,10 @@ if (!deviceId) {
   // This check is redundant if `entry` itself is checked, but good for safety.
   contentSourceDebug = "error_entry_missing_slug_ssr";
   console.error("[SSR Tailoring] Current entry is missing a slug. Cannot personalize.");
+} else if (!shouldPersonalize) { // ADD THIS ELSE IF BLOCK
+  contentSourceDebug = "original_ssr_personalization_not_requested";
+  console.log("[SSR Tailoring] Personalization not requested via query param. Serving original content.");
+  // finalContentToRender will remain null by default, leading to original content.
 } else {
   // Attempt to get from cache first
   const tailoredContentCache = Astro.locals.runtime?.env
