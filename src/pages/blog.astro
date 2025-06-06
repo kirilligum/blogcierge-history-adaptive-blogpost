@@ -76,7 +76,7 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     <div class="static-personalization-explanation">
       <h2>About Blog Post Personalization</h2>
       <p>
-        When you click the "Personalize" button next to a blog post title, we
+        When you click the <span class="static-explanation-button-mention">Personalize</span> button next to a blog post title, we
         rewrite the article specifically for you. Here's how it works:
       </p>
       <ul>
@@ -445,7 +445,7 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     max-width: 800px; /* Match blog-list-container */
     margin: 3rem auto; /* Center and provide spacing */
     padding: 1.5rem;
-    background-color: var(--cstm-main-surface-secondary, #e6d9ce); /* A slightly different background */
+    background-color: var(--cstm-main-surface-primary, #f7f5f2); /* Match page background */
     border: 1px solid var(--cstm-text-secondary, #5d5d5d);
     border-radius: 8px;
     font-size: 0.95em;
@@ -474,5 +474,19 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
   .static-personalization-explanation li {
     margin-bottom: 0.5em;
+  }
+
+  .static-explanation-button-mention {
+    background-color: var(--cstm-main-surface-secondary, #e6d9ce);
+    color: var(--cstm-text-primary, #3d3d3d);
+    border: 1px solid var(--cstm-text-secondary, #5d5d5d);
+    padding: 0.2em 0.5em;
+    border-radius: 4px;
+    font-weight: bold;
+    font-family: var(--font-body);
+    font-size: 0.85em; /* Relative to parent's 0.95em */
+    display: inline-block;
+    vertical-align: baseline;
+    line-height: 1; /* Adjust line-height to prevent affecting surrounding text too much */
   }
 </style>
