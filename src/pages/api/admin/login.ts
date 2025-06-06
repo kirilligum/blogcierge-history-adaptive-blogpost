@@ -13,10 +13,24 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
   }
 
   const formData = await request.formData();
+  const email = formData.get("email");
   const password = formData.get("password");
 
-  if (typeof password !== "string" || password.length === 0) {
-    return new Response("Password is required.", { status: 400 });
+  if (typeof email !== "string" || typeof password !== "string" || password.length === 0) {
+    return new Response("Email and password are required.", { status: 400 });
+  }
+
+  // Fetch the stored admin user
+  const storedUser = await adminKV.get<{ email: string; passwordHash: string }>("admin_user", "json");
+
+  // Check if user exists and if the email matches (case-insensitive)
+  if (!storedUser || storedUser.email !== email.toLowerCase()) {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: "/blog/admin/login?error=invalid_credentials",
+      },
+    });
   }
 
   // Hash the submitted password to compare with the stored hash
@@ -27,10 +41,7 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  const storedHash = await adminKV.get("admin_password_hash");
-
-  if (submittedHash !== storedHash) {
-    // Using a redirect with a query parameter for a better user experience
+  if (submittedHash !== storedUser.passwordHash) {
     return new Response(null, {
       status: 302,
       headers: {
@@ -39,12 +50,13 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
     });
   }
 
-  // Password is correct, create a session
+  // Credentials are correct, create a session
   const sessionId = crypto.randomUUID();
   const sessionKey = `session::${sessionId}`;
   const sessionTTL = 60 * 60 * 24; // 1 day in seconds
 
-  await adminKV.put(sessionKey, JSON.stringify({ valid: true }), {
+  // Store email in session data
+  await adminKV.put(sessionKey, JSON.stringify({ valid: true, email: storedUser.email }), {
     expirationTtl: sessionTTL,
   });
 

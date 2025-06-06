@@ -27,10 +27,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
     );
   }
 
-  const passwordHash = await adminKV.get("admin_password_hash");
+  // Check for an admin user object instead of just a password hash
+  const adminUser = await adminKV.get("admin_user", "json");
 
-  // Case 1: No password is set up yet.
-  if (!passwordHash) {
+  // Case 1: No admin user is set up yet.
+  if (!adminUser) {
     // Allow access only to the setup page and its API endpoint
     if (pathname === SETUP_PAGE || pathname === "/api/admin/setup") {
       return next();
@@ -39,10 +40,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(SETUP_PAGE);
   }
 
-  // Case 2: Password is set. Check for session.
+  // Case 2: Admin user exists. Check for session.
   const sessionCookie = context.cookies.get("admin_session");
   const sessionId = sessionCookie?.value;
-  const session = sessionId ? await adminKV.get(`session::${sessionId}`) : null;
+  const session = sessionId ? await adminKV.get(`session::${sessionId}`, "json") : null;
 
   // If user has a valid session
   if (session) {
