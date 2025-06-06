@@ -59,32 +59,22 @@ pages_build_output_dir = "./dist"
 
 [[kv_namespaces]]
 binding = "BLGC_BLOGPOST_AI_CACHE"              # Reflects the namespace name "blgc blogpost ai"
-id = "e05a15d829484001a8d3d37ba61cbe5f"
-preview_id = "e05a15d829484001a8d3d37ba61cbe5f"
 
 [[r2_buckets]]
 binding = "BLGC_AI_LOGS_BUCKET"                # How you'll access it in the code
-bucket_name = "blgc-blogpost-ai-turns"         # The actual name of your R2 bucket in Cloudflare
-preview_bucket_name = "blgc-blogpost-ai-turns" # For local dev, wrangler will use/create this in .wrangler/state
 
 [[kv_namespaces]]
 binding = "BLGC_USER_INTERACTIONS_KV"
-id = "de3646218ddd4be9ab12ca81bf6c8690"         # Replace with your actual KV namespace ID
-preview_id = "de3646218ddd4be9ab12ca81bf6c8690" # Replace with your actual KV namespace ID for preview
 
 # ADD: New KV namespace for all blog posts content
 [[kv_namespaces]]
 binding = "BLGC_SITE_CONTENT_CACHE"
-id = "85199e6b7bc24882a6f7891a00910730"         # Replace with actual ID from Cloudflare dashboard
-preview_id = "85199e6b7bc24882a6f7891a00910730" # Replace with actual ID for preview (can be same as id)
 
 # ADD: New KV namespace for admin credentials and sessions
 # IMPORTANT: You must create a new KV namespace in your Cloudflare dashboard
 # and replace the placeholder IDs below with your actual namespace IDs.
 [[kv_namespaces]]
 binding = "BLGC_ADMIN_KV"
-id = "2a9d5353e231403d823a105f3f78535a"
-preview_id = "2a9d5353e231403d823a105f3f78535a"
 
 # Bind another Worker service. Use this binding to call another Worker without network overhead.
 # Docs: https://developers.cloudflare.com/pages/functions/bindings/#service-bindings
