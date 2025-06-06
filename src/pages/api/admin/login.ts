@@ -15,6 +15,7 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
   const formData = await request.formData();
   const email = formData.get("email");
   const password = formData.get("password");
+  const redirectUrl = formData.get("redirect");
 
   if (typeof email !== "string" || typeof password !== "string" || password.length === 0) {
     return new Response("Email and password are required.", { status: 400 });
@@ -22,16 +23,6 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
 
   // Fetch the stored admin user
   const storedUser = await adminKV.get<{ email: string; passwordHash: string }>("admin_user", "json");
-
-  // Check if user exists and if the email matches (case-insensitive)
-  if (!storedUser || storedUser.email !== email.toLowerCase()) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: "/blog/admin/login?error=invalid_credentials",
-      },
-    });
-  }
 
   // Hash the submitted password to compare with the stored hash
   const passwordBuffer = new TextEncoder().encode(password);
@@ -41,12 +32,16 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  if (submittedHash !== storedUser.passwordHash) {
+  // Check if user exists and if the password is correct
+  if (!storedUser || storedUser.email.toLowerCase() !== email.toLowerCase() || submittedHash !== storedUser.passwordHash) {
+    const failureRedirect = new URL("/blog/admin/login", request.url);
+    failureRedirect.searchParams.set("error", "invalid_credentials");
+    if (typeof redirectUrl === 'string' && redirectUrl.startsWith('/')) {
+        failureRedirect.searchParams.set("redirect", redirectUrl);
+    }
     return new Response(null, {
       status: 302,
-      headers: {
-        Location: "/blog/admin/login?error=invalid_credentials",
-      },
+      headers: { Location: failureRedirect.toString() },
     });
   }
 
@@ -68,11 +63,16 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
     maxAge: sessionTTL,
   });
 
-  // Redirect to the admin dashboard
+  // Redirect to the originally requested URL, or the admin dashboard as a fallback.
+  let finalRedirect = "/blog/admin";
+  if (typeof redirectUrl === 'string' && redirectUrl.startsWith('/') && !redirectUrl.startsWith('//')) {
+    finalRedirect = redirectUrl;
+  }
+
   return new Response(null, {
     status: 302,
     headers: {
-      Location: "/blog/admin",
+      Location: finalRedirect,
     },
   });
 };

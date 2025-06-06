@@ -61,6 +61,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
 
-  // For all other admin routes, redirect to login
-  return context.redirect(LOGIN_PAGE);
+  // For all other admin routes, redirect to login with a redirect parameter
+  const redirectUrl = new URL(LOGIN_PAGE, context.url.origin);
+  redirectUrl.searchParams.set('redirect', pathname);
+  return context.redirect(redirectUrl.toString());
 });
