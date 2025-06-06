@@ -195,13 +195,6 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
             `;
 
   document.addEventListener('DOMContentLoaded', async () => {
-    // Helper function to hide all personalization explanation messages
-    // function hideAllExplanations() { // MOVED TO OUTER SCOPE
-      document.querySelectorAll('.personalization-explanation').forEach(div => {
-        div.classList.add('hidden');
-      });
-    }
-
     // Hide all explanations on initial load
     hideAllExplanations();
     // Fetch and update read statuses on initial load
