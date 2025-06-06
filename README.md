@@ -1,326 +1,106 @@
-# BlogCierge 🤖📚
+# BlogCierge: AI-Adaptive Blog Platform
 
-An AI-adaptive, interactive blog platform that personalizes content based on user reading history and AI interactions.
+BlogCierge is an experimental blog platform that uses AI to personalize blog posts for each reader based on their interaction history.
 
-https://youtu.be/ceV-guUP6oU
+## Features
 
-## 📱 Mobile Experience
+-   **Dynamic Content Personalization**: Rewrites blog posts on-the-fly using an LLM to match the reader's knowledge level.
+-   **Interactive AI Assistant**: Readers can ask questions about the blog post content.
+-   **Admin Panel**: A secure area to view analytics and manage posts.
+-   **Powered by Cloudflare**: Built with Astro and deployed on Cloudflare Pages, using KV for storage and R2 for logging.
 
-BlogCierge is fully responsive and optimized for mobile devices. Here's how it looks on your phone:
+## Getting Started: Deploying Your Own BlogCierge
 
-<div align="center">
-  <img src="screenshots/blogcierge_Screenshot_20250602-091220.png" alt="BlogCierge Homepage Mobile" width="200" style="margin: 10px;">
-  <img src="screenshots/blogcierge_Screenshot_20250602-091419.png" alt="Blog List Mobile View" width="200" style="margin: 10px;">
-  <img src="screenshots/blogcierge_Screenshot_20250602-091532.png" alt="Blog Post Mobile Reading" width="200" style="margin: 10px;">
-  <img src="screenshots/blogcierge_Screenshot_20250602-091600.png" alt="AI Assistant Mobile Interface" width="200" style="margin: 10px;">
-  <img src="screenshots/blogcierge_Screenshot_20250602-091704.png" alt="Analytics Mobile Dashboard" width="200" style="margin: 10px;">
-</div>
-
-## 🌟 Features
-
-### 🎯 Personalized Content
-
-- **Adaptive Blog Posts**: Content automatically adjusts based on your reading history
-- **Smart Summarization**: Removes redundant information you've already learned
-- **Contextual Explanations**: Expands on new concepts based on your knowledge gaps
-- **Real-time Personalization**: Uses SSR (Server-Side Rendering) for instant content adaptation
-
-### 🤖 AI Assistant
-
-- **Interactive Q&A**: Ask questions about blog posts with contextual AI responses
-- **Word-level Interaction**: Click on any word to add it to your question
-- **Conversation History**: Maintains context across your reading sessions
-- **Smart Filtering**: AI determines if questions are relevant to the content
-
-### 📊 Analytics & Tracking
-
-- **Reading Analytics**: Track user interactions and reading patterns
-- **Device-based Tracking**: Anonymous user identification across sessions
-- **Conversation Analytics**: Query and analyze user interactions with AI
-- **Read Status Tracking**: Mark posts as read with persistent state
-
-### 🔄 Circular Economy Focus
-
-- **Sustainability Content**: Specialized blog content about NYC's circular fashion economy
-- **Educational Framework**: Structured learning with familiar vs. new concepts
-- **Citation System**: Comprehensive source attribution and referencing
-
-## 🚀 Quick Start
+Follow these steps to deploy your own version of BlogCierge.
 
 ### Prerequisites
 
-- Node.js 18+
-- Yarn package manager
-- Cloudflare account (for deployment)
+1.  A [Cloudflare account](https://dash.cloudflare.com/sign-up).
+2.  [Node.js](https://nodejs.org/en/) (version 18 or later) and [Yarn](https://yarnpkg.com/getting-started/install) installed.
+3.  `wrangler` CLI, the Cloudflare developer tool. Install and log in:
+    ```bash
+    npm install -g wrangler
+    wrangler login
+    ```
 
-### Installation
+### Step 1: Fork and Clone the Repository
 
-1. **Clone the repository**
-
-   ```bash
-   git clone https://github.com/kirilligum/blogcierge-history-adaptive-blogpost.git
-   cd blogcierge-history-adaptive-blogpost
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   yarn install
-   ```
-
-3. **Set up environment variables**
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Configure your `.env` file with:
-
-   ```env
-   LLAMA_API_KEY=your_llama_api_key_here
-   ```
-
-4. **Start development server**
-
-   ```bash
-   yarn dev
-   ```
-
-5. **Visit your local site**
-   ```
-   http://localhost:4321
-   ```
-
-## 🏗️ Architecture
-
-### Technology Stack
-
-- **Framework**: Astro 4.x with SSR
-- **Deployment**: Cloudflare Pages
-- **Storage**: Cloudflare KV (caching) + R2 (logs)
-- **AI**: Llama API for content generation
-- **Styling**: Custom CSS with design system
-- **Content**: Markdown with frontmatter
-
-### System Architecture
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   User Browser  │    │  Cloudflare Edge │    │   Astro SSR     │
-│                 │◄──►│                  │◄──►│                 │
-│ • Reading       │    │ • KV Cache       │    │ • Content       │
-│ • AI Chat       │    │ • R2 Logs        │    │   Adaptation    │
-│ • Analytics     │    │ • CDN            │    │ • AI Processing │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
-
-### Data Flow
-
-```
-User Reads Post → Device ID Generated → Reading History Stored
-                                    ↓
-Content Personalization ← LLM Analysis ← User History Retrieved
-                                    ↓
-Personalized Content Served ← Cache Check ← SSR Processing
-```
-
-## 📁 Project Structure
-
-```
-src/
-├── components/           # Reusable UI components
-│   ├── BlogAssistant.astro    # AI chat interface
-│   ├── ChipButton.astro       # Custom button component
-│   └── Header.astro           # Site navigation
-├── content/
-│   └── blog/            # Markdown blog posts
-├── layouts/             # Page layouts
-│   ├── Layout.astro          # Base layout
-│   └── BlogPostLayout.astro  # Blog-specific layout
-├── pages/
-│   ├── api/             # API endpoints
-│   │   ├── ask.ts           # AI question handling
-│   │   ├── feedback.ts      # User feedback collection
-│   │   └── analytics-query.ts # Analytics queries
-│   ├── blog/            # Blog pages
-│   └── index.astro      # Homepage
-├── styles/              # Global styles
-└── utils/               # Utility functions
-```
-
-## 🔧 Configuration
-
-### Cloudflare Bindings
-
-The project requires several Cloudflare bindings configured in `wrangler.toml`:
-
-```toml
-# KV Namespaces
-[[kv_namespaces]]
-binding = "BLGC_BLOGPOST_AI_CACHE"      # Content caching
-binding = "BLGC_USER_INTERACTIONS_KV"   # User tracking
-binding = "BLGC_SITE_CONTENT_CACHE"     # Site-wide content cache
-
-# R2 Buckets
-[[r2_buckets]]
-binding = "BLGC_AI_LOGS_BUCKET"         # Conversation logs
-```
-
-### Environment Variables
-
-- `LLAMA_API_KEY`: API key for Llama AI service
-- Additional Cloudflare bindings are configured via `wrangler.toml`
-
-## 🎨 Key Components
-
-### BlogAssistant
-
-Interactive AI chat component that:
-
-- Handles user questions about blog content
-- Maintains conversation history
-- Provides feedback mechanisms (like/dislike)
-- Integrates with word-level content interaction
-
-### Content Personalization Engine
-
-Server-side system that:
-
-- Analyzes user reading history
-- Generates personalized content via LLM
-- Caches results for performance
-- Falls back gracefully when personalization fails
-
-### Analytics Dashboard
-
-Administrative interface for:
-
-- Viewing user interaction patterns
-- Querying conversation data
-- Understanding content engagement
-- Analyzing reading behaviors
-
-## 🚀 Deployment
-
-### Cloudflare Pages Deployment
-
-1. **Build the project**
-
-   ```bash
-   yarn build
-   ```
-
-2. **Deploy to Cloudflare**
-
-   ```bash
-   yarn deploy
-   ```
-
-3. **Configure environment variables** in Cloudflare Pages dashboard
-
-### Local Development with Cloudflare
+Fork this repository to your own GitHub account, then clone it to your local machine.
 
 ```bash
-# Start with Cloudflare Workers simulation
-yarn preview
+git clone https://github.com/YOUR_USERNAME/blogcierge-history-adaptive-blogpost.git
+cd blogcierge-history-adaptive-blogpost
 ```
 
-## 📊 Usage Examples
+### Step 2: Install Dependencies
 
-### Reading a Blog Post
+Install the project dependencies using Yarn.
 
-1. Visit any blog post (e.g., `/blog/nyc-textile-waste-problem/`)
-2. Content automatically personalizes based on your history
-3. Use the AI assistant to ask questions
-4. Click words to add them to your questions
+```bash
+yarn install
+```
 
-### Analytics Queries
+### Step 3: Set Up Cloudflare Resources
 
-1. Visit `/analytics/`
-2. Select user devices to analyze
-3. Ask questions about user interactions
-4. View aggregated conversation data
+This project requires several Cloudflare resources (KV namespaces and an R2 bucket). A setup script is provided to create these for you automatically.
 
-### Content Management
+Run the setup script:
 
-1. Add new blog posts to `src/content/blog/`
-2. Use frontmatter for metadata and learning objectives
-3. Include citations and concept categorization
-4. Content automatically becomes available for personalization
+```bash
+yarn setup:cloudflare
+```
 
-## 🤝 Contributing
+This script will:
+1.  Execute `wrangler` commands to create all necessary KV namespaces and the R2 bucket in your Cloudflare account.
+2.  Create a `.dev.vars` file in your project root with the IDs of these new resources. This file is used for local development.
+3.  Print a list of the created resources and their IDs. **You will need this for Step 5.**
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### Step 4: Add API Keys for Local Development
 
-### Development Guidelines
+The setup script created a `.dev.vars` file. Open it and add your API keys for the LLM providers you intend to use.
 
-- Follow the existing code style and conventions
-- Add appropriate TypeScript types
-- Test AI interactions thoroughly
-- Ensure responsive design compatibility
-- Document new features and APIs
+```ini
+# .dev.vars
 
-## 🔍 API Reference
+# ... (generated resource IDs will be here) ...
 
-### `/api/ask`
+# Add your secret API keys below
+OPENROUTER_API_KEY="sk-or-..."
+LLAMA_API_KEY="llm-..."
+```
+**Note:** `.dev.vars` is included in `.gitignore` and should never be committed to your repository.
 
-Handles AI questions about blog content
+### Step 5: Create and Configure Your Cloudflare Pages Project
 
-- **Method**: POST
-- **Body**: `{ messages, slug, readerId, sessionId, currentUserQuestion }`
-- **Response**: `{ answer, source }`
+1.  Go to your [Cloudflare Dashboard](https://dash.cloudflare.com).
+2.  Navigate to **Workers & Pages** and click **Create application**.
+3.  Select the **Pages** tab and click **Connect to Git**.
+4.  Connect your GitHub account and select your forked `blogcierge-history-adaptive-blogpost` repository.
+5.  In the "Build settings", select **Astro** as the framework preset. This should configure the build command (`astro build`) and output directory (`/dist`) correctly.
+6.  Click **Save and Deploy**. Cloudflare will start the first deployment, which may fail because the bindings are not yet configured. This is expected.
+7.  After the project is created, go to its settings page: **Settings > Functions**.
+8.  Under **KV namespace bindings** and **R2 bucket bindings**, add a binding for each resource. Use the output from the `yarn setup:cloudflare` script (from Step 3) to fill these in.
+    *   Click **Add binding** for each resource:
+        *   **`BLGC_ADMIN_KV`**: Variable name `BLGC_ADMIN_KV`, select the corresponding KV namespace.
+        *   **`BLGC_BLOGPOST_AI_CACHE`**: Variable name `BLGC_BLOGPOST_AI_CACHE`, select the corresponding KV namespace.
+        *   **`BLGC_SITE_CONTENT_CACHE`**: Variable name `BLGC_SITE_CONTENT_CACHE`, select the corresponding KV namespace.
+        *   **`BLGC_USER_INTERACTIONS_KV`**: Variable name `BLGC_USER_INTERACTIONS_KV`, select the corresponding KV namespace.
+        *   **`BLGC_AI_LOGS_BUCKET`**: Variable name `BLGC_AI_LOGS_BUCKET`, select the corresponding R2 bucket.
+9.  Next, go to **Settings > Environment variables** and add your secret API keys for production:
+    *   `LLAMA_API_KEY`
+    *   `OPENROUTER_API_KEY`
 
-### `/api/feedback`
+### Step 6: Redeploy
 
-Collects user feedback on AI responses
+Once all environment variables and bindings are configured in the dashboard, go to the "Deployments" tab of your Pages project and click **Retry deployment** on the failed build.
 
-- **Method**: POST
-- **Body**: `{ slug, readerId, sessionId, aiResponseContent, userQuestionContext, rating }`
-- **Response**: `{ message }`
+Your site should now build and deploy successfully!
 
-### `/api/track-interaction`
+### Step 7: First-Time Admin Setup
 
-Tracks user reading behavior
+After your site is live, you need to create your admin account.
+1.  Navigate to `https://your-project-name.pages.dev/blog/admin`.
+2.  You will be redirected to the setup page.
+3.  Enter your desired admin email and password to create your account.
 
-- **Method**: POST
-- **Body**: `{ deviceId, date, slug, interactionType, readState }`
-- **Response**: `{ message }`
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**AI responses not working**
-
-- Check `LLAMA_API_KEY` environment variable
-- Verify Cloudflare KV bindings are configured
-- Check browser console for API errors
-
-**Content not personalizing**
-
-- Ensure user has reading history
-- Check SSR is enabled (`output: 'server'` in astro.config.mjs)
-- Verify device ID cookie is being set
-
-**Analytics not loading**
-
-- Confirm KV namespace bindings in Cloudflare
-- Check user interaction data exists
-- Verify API endpoints are accessible
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-Copyright (c) 2025 Kirill Igumenshchev
-
-## 🙏 Acknowledgments
-
-- Built with [Astro](https://astro.build/)
-- Deployed on [Cloudflare Pages](https://pages.cloudflare.com/)
-- AI powered by [Llama API](https://api.llama.com/)
-- Inspired by sustainable fashion and circular economy principles
+Congratulations! Your BlogCierge instance is now fully deployed and configured.

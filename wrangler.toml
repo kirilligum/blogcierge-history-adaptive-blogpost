@@ -4,6 +4,17 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "./dist"
 
+# NOTE: Bindings are NOT configured in this file.
+#
+# For local development (`yarn preview`), bindings are configured in the `.dev.vars` file.
+# This file is generated automatically by running `yarn setup:cloudflare`.
+#
+# For production, bindings MUST be configured in the Cloudflare Pages dashboard.
+# Go to your project > Settings > Functions > Production bindings.
+#
+# This approach keeps resource IDs out of version control, making the project
+# more secure and easier for others to fork and deploy.
+
 # Automatically place your workloads in an optimal location to minimize latency.
 # If you are running back-end logic in a Pages Function, running it closer to your back-end infrastructure
 # rather than the end user may result in better performance.
@@ -56,25 +67,6 @@ pages_build_output_dir = "./dist"
 # [[r2_buckets]]
 # binding = "MY_BUCKET"
 # bucket_name = "my-bucket"
-
-[[kv_namespaces]]
-binding = "BLGC_BLOGPOST_AI_CACHE"              # Reflects the namespace name "blgc blogpost ai"
-
-[[r2_buckets]]
-binding = "BLGC_AI_LOGS_BUCKET"                # How you'll access it in the code
-
-[[kv_namespaces]]
-binding = "BLGC_USER_INTERACTIONS_KV"
-
-# ADD: New KV namespace for all blog posts content
-[[kv_namespaces]]
-binding = "BLGC_SITE_CONTENT_CACHE"
-
-# ADD: New KV namespace for admin credentials and sessions
-# IMPORTANT: You must create a new KV namespace in your Cloudflare dashboard
-# and replace the placeholder IDs below with your actual namespace IDs.
-[[kv_namespaces]]
-binding = "BLGC_ADMIN_KV"
 
 # Bind another Worker service. Use this binding to call another Worker without network overhead.
 # Docs: https://developers.cloudflare.com/pages/functions/bindings/#service-bindings
