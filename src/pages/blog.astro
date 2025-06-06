@@ -17,7 +17,7 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
       {
         allPosts.map((post) => (
           <li class="post-entry">
-            {* ADD THE NEW BUTTON HERE, before the title's <a> tag *}
+            <!-- ADD THE NEW BUTTON HERE, before the title's <a> tag -->
             <button type="button" class="personalize-button" data-slug={post.slug} aria-label={`Personalize post: ${post.data.title}`}>
               Personalize
             </button>
