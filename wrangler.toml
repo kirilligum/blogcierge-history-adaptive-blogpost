@@ -33,7 +33,7 @@ id = "placeholder_id_for_blgc_user_interactions_kv"
 
 [[r2_buckets]]
 binding = "BLGC_AI_LOGS_BUCKET"
-bucket_name = "placeholder_name_for_blgc_ai_logs_bucket"
+bucket_name = "placeholder-for-blgc-ai-logs-bucket"
 
 # Automatically place your workloads in an optimal location to minimize latency.
 # If you are running back-end logic in a Pages Function, running it closer to your back-end infrastructure

@@ -55,8 +55,9 @@ function main() {
   console.log('\n--- Creating R2 Bucket ---');
   for (const name of BINDINGS.r2) {
     runCommand(`npx wrangler r2 bucket create ${name}`);
-    const placeholder = `placeholder_name_for_${name.toLowerCase()}`;
-    wranglerTomlContent = wranglerTomlContent.replace(placeholder, name);
+    const validBucketName = name.toLowerCase().replace(/_/g, '-');
+    const placeholder = `placeholder-for-${validBucketName}`;
+    wranglerTomlContent = wranglerTomlContent.replace(placeholder, validBucketName);
     console.log(`   -> Updated binding for ${name} in wrangler.toml`);
   }
 
