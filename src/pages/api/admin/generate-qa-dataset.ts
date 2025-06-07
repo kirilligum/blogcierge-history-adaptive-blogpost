@@ -109,10 +109,12 @@ ${entry.body}
                 },
               },
               required: ["question", "answer"],
+              additionalProperties: false, // Added to comply with docs
             },
           },
         },
         required: ["qa_pairs"],
+        additionalProperties: false, // Added to comply with docs
       },
     };
 
