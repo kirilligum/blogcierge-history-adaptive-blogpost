@@ -3,35 +3,119 @@
 import { getCollection } from "astro:content";
 import AdminLayout from "../../../layouts/AdminLayout.astro";
 import { formatDate } from "../../../utils/formatDate";
+import type { R2Bucket } from "@cloudflare/workers-types";
 
 const pageTitle = "Manage Blog Posts";
 let allPosts = await getCollection("blog");
 allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+// --- Server-Side Data Fetching & State Management ---
+const r2Bucket = Astro.locals.runtime?.env?.BLGC_AI_LOGS_BUCKET as R2Bucket | undefined;
+const postStatusMap = new Map<string, { type: 'success'; data: any } | { type: 'error'; error: any }>();
+
+if (r2Bucket) {
+  const promises = allPosts.map(async (post) => {
+    // Check for a success file first
+    const successKey = `qa-datasets/${post.slug}/latest.json`;
+    const successObject = await r2Bucket.get(successKey);
+    if (successObject) {
+      const data = await successObject.json();
+      postStatusMap.set(post.slug, { type: 'success', data });
+      return; // Found success, no need to check for error
+    }
+
+    // If no success file, check for an error file
+    const errorKey = `qa-datasets/${post.slug}/error.json`;
+    const errorObject = await r2Bucket.get(errorKey);
+    if (errorObject) {
+      const errorData = await errorObject.json();
+      postStatusMap.set(post.slug, { type: 'error', error: errorData });
+    }
+  });
+  await Promise.all(promises);
+}
+
+const generationStartedSlug = Astro.url.searchParams.get('generation_started_for');
 ---
 
 <AdminLayout title={pageTitle}>
   <main class="admin-main">
     <h1>{pageTitle}</h1>
     <p>
-      Here you can manage blog posts. Functionality to delete posts will be
-      added soon.
+      Generate a Q&A dataset for a post. The results will appear here on the next page load after generation is complete.
     </p>
+
+    {generationStartedSlug && (
+      <div class="notification">
+        Generation started for post: <strong>{generationStartedSlug}</strong>. Please refresh this page in a minute to see the results.
+      </div>
+    )}
+
     <ul class="post-list">
       {
-        allPosts.map((post) => (
-          <li class="post-item">
-            <a href={`/blog/${post.slug}/`} target="_blank">
-              {post.data.title}
-            </a>
-            <span class="post-date">
-              - Published on {formatDate(post.data.date)}
-            </span>
-          </li>
-        ))
+        allPosts.map((post) => {
+          const status = postStatusMap.get(post.slug);
+          return (
+            <li class="post-item">
+              <div class="post-info">
+                <a href={`/blog/${post.slug}/`} target="_blank">
+                  {post.data.title}
+                </a>
+                <span class="post-date">
+                  - Published on {formatDate(post.data.date)}
+                </span>
+              </div>
+              <div class="post-actions">
+                <form action="/api/admin/generate-qa-dataset" method="post" class="generate-form">
+                  <input type="hidden" name="slug" value={post.slug} />
+                  <button type="submit" class="generate-dataset-btn">
+                    {status ? "Regenerate Dataset" : "Generate Dataset"}
+                  </button>
+                </form>
+              </div>
+
+              {status?.type === 'error' && (
+                <div class="qa-output-container error-container">
+                  <h4>Last Generation Failed:</h4>
+                  <p class="error-text">{status.error.error || 'An unknown error occurred.'}</p>
+                  <p class="error-timestamp">At: {new Date(status.error.timestamp).toLocaleString()}</p>
+                </div>
+              )}
+
+              {status?.type === 'success' && status.data?.data && (
+                <div class="qa-output-container">
+                  <h4>Generated Questions (from {new Date(status.data.generatedAt).toLocaleString()}):</h4>
+                  <ul class="qa-list">
+                    {status.data.data.map(item => (
+                      <li>{item.question}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </li>
+          )
+        })
       }
     </ul>
   </main>
 </AdminLayout>
+
+<script>
+  // This script is a non-essential UX enhancement to prevent double-clicks.
+  // The core functionality works via the form submission without JavaScript.
+  document.addEventListener('DOMContentLoaded', () => {
+    const forms = document.querySelectorAll('.generate-form');
+    forms.forEach(form => {
+      form.addEventListener('submit', (event) => {
+        const button = (event.currentTarget as HTMLFormElement).querySelector('button[type="submit"]');
+        if (button) {
+          button.disabled = true;
+          button.textContent = 'Starting...';
+        }
+      });
+    });
+  });
+</script>
 
 <style>
   .admin-main {
@@ -45,22 +129,99 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
     font-family: var(--font-heading);
     margin-top: 0;
   }
+  .notification {
+    background-color: #e6f7ff;
+    border: 1px solid #91d5ff;
+    color: #0050b3;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+  }
   .post-list {
     list-style: none;
     padding: 0;
   }
   .post-item {
-    padding: 0.75rem 0;
+    padding: 1rem 0;
     border-bottom: 1px solid #eee;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
   .post-item:last-child {
     border-bottom: none;
   }
-  .post-item a {
+  .post-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .post-info a {
     font-weight: bold;
+    flex-grow: 1;
   }
   .post-date {
     font-size: 0.9em;
     color: #555;
+    white-space: nowrap;
+    margin-left: 1rem;
+  }
+  .post-actions {
+    display: flex;
+    justify-content: flex-start;
+  }
+  .generate-dataset-btn {
+    background-color: var(--cstm-main-surface-secondary);
+    color: var(--cstm-text-primary);
+    border: 1px solid var(--cstm-text-secondary);
+    padding: 0.4em 0.8em;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+  }
+  .generate-dataset-btn:hover:not(:disabled) {
+    background-color: #dcd0c4;
+  }
+  .generate-dataset-btn:disabled {
+    background-color: #f0f0f0;
+    color: #aaa;
+    cursor: not-allowed;
+  }
+  .qa-output-container {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .qa-output-container.error-container {
+    background-color: #fff5f5;
+    border-color: #fecaca;
+  }
+  .qa-output-container h4 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+  }
+  .qa-list {
+    list-style: decimal;
+    padding-left: 1.5rem;
+    margin: 0;
+  }
+  .qa-list li {
+    margin-bottom: 0.25rem;
+  }
+  .error-text {
+    color: #991b1b;
+    font-weight: bold;
+    margin: 0;
+  }
+  .error-timestamp {
+    font-size: 0.8em;
+    color: #7f1d1d;
+    margin-top: 0.25rem;
+    margin-bottom: 0;
   }
 </style>
