@@ -61,7 +61,7 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
           let statusText = "Idle";
           let statusClass = "status-idle";
           if (status === 'generating') {
-            statusText = "Generating...";
+            statusText = "Generating..."; // Placeholder, will be updated by script
             statusClass = "status-generating";
           } else if (status === 'success') {
             statusText = `Success (${new Date(statusInfo.generatedAt).toLocaleString()})`;
@@ -89,7 +89,16 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
                       {status === 'success' || status === 'error' ? "Regenerate" : "Generate"}
                     </button>
                   </form>
-                  <span class={`status-indicator ${statusClass}`}>{statusText}</span>
+                  <span 
+                    class={`status-indicator ${statusClass}`} 
+                    data-status={status} 
+                    data-started-at={status === 'generating' ? statusInfo.startedAt : ''}
+                  >
+                    {statusText}
+                  </span>
+                  {status === 'generating' && (
+                    <button type="button" class="forget-job-btn" data-slug={post.slug}>Forget</button>
+                  )}
                 </div>
               </div>
 
@@ -172,6 +181,68 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
         }, pollInterval);
       }
     }
+
+    // --- NEW: Timer and Forget Job Logic ---
+    document.querySelectorAll('.status-indicator[data-status="generating"]').forEach(indicator => {
+      const startedAt = (indicator as HTMLElement).dataset.startedAt;
+      if (!startedAt) return;
+
+      const startTime = new Date(startedAt).getTime();
+
+      const updateTimer = () => {
+        const now = Date.now();
+        const elapsedSeconds = Math.round((now - startTime) / 1000);
+        const minutes = Math.floor(elapsedSeconds / 60);
+        const seconds = elapsedSeconds % 60;
+        indicator.textContent = `Generating... (${minutes}m ${seconds}s)`;
+      };
+
+      // Update immediately and then every second
+      updateTimer();
+      const timerId = setInterval(updateTimer, 1000);
+      
+      // Clean up interval when element is removed (e.g., on page navigation)
+      // This is a simple approach; a more robust solution might use MutationObserver
+      // but for this admin page, it's likely sufficient.
+      indicator.addEventListener('DOMNodeRemoved', () => clearInterval(timerId));
+    });
+
+    document.querySelectorAll('.forget-job-btn').forEach(button => {
+      button.addEventListener('click', async (event) => {
+        const targetButton = event.currentTarget as HTMLButtonElement;
+        const slug = targetButton.dataset.slug;
+
+        if (!slug || !confirm(`Are you sure you want to forget the generation job for "${slug}"? This will cancel the current status and allow you to start a new one.`)) {
+          return;
+        }
+
+        targetButton.disabled = true;
+        targetButton.textContent = 'Forgetting...';
+
+        try {
+          const response = await fetch('/api/admin/forget-qa-job', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slug }),
+          });
+
+          if (response.ok) {
+            // Reload the page to reflect the new state. This is the simplest way.
+            window.location.reload();
+          } else {
+            const errorData = await response.json();
+            alert(`Failed to forget job: ${errorData.error || 'Unknown error'}`);
+            targetButton.disabled = false;
+            targetButton.textContent = 'Forget';
+          }
+        } catch (error) {
+          console.error('Error forgetting job:', error);
+          alert('An error occurred while trying to forget the job.');
+          targetButton.disabled = false;
+          targetButton.textContent = 'Forget';
+        }
+      });
+    });
   });
 </script>
 
@@ -241,7 +312,7 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
     gap: 1rem;
     flex-shrink: 0;
   }
-  .generate-dataset-btn {
+  .generate-dataset-btn, .forget-job-btn {
     background-color: var(--cstm-main-surface-secondary);
     color: var(--cstm-text-primary);
     border: 1px solid var(--cstm-text-secondary);
@@ -251,13 +322,21 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
     font-weight: bold;
     transition: background-color 0.2s ease;
   }
-  .generate-dataset-btn:hover:not(:disabled) {
+  .generate-dataset-btn:hover:not(:disabled), .forget-job-btn:hover:not(:disabled) {
     background-color: #dcd0c4;
   }
-  .generate-dataset-btn:disabled {
+  .generate-dataset-btn:disabled, .forget-job-btn:disabled {
     background-color: #f0f0f0;
     color: #aaa;
     cursor: not-allowed;
+  }
+  .forget-job-btn {
+    background-color: #fee2e2;
+    border-color: #fecaca;
+    color: #991b1b;
+  }
+  .forget-job-btn:hover:not(:disabled) {
+    background-color: #fecaca;
   }
   .status-indicator {
     font-size: 0.9em;
