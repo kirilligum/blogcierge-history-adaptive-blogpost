@@ -16,35 +16,36 @@ export const GET: APIRoute = async ({ request, locals }) => {
     return new Response(JSON.stringify({ error: "Slug parameter is required" }), { status: 400 });
   }
 
-  const successKey = `qa-datasets/${slug}/latest.json`;
-  const errorKey = `qa-datasets/${slug}/error.json`;
-  const lockKey = `qa-datasets/${slug}/_lock`;
+  const indexKey = "qa-datasets/_index.json";
+  const indexObject = await r2Bucket.get(indexKey);
 
-  // Check for a final state first (success or error)
-  const successObj = await r2Bucket.head(successKey);
-  if (successObj) {
-    return new Response(JSON.stringify({ status: "success" }), {
+  if (!indexObject) {
+    // If index doesn't exist, nothing has been generated yet.
+    return new Response(JSON.stringify({ status: "idle" }), {
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  const errorObj = await r2Bucket.head(errorKey);
-  if (errorObj) {
-    return new Response(JSON.stringify({ status: "error" }), {
+  try {
+    const indexData = await indexObject.json<Record<string, { status: string }>>();
+    const postStatus = indexData[slug];
+
+    if (postStatus) {
+      return new Response(JSON.stringify({ status: postStatus.status }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    } else {
+      // If slug is not in the index, it's idle.
+      return new Response(JSON.stringify({ status: "idle" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+  } catch (e) {
+    console.error("Failed to parse QA dataset index file for status check:", e);
+    // If index is corrupt, we can't know the status.
+    return new Response(JSON.stringify({ status: "unknown", error: "Failed to read status index" }), {
+      status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
-
-  // If no final state, check if it's still generating
-  const lockObj = await r2Bucket.head(lockKey);
-  if (lockObj) {
-    return new Response(JSON.stringify({ status: "generating" }), {
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // If no files are found, it's idle
-  return new Response(JSON.stringify({ status: "idle" }), {
-    headers: { "Content-Type": "application/json" },
-  });
 };
