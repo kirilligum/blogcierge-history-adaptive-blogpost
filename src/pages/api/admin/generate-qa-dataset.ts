@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { getEntryBySlug } from "astro:content";
-import type { R2Bucket } from "@cloudflare/workers-types";
+import type { R2Bucket, R2PutOptions } from "@cloudflare/workers-types";
 import { getApiKey } from "../../../utils/apiKey";
 
 const LLAMA_API_URL = "https://api.llama.com/v1/chat/completions";
@@ -20,7 +20,8 @@ async function updateIndex(
 ) {
   for (let i = 0; i < 5; i++) { // Retry loop for optimistic locking
     const indexObj = await r2Bucket.get(INDEX_KEY);
-    const etag = indexObj?.httpEtag;
+    // FIX: Use the unquoted `etag` property. Fallback to null if the object doesn't exist.
+    const etag = indexObj?.etag ?? null;
 
     let index: Record<string, any> = {};
     if (indexObj) {
@@ -33,20 +34,26 @@ async function updateIndex(
 
     index[slug] = { status, ...data };
 
-    // Attempt to write back the index file, conditional on the etag not changing.
-    const result = await r2Bucket.put(INDEX_KEY, JSON.stringify(index), {
-      httpMetadata: { contentType: "application/json" },
-      onlyIf: { etagMatches: etag }, // If etag is undefined, this only succeeds if the object doesn't exist.
-    });
-
-    if (result !== null) {
+    try {
+      // Attempt to write back the index file, conditional on the etag not changing.
+      // If etag is null, this will only succeed if the object does not exist.
+      await r2Bucket.put(INDEX_KEY, JSON.stringify(index), {
+        httpMetadata: { contentType: "application/json" },
+        onlyIf: { etagMatches: etag },
+      });
       console.log(`Index updated for slug ${slug} with status ${status}.`);
       return; // Success
+    } catch (e: any) {
+      // This is how we check for precondition failure (etag mismatch)
+      if (e.constructor.name === 'PreconditionFailedError' || (e.message && e.message.includes('status code 412'))) {
+        console.log(`Etag mismatch on index update for ${slug}. Retrying...`);
+        await new Promise(res => setTimeout(res, Math.random() * 200 + 50)); // Small random delay
+      } else {
+        // If it's another error, we should probably stop.
+        console.error(`Failed to update index for ${slug} with a non-retryable error:`, e);
+        throw e; // rethrow
+      }
     }
-
-    // Etag mismatch means another process wrote to the file. We'll retry.
-    console.log(`Etag mismatch on index update for ${slug}. Retrying...`);
-    await new Promise(res => setTimeout(res, Math.random() * 200 + 50)); // Small random delay
   }
   console.error(`Failed to update index for ${slug} after multiple retries.`);
 }
