@@ -212,7 +212,7 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
         const targetButton = event.currentTarget as HTMLButtonElement;
         const slug = targetButton.dataset.slug;
 
-        if (!slug || !confirm(`Are you sure you want to forget the generation job for "${slug}"? This will cancel the current status and allow you to start a new one.`)) {
+        if (!slug) {
           return;
         }
 
