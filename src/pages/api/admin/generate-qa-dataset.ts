@@ -20,8 +20,8 @@ async function updateIndex(
 ) {
   for (let i = 0; i < 5; i++) { // Retry loop for optimistic locking
     const indexObj = await r2Bucket.get(INDEX_KEY);
-    // FIX: Use the unquoted `etag` property. Fallback to null if the object doesn't exist.
-    const etag = indexObj?.etag ?? null;
+    // This will be a string if the object exists, otherwise undefined.
+    const etag = indexObj?.etag;
 
     let index: Record<string, any> = {};
     if (indexObj) {
@@ -35,12 +35,17 @@ async function updateIndex(
     index[slug] = { status, ...data };
 
     try {
-      // Attempt to write back the index file, conditional on the etag not changing.
-      // If etag is null, this will only succeed if the object does not exist.
-      await r2Bucket.put(INDEX_KEY, JSON.stringify(index), {
+      const putOptions: R2PutOptions = {
         httpMetadata: { contentType: "application/json" },
-        onlyIf: { etagMatches: etag },
-      });
+      };
+
+      // Only apply the conditional check if an etag exists (i.e., the file is being updated).
+      // If etag is undefined, this is a simple 'put', which is fine for creation.
+      if (etag) {
+        putOptions.onlyIf = { etagMatches: etag };
+      }
+
+      await r2Bucket.put(INDEX_KEY, JSON.stringify(index), putOptions);
       console.log(`Index updated for slug ${slug} with status ${status}.`);
       return; // Success
     } catch (e: any) {
