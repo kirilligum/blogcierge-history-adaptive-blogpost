@@ -79,30 +79,50 @@ async function generateAndStoreDataset(
     }
 
     // 2. Prepare and call the LLM
-    const systemPrompt = `You are a Q&A dataset generator. Given the following blog post, generate a JSON array of 5-10 diverse and insightful question-answer pairs that cover the main topics of the article. The questions should be what a curious reader might ask. The answers should be concise and directly derivable from the text.
+    const systemPrompt = `You are a Q&A dataset generator. Given the following blog post, generate a JSON object containing an array of 5-10 diverse and insightful question-answer pairs that cover the main topics of the article. The questions should be what a curious reader might ask. The answers should be concise and directly derivable from the text.
 
-Output ONLY the JSON array, with no other text or explanation.
-
-Example format:
-[
-  {
-    "question": "What is the main topic of the article?",
-    "answer": "The article discusses..."
-  },
-  {
-    "question": "How does X relate to Y?",
-    "answer": "X relates to Y by..."
-  }
-]
+You MUST output your response as a single JSON object adhering to the provided schema.
 
 --- BLOG POST CONTENT ---
 ${entry.body}
 `;
 
+    const qaSchema = {
+      name: "generateQADataset",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          qa_pairs: {
+            type: "array",
+            description: "An array of question and answer pairs.",
+            items: {
+              type: "object",
+              properties: {
+                question: {
+                  type: "string",
+                  description: "A question a reader might ask about the blog post.",
+                },
+                answer: {
+                  type: "string",
+                  description: "A concise answer to the question, derived from the blog post.",
+                },
+              },
+              required: ["question", "answer"],
+            },
+          },
+        },
+        required: ["qa_pairs"],
+      },
+    };
+
     const payload = {
       model: MODEL,
       messages: [{ role: "system", content: systemPrompt }],
-      response_format: { type: "json_object" },
+      response_format: {
+        type: "json_schema",
+        json_schema: qaSchema,
+      },
       max_tokens: 4096,
       temperature: 0.5,
     };
@@ -129,11 +149,16 @@ ${entry.body}
     }
 
     // 3. Validate and store the result
-    let qaData;
+    let parsedJson;
     try {
-      qaData = JSON.parse(jsonString);
+      parsedJson = JSON.parse(jsonString);
     } catch (e) {
       throw new Error(`Failed to parse LLM JSON response. Raw response: ${jsonString}`);
+    }
+
+    const qaData = parsedJson.qa_pairs;
+    if (!Array.isArray(qaData)) {
+      throw new Error(`LLM response did not contain a 'qa_pairs' array. Raw response: ${jsonString}`);
     }
 
     const resultPayload = {
