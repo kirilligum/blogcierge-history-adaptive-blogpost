@@ -27,6 +27,6 @@
     "@astrojs/rss": "^4.0.11",
     "@cloudflare/workers-types": "^4.20241112.0",
     "prettier-plugin-astro": "^0.14.1",
-    "wrangler": "^4.18.0"
+    "wrangler": "^4.19.1"
   }
 }
