@@ -9,6 +9,15 @@ const pageTitle = "Manage Blog Posts";
 let allPosts = await getCollection("blog");
 allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
+// Get a list of slugs for which a QA file has been committed to the repo
+const qaFiles = await import.meta.glob('/src/data/qa/*.json');
+const committedQaSlugs = new Set(
+  Object.keys(qaFiles).map(path => {
+    const filename = path.split('/').pop();
+    return filename ? filename.replace('.json', '') : '';
+  }).filter(Boolean)
+);
+
 const r2Bucket = Astro.locals.runtime?.env?.BLGC_AI_LOGS_BUCKET as R2Bucket | undefined;
 const postStatusMap = new Map<string, { status: string; [key: string]: any }>();
 
@@ -36,9 +45,17 @@ const hasGitHubSession = Astro.cookies.has("github_session");
 <AdminLayout title={pageTitle}>
   <main class="admin-main">
     <h1>{pageTitle}</h1>
-    <p>
-      Generate a Q&A dataset for a post. The results will appear here automatically. Once successful, you can commit the data to the site, which will trigger a new deployment.
-    </p>
+    <div class="page-description">
+      <p>
+        Generate a Q&A dataset for a post. The results will appear here automatically. Once successful, you can commit the data to the site, which will trigger a new deployment.
+      </p>
+      <div class="refresh-info">
+        <p>
+          The "Committed" status reflects data from the last site build. After a deployment finishes, refresh this page to see the latest status.
+        </p>
+        <button type="button" id="refresh-page-btn" class="refresh-btn">Refresh Page</button>
+      </div>
+    </div>
 
     <div class="admin-grid">
       <div class="main-content">
@@ -66,19 +83,36 @@ const hasGitHubSession = Astro.cookies.has("github_session");
           {
             allPosts.map((post) => {
               const statusInfo = postStatusMap.get(post.slug);
-              const status = statusInfo?.status;
-              
-              let statusText = "Idle";
-              let statusClass = "status-idle";
-              if (status === 'generating') {
-                statusText = "Generating...";
-                statusClass = "status-generating";
-              } else if (status === 'success') {
-                statusText = `Ready to Commit`;
-                statusClass = "status-success";
-              } else if (status === 'error') {
-                statusText = `Error (${formatDate(new Date(statusInfo.timestamp))})`;
-                statusClass = "status-error";
+              const r2Status = statusInfo?.status;
+              const isCommitted = committedQaSlugs.has(post.slug);
+
+              let state = 'idle';
+              if (r2Status === 'generating') state = 'generating';
+              else if (r2Status === 'success') state = 'success';
+              else if (r2Status === 'error') state = 'error';
+              else if (isCommitted) state = 'committed';
+
+              let statusText, statusClass;
+              switch (state) {
+                case 'generating':
+                  statusText = "Generating...";
+                  statusClass = "status-generating";
+                  break;
+                case 'success':
+                  statusText = "Ready to Commit";
+                  statusClass = "status-success";
+                  break;
+                case 'error':
+                  statusText = `Error (${formatDate(new Date(statusInfo.timestamp))})`;
+                  statusClass = "status-error";
+                  break;
+                case 'committed':
+                  statusText = "Committed";
+                  statusClass = "status-committed";
+                  break;
+                default: // idle
+                  statusText = "Idle";
+                  statusClass = "status-idle";
               }
 
               return (
@@ -93,34 +127,42 @@ const hasGitHubSession = Astro.cookies.has("github_session");
                       </span>
                     </div>
                     <div class="post-actions">
-                      {status === 'success' && (
-                        <button type="button" class="commit-btn" data-slug={post.slug} disabled>
+                      {state === 'success' && (
+                        <button type="button" class="commit-btn" data-slug={post.slug} disabled={!hasGitHubSession}>
                           Commit to Site
                         </button>
                       )}
-                      <form action="/api/admin/generate-qa-dataset" method="post" class="generate-form">
-                        <input type="hidden" name="slug" value={post.slug} />
-                        <button type="submit" class="generate-dataset-btn" disabled={status === 'generating'}>
-                          {status === 'success' || status === 'error' ? "Regenerate" : "Generate"}
-                        </button>
-                      </form>
+
+                      {(state === 'idle' || state === 'committed' || state === 'error') && (
+                        <form action="/api/admin/generate-qa-dataset" method="post" class="generate-form">
+                          <input type="hidden" name="slug" value={post.slug} />
+                          <button type="submit" class="generate-dataset-btn" disabled={state === 'generating'}>
+                            {state === 'idle' ? 'Generate' : 'Regenerate'}
+                          </button>
+                        </form>
+                      )}
+                      
                       <span 
                         class={`status-indicator ${statusClass}`} 
-                        data-status={status} 
-                        data-started-at={status === 'generating' ? statusInfo.startedAt : ''}
+                        data-status={state} 
+                        data-started-at={state === 'generating' ? statusInfo.startedAt : ''}
                       >
                         {statusText}
                       </span>
-                      {status === 'generating' && (
+
+                      {state === 'generating' && (
                         <button type="button" class="forget-job-btn" data-slug={post.slug}>Forget</button>
                       )}
-                      <button type="button" class="delete-btn" data-slug={post.slug} disabled={!hasGitHubSession} title="Delete Q&A data from repository">
-                        Delete
-                      </button>
+
+                      {isCommitted && state !== 'success' && state !== 'generating' && (
+                        <button type="button" class="delete-btn" data-slug={post.slug} disabled={!hasGitHubSession} title="Delete Q&A data from repository">
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {status === 'error' && (
+                  {state === 'error' && (
                     <div class="qa-output-container error-container">
                       <h4>Last Generation Failed:</h4>
                       <p class="error-text">{statusInfo.error || 'An unknown error occurred.'}</p>
@@ -146,6 +188,11 @@ const hasGitHubSession = Astro.cookies.has("github_session");
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
+    // Add this event listener for the new refresh button
+    document.getElementById('refresh-page-btn')?.addEventListener('click', () => {
+      window.location.reload();
+    });
+
     function showNotification(message, type = 'info') {
       const container = document.getElementById('notification-container');
       if (!container) return;
@@ -443,6 +490,7 @@ const hasGitHubSession = Astro.cookies.has("github_session");
   .status-generating { color: #0050b3; background-color: #e6f7ff; }
   .status-success { color: #1e6641; background-color: #dff7e9; }
   .status-error { color: #991b1b; background-color: #fee2e2; }
+  .status-committed { color: #065f46; background-color: #d1fae5; }
   .qa-output-container { margin-top: 0.5rem; padding: 0.75rem; background-color: #f9f9f9; border: 1px solid #eee; border-radius: 4px; font-size: 0.9em; }
   .qa-output-container.error-container { background-color: #fff5f5; border-color: #fecaca; }
   .qa-output-container h4 { margin-top: 0; margin-bottom: 0.5rem; }
@@ -452,4 +500,39 @@ const hasGitHubSession = Astro.cookies.has("github_session");
   .github-avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #dee2e6; }
   .github-login-btn, .github-logout-link { background-color: #24292e; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 500; transition: background-color 0.2s; }
   .github-login-btn:hover, .github-logout-link:hover { background-color: #4a5056; }
+  .page-description {
+    margin-bottom: 1.5rem;
+  }
+  .refresh-info {
+    background-color: #f0f8ff;
+    border: 1px solid #add8e6;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-top: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .refresh-info p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #31708f;
+  }
+  .refresh-btn {
+    background-color: #fff;
+    color: #31708f;
+    border: 1px solid #31708f;
+    padding: 0.4em 0.8em;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    white-space: nowrap;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  .refresh-btn:hover {
+    background-color: #31708f;
+    color: #fff;
+  }
 </style>
