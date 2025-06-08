@@ -1,0 +1,83 @@
+{
+  "slug": "tackling-textile-trash-how-nyc-is-fighting-back-with-recycling-and-reuse",
+  "generatedAt": "2025-06-08T22:33:14.908Z",
+  "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+  "data": [
+    {
+      "question": "What is the main issue NYC is facing regarding textiles?",
+      "answer": "New York City faces a significant textile waste problem, largely fueled by fast fashion."
+    },
+    {
+      "question": "What is refashionNYC, and how does it work?",
+      "answer": "refashionNYC is a program by DSNY and Housing Works that provides clothing and textile donation bins for apartment buildings with 10 or more units. It's free for eligible buildings and has diverted over 5,000 tons of textiles."
+    },
+    {
+      "question": "How many households does refashionNYC serve?",
+      "answer": "refashionNYC serves 142,000 households across 880 buildings."
+    },
+    {
+      "question": "What happens to the textiles collected through refashionNYC?",
+      "answer": "The collected textiles are sold, and proceeds support Housing Works' mission to combat homelessness and AIDS."
+    },
+    {
+      "question": "Where are DSNY's textile drop-off sites located?",
+      "answer": "DSNY hosts five textile drop-off sites across the boroughs: Bronx (Eastchester), Brooklyn (Gravesend), Manhattan (East Harlem), Queens (Jamaica), and Staten Island (Freshkills Park)."
+    },
+    {
+      "question": "What types of textiles are accepted at DSNY drop-off sites?",
+      "answer": "DSNY drop-off sites accept clean, dry, and bagged textiles including clothing, shoes, accessories, and household linens."
+    },
+    {
+      "question": "Are donations to DSNY drop-off sites tax-deductible?",
+      "answer": "No, items dropped off at DSNY-hosted locations are not tax-deductible."
+    },
+    {
+      "question": "What was the outcome of DSNY's 2015 Curbside Textile Collection Pilot?",
+      "answer": "The pilot collected approximately 150 tons of textiles, with 63% diverted for local reuse and 24% sold as salvage for recycling."
+    },
+    {
+      "question": "What regulation does NYC have for businesses regarding textile waste?",
+      "answer": "NYC law mandates that businesses with more than 10% textiles in their waste stream must separate and recycle or repurpose this material."
+    },
+    {
+      "question": "How much textile waste does NYC produce annually?",
+      "answer": "NYC discards over 200,000 tons of textiles annually."
+    },
+    {
+      "question": "What role do community initiatives play in tackling textile waste?",
+      "answer": "Community initiatives provide specialized services, foster community engagement, and often fill gaps left by larger municipal programs."
+    },
+    {
+      "question": "What is Fabscrap, and what does it do?",
+      "answer": "Fabscrap targets pre-consumer and post-industrial textile waste from fashion designers and commercial sources, diverting over 1.3 million pounds of fabric from landfills since 2016."
+    },
+    {
+      "question": "What was the Sustainable Fashion Community Center (SFCC), and what did it do?",
+      "answer": "The SFCC was an initiative by the NYC Fair Trade Coalition that operated a clothing swap system, hosted workshops, and ensured responsible recycling of unswapped items, engaging over 300 volunteers and collecting 25,000 units of textiles."
+    },
+    {
+      "question": "What challenges do community-driven initiatives face?",
+      "answer": "These initiatives can be vulnerable due to reliance on donations, grants, and temporary arrangements, as seen with the SFCC's funding and space challenges."
+    },
+    {
+      "question": "What is 'wish-cycling' in the context of textile recycling?",
+      "answer": "Wish-cycling refers to the practice of donating items that are torn, stained, or unwearable, believing they can be recycled, which can burden sorting facilities and reduce recycling efficiency."
+    },
+    {
+      "question": "What is the issue with the global secondhand clothing market?",
+      "answer": "The global secondhand market can overwhelm local textile industries and lead to environmental problems if the volume of imported used clothing exceeds demand or if items are of poor quality, a practice criticized as 'waste colonialism'."
+    },
+    {
+      "question": "Why is true textile-to-textile recycling challenging?",
+      "answer": "True textile-to-textile recycling is technologically complex, especially with garments made from blended fibers, and is not yet widely available at scale."
+    },
+    {
+      "question": "What is the difference between textile recycling and downcycling?",
+      "answer": "Textile recycling ideally turns old clothes into new fibers for new clothes, while downcycling transforms textiles into lower-value products like rags or insulation, which is more common currently."
+    },
+    {
+      "question": "What is needed to address the textile waste crisis beyond current recycling efforts?",
+      "answer": "Innovative approaches, advanced recycling technologies, and a fundamental shift in how clothing is designed, consumed, and valued are necessary to truly address the textile waste crisis."
+    }
+  ]
+}
