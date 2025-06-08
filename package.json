@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro build",
+    "build": "mkdir -p src/data/qa && astro build",
     "preview": "node scripts/preview.js",
     "astro": "astro",
     "deploy": "astro build && wrangler pages deploy",
