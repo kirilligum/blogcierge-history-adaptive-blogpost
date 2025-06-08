@@ -41,11 +41,41 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
 
     // 2. Prepare the content and path for GitHub
     const fileContent = JSON.stringify(qaData, null, 2);
-    const filePath = `src/data/qa/${slug}.json`; // The path in your repository
+    const filePath = `src/data/qa/${slug}.json`;
     const commitMessage = `feat(qa): Add Q&A dataset for ${slug}`;
-
-    // 3. Commit the file to GitHub
     const githubApiUrl = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${filePath}`;
+
+    // 3. Check if the file already exists to get its SHA for updates
+    let existingFileSha: string | undefined;
+    try {
+      const getFileResponse = await fetch(githubApiUrl, {
+        headers: {
+          Authorization: `token ${accessToken}`,
+          "User-Agent": "BlogCierge-App",
+        },
+      });
+      if (getFileResponse.ok) {
+        const fileData = await getFileResponse.json();
+        existingFileSha = fileData.sha;
+        console.log(`File ${filePath} exists. Updating with SHA: ${existingFileSha}`);
+      } else if (getFileResponse.status !== 404) {
+        // Handle errors other than "not found"
+        throw new Error(`GitHub API error checking file: ${getFileResponse.statusText}`);
+      }
+    } catch (e) {
+      console.error("Error checking for existing file on GitHub:", e);
+      return new Response(JSON.stringify({ error: "Could not verify file status on GitHub." }), { status: 500 });
+    }
+
+    // 4. Commit the file to GitHub (create or update)
+    const commitPayload: { message: string; content: string; sha?: string } = {
+      message: commitMessage,
+      content: toBase64(fileContent),
+    };
+
+    if (existingFileSha) {
+      commitPayload.sha = existingFileSha;
+    }
 
     const commitResponse = await fetch(githubApiUrl, {
       method: "PUT",
@@ -55,12 +85,7 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
         "Content-Type": "application/json",
         "Accept": "application/vnd.github.v3+json",
       },
-      body: JSON.stringify({
-        message: commitMessage,
-        content: toBase64(fileContent),
-        // We omit 'sha' to create or overwrite the file.
-        // We omit 'committer' and 'author' to let GitHub use the authenticated user.
-      }),
+      body: JSON.stringify(commitPayload),
     });
 
     const commitData = await commitResponse.json();
