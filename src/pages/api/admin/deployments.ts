@@ -8,7 +8,23 @@ export const GET: APIRoute = async ({ locals }) => {
   } = locals.runtime.env;
 
   if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_PROJECT_NAME || !CLOUDFLARE_API_TOKEN) {
-    return new Response(JSON.stringify({ error: "Cloudflare API credentials are not configured on the server." }), { status: 500 });
+    const errorMessage = `
+      <body style="font-family: sans-serif; padding: 2em;">
+        <h1>Configuration Error</h1>
+        <p>One or more Cloudflare API credentials are missing:</p>
+        <ul>
+          <li><code>CLOUDFLARE_ACCOUNT_ID</code></li>
+          <li><code>CLOUDFLARE_PROJECT_NAME</code></li>
+          <li><code>CLOUDFLARE_API_TOKEN</code></li>
+        </ul>
+        <p>Please ensure these are set in your <code>.dev.vars</code> file for local development.</p>
+        <p>Refer to the <code>README.md</code> for instructions on how to create an API token and find your Account ID.</p>
+      </body>
+    `;
+    return new Response(errorMessage, {
+      status: 500,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   const url = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}/deployments`;
