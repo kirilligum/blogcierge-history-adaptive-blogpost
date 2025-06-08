@@ -5,7 +5,7 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://www.prls.co', // Replace with your actual domain, e.g., https://www.prls.co
+  site: 'https://blogcierge.com', // Updated to your production domain
   output: 'server',
   adapter: cloudflare({
     platformProxy: {
