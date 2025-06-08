@@ -334,24 +334,10 @@ if (finalContentToRender && typeof finalContentToRender === "string" && finalCon
 console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || "N/A"}, Source: ${contentSourceDebug}`);
 ---
 
-<BlogPostLayout frontmatter={entry.data} slug={entry.slug}>
+<BlogPostLayout frontmatter={entry.data} slug={entry.slug} qaData={qaData}>
   <div id="main-content-display">
     {processedMarkdownHtml ? <Fragment set:html={processedMarkdownHtml} /> : <OriginalContentComponent />}
   </div>
-
-  {qaData && qaData.length > 0 && (
-    <section class="qa-section">
-      <h2>Questions & Answers</h2>
-      {qaData.map(item => (
-        <details class="qa-item">
-          <summary class="qa-question">{item.question}</summary>
-          <div class="qa-answer">
-            <p>{item.answer}</p>
-          </div>
-        </details>
-      ))}
-    </section>
-  )}
 
   {finalContentToRender && finalContentToRender !== originalMarkdown && (
     <>

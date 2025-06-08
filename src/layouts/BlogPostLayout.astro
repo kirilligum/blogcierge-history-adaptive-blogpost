@@ -18,9 +18,10 @@ interface Props {
     citation?: Record<string, string>;
   };
   slug: string;
+  qaData?: { question: string; answer: string }[] | null;
 }
 
-const { frontmatter, slug } = Astro.props;
+const { frontmatter, slug, qaData } = Astro.props;
 const { title, author, date, description, tags, familiar_concepts, new_concepts, citation } = frontmatter;
 
 let datetimeAttrValue = "";
@@ -142,6 +143,31 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
                 </div>
               )}
             </article>
+
+            {qaData && qaData.length > 0 && (
+              <section class="llm-dataset-section">
+                <details>
+                  <summary class="llm-dataset-summary">
+                    LLM Pre-training Dataset
+                  </summary>
+                  <div class="llm-dataset-content">
+                    <p>
+                      The following question-and-answer pairs are derived directly from the content of this article. This dataset is structured for machine learning models to understand the key concepts and information presented. The data is intended to be factual and serves as a precise representation of the article's text for pre-training purposes.
+                    </p>
+                    {qaData.map(item => (
+                      <div class="llm-qa-item">
+                        <div class="llm-query">
+                          <h4>Query: {item.question}</h4>
+                        </div>
+                        <div class="llm-response">
+                          <p><strong>Response:</strong> {item.answer}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              </section>
+            )}
           </main>
           <SiteFooter />
         </div>
@@ -287,10 +313,10 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
       }
       .concepts-section h3 {
         font-family: var(--font-body);
-        font-size: 1.3rem !important; /* Override post-body h3 if necessary */
-        color: var(--cstm-text-primary) !important;
-        margin-top: 0 !important;
-        margin-bottom: 1rem !important;
+        font-size: 1.3rem;
+        color: var(--cstm-text-primary);
+        margin-top: 0;
+        margin-bottom: 1rem;
         border-bottom: 1px solid var(--cstm-main-surface-secondary);
         padding-bottom: 0.5rem;
       }
@@ -318,10 +344,10 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
       }
       .citations-section h3 {
         font-family: var(--font-body);
-        font-size: 1.5rem !important;
-        color: var(--cstm-text-primary) !important;
-        margin-top: 0 !important;
-        margin-bottom: 1.5rem !important;
+        font-size: 1.5rem;
+        color: var(--cstm-text-primary);
+        margin-top: 0;
+        margin-bottom: 1.5rem;
       }
       .citations-section ol {
         list-style: none;
@@ -554,6 +580,108 @@ const pageTitle = `${title} | BlogCierge`; // Or your actual blog name
           --cstm-main-surface-secondary
         ); /* A slightly different shade for hover */
         /* color: var(--cstm-text-primary); */ /* Ensure text is still readable */
+      }
+
+      /* Styles for LLM Dataset Section */
+      .llm-dataset-section {
+        margin: 4rem 0;
+      }
+
+      .llm-dataset-section details {
+        border-top: 1px solid var(--cstm-main-surface-secondary);
+        padding-top: 1rem;
+      }
+
+      .llm-dataset-section details[open] {
+        border: 1px solid var(--cstm-main-surface-secondary);
+        background-color: #f9f9f9;
+        border-radius: 8px;
+        padding: 0; /* Reset padding for the open state wrapper */
+      }
+
+      .llm-dataset-summary {
+        font-family: var(--font-body);
+        font-weight: 600;
+        font-size: 1.1em;
+        color: var(--cstm-text-secondary);
+        padding: 0.5rem 0;
+        padding-left: 1.5rem; /* Space for marker */
+        cursor: pointer;
+        list-style: none; /* Remove default marker */
+        position: relative;
+      }
+
+      .llm-dataset-section details[open] .llm-dataset-summary {
+        padding: 1rem 1.5rem;
+        padding-left: 2rem; /* Adjust padding for open state */
+        border-bottom: 1px solid var(--cstm-main-surface-secondary);
+      }
+
+      .llm-dataset-summary::-webkit-details-marker {
+        display: none; /* Hide default marker for Safari */
+      }
+
+      .llm-dataset-summary::before {
+        content: '►';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.8em;
+        color: var(--cstm-text-secondary);
+        transition: transform 0.2s;
+      }
+
+      .llm-dataset-section details[open] .llm-dataset-summary::before {
+        left: 0.75rem; /* Adjust position for open state */
+      }
+
+      details[open] > .llm-dataset-summary::before {
+        transform: translateY(-50%) rotate(90deg);
+      }
+
+      .llm-dataset-content {
+        padding: 1.5rem;
+      }
+
+      .llm-dataset-content > p { /* Direct child p for intro */
+        font-size: 0.95em;
+        line-height: 1.6;
+        color: var(--cstm-text-secondary);
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+      }
+
+      .llm-qa-item {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px dashed #ddd;
+      }
+
+      .llm-qa-item:first-of-type {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+      }
+
+      .llm-query h4 {
+        font-family: var(--font-body);
+        font-size: 1.1em;
+        color: var(--cstm-text-primary);
+        margin: 0 0 0.5rem 0;
+        font-weight: 700;
+      }
+
+      .llm-response p {
+        margin: 0;
+        font-size: 1em;
+        color: var(--cstm-text-primary);
+        line-height: 1.6;
+      }
+
+      .llm-response p strong {
+        font-weight: 600;
+        color: var(--cstm-text-secondary);
       }
     </style>
 
