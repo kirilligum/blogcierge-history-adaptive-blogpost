@@ -71,10 +71,10 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
             statusText = "Generating..."; // Placeholder, will be updated by script
             statusClass = "status-generating";
           } else if (status === 'success') {
-            statusText = `Success (${new Date(statusInfo.generatedAt).toLocaleString()})`;
+            statusText = `Success (${formatDate(new Date(statusInfo.generatedAt))})`;
             statusClass = "status-success";
           } else if (status === 'error') {
-            statusText = `Error (${new Date(statusInfo.timestamp).toLocaleString()})`;
+            statusText = `Error (${formatDate(new Date(statusInfo.timestamp))})`;
             statusClass = "status-error";
           }
 
