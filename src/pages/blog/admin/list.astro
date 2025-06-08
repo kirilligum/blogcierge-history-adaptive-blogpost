@@ -32,18 +32,61 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
 
 const hasGitHubSession = Astro.cookies.has("github_session");
 
-const postsWithStatus = await Promise.all(allPosts.map(async (post) => {
-  let isCommitted = false;
+// --- NEW LOGIC TO FETCH COMMITTED FILES FROM GITHUB ---
+let committedQaSlugs = new Set<string>();
+let githubStatusWarning = '';
+
+const { GITHUB_REPO_OWNER, GITHUB_REPO_NAME, GITHUB_READ_REPO_TOKEN } = Astro.locals.runtime.env;
+
+if (GITHUB_REPO_OWNER && GITHUB_REPO_NAME && GITHUB_READ_REPO_TOKEN) {
+  const apiUrl = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/src/data/qa`;
   try {
-    // This dynamic import is resolved at runtime on the server.
-    // If the file exists in the deployment, the import succeeds.
-    await import(`../../../data/qa/${post.slug}.json`);
-    isCommitted = true;
+    const response = await fetch(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${GITHUB_READ_REPO_TOKEN}`,
+        "User-Agent": "BlogCierge-App",
+        "Accept": "application/vnd.github.v3+json",
+      },
+    });
+    if (response.ok) {
+      const files = await response.json();
+      if (Array.isArray(files)) {
+        committedQaSlugs = new Set(
+          files.map(file => file.name.replace('.json', ''))
+        );
+      }
+    } else if (response.status === 404) {
+      // The directory doesn't exist yet, which is fine.
+      console.log("[GitHub Status] QA directory not found on GitHub. Assuming no files are committed.");
+    } else {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
   } catch (e) {
-    // File doesn't exist, so isCommitted remains false.
+    console.error("Failed to fetch committed QA files from GitHub:", e);
+    githubStatusWarning = 'Could not fetch real-time status from GitHub. Displayed "Committed" status may be out of date.';
   }
-  return { ...post, isCommitted };
-}));
+} else {
+  githubStatusWarning = 'GITHUB_READ_REPO_TOKEN is not configured. Displayed "Committed" status is based on the last deployment and may be out of date.';
+}
+
+// Fallback logic for when GitHub API call fails or is not configured.
+// This uses the files present in the current deployment's build.
+if (githubStatusWarning) {
+  console.warn(`[GitHub Status] Warning: ${githubStatusWarning}`);
+  const postsWithDeploymentStatus = await Promise.all(allPosts.map(async (post) => {
+      let isCommittedInDeployment = false;
+      try {
+          await import(`../../../data/qa/${post.slug}.json`);
+          isCommittedInDeployment = true;
+      } catch (e) {
+          // file not in deployment
+      }
+      return { slug: post.slug, isCommitted: isCommittedInDeployment };
+  }));
+  committedQaSlugs = new Set(
+      postsWithDeploymentStatus.filter(p => p.isCommitted).map(p => p.slug)
+  );
+}
 ---
 
 <AdminLayout title={pageTitle}>
@@ -55,7 +98,7 @@ const postsWithStatus = await Promise.all(allPosts.map(async (post) => {
       </p>
       <div class="refresh-info">
         <p>
-          The "Committed" status reflects data from the last site build. After a deployment finishes, refresh this page to see the latest status.
+          The "Committed" status reflects data from your GitHub repository. After a deployment finishes, you may need to refresh this page to see the latest status.
         </p>
         <button type="button" id="refresh-page-btn" class="refresh-btn">Refresh Page</button>
       </div>
@@ -71,6 +114,10 @@ const postsWithStatus = await Promise.all(allPosts.map(async (post) => {
         <!-- Container for dynamic notifications -->
         <div id="notification-container"></div>
 
+        {githubStatusWarning && (
+          <div class="notification warning">{githubStatusWarning}</div>
+        )}
+
         {generationStartedSlug && (
           <div class="notification info" id="notification-generating" data-slug={generationStartedSlug}>
             Generation started for post: <strong>{generationStartedSlug}</strong>. This page will update automatically when it's done.
@@ -85,10 +132,10 @@ const postsWithStatus = await Promise.all(allPosts.map(async (post) => {
 
         <ul class="post-list">
           {
-            postsWithStatus.map((post) => {
+            allPosts.map((post) => {
               const statusInfo = postStatusMap.get(post.slug);
               const r2Status = statusInfo?.status;
-              const isCommitted = post.isCommitted;
+              const isCommitted = committedQaSlugs.has(post.slug);
 
               let state = 'idle';
               if (r2Status === 'generating') state = 'generating';

@@ -10,6 +10,7 @@ interface Env {
   GITHUB_CLIENT_SECRET: string;
   GITHUB_REPO_OWNER: string;
   GITHUB_REPO_NAME: string;
+  GITHUB_READ_REPO_TOKEN: string; // New token for reading repo contents
   CLOUDFLARE_API_TOKEN: string;
   CLOUDFLARE_ACCOUNT_ID: string;
   CLOUDFLARE_PROJECT_NAME: string;

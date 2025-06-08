@@ -12,6 +12,12 @@ GITHUB_CLIENT_SECRET=""
 GITHUB_REPO_OWNER="your-github-username"
 GITHUB_REPO_NAME="your-repo-name"
 
+# --- GitHub Read-Only Token for Admin Panel ---
+# Used to check the status of committed Q&A files in real-time.
+# Go to GitHub > Settings > Developer settings > Personal access tokens > Fine-grained tokens.
+# Create a token with "Read-only" access to the "Contents" of your specific repository.
+GITHUB_READ_REPO_TOKEN=""
+
 # --- Cloudflare API Credentials ---
 # Used for fetching deployment status.
 # Go to My Profile > API Tokens > Create Token > Use "Edit Cloudflare Pages" template.

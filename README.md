@@ -14,7 +14,7 @@ This project uses two distinct architectures for its two primary features:
     *   **Deploy:** This commit to your `main` branch automatically triggers a new build and deployment on Cloudflare Pages.
     *   **Serve:** During the build, Astro finds the local Q&A JSON file and bakes its content directly into the static HTML of the blog post. The final page is served from Cloudflare's global CDN with zero runtime overhead.
 
-**Important:** Because of this Git-based workflow, newly committed Q&A data will **only appear on the live site after the new deployment is complete**. You can monitor the status of deployments in the admin panel.
+**Important:** The admin panel now checks the status of Q&A files directly from your GitHub repository. This means the "Committed" status is live. However, the Q&A data will **only appear on the public-facing site after the new deployment is complete**. You can monitor the status of deployments in the admin panel.
 
 ---
 
@@ -98,6 +98,11 @@ GITHUB_CLIENT_SECRET="YOUR_LOCAL_CLIENT_SECRET"
 GITHUB_REPO_OWNER="your-github-username"
 GITHUB_REPO_NAME="your-repo-name"
 
+# GitHub Read-Only Token for Admin Panel
+# Go to GitHub > Settings > Developer settings > Personal access tokens > Fine-grained tokens.
+# Create a token with "Read-only" access to the "Contents" of your repository.
+GITHUB_READ_REPO_TOKEN="github_pat_..."
+
 # Cloudflare API credentials for deployment status
 # Go to My Profile > API Tokens > Create Token > Use "Edit Cloudflare Pages" template.
 CLOUDFLARE_API_TOKEN="YOUR_CLOUDFLARE_API_TOKEN"
@@ -113,7 +118,7 @@ Run the project locally using the `preview` script. This command builds the site
 yarn preview
 ```
 
-**Note on Local Workflow:** When you commit a Q&A file locally, it will trigger a deployment on Cloudflare, but it will **not** automatically appear in your local `yarn preview` session. To see the Q&A data locally, you would need to stop the server, `git pull` the changes from your repository, and then run `yarn preview` again.
+**Note on Local Workflow:** When you commit a Q&A file locally, it will trigger a deployment on Cloudflare. The admin panel will show the "Committed" status immediately upon refresh. However, the Q&A data will **not** automatically appear on your public-facing site until the Cloudflare deployment is complete.
 
 ### Step 7: Production Deployment
 
@@ -127,7 +132,7 @@ yarn preview
     *   In the "Build settings", select **Astro** as the framework preset.
 3.  **Add Production Environment Variables:**
     *   In your Pages project settings, go to **Settings > Environment variables**.
-    *   Add all the same secrets from your `.dev.vars` file, but use the credentials from your **production** GitHub OAuth App.
+    *   Add all the same secrets from your `.dev.vars` file, but use the credentials from your **production** GitHub OAuth App and your **read-only GitHub token**.
 4.  **Deploy:** The first deployment will be triggered. Subsequent commits to your `main` branch will automatically trigger new deployments.
 
 ### Step 8: First-Time Admin Setup
