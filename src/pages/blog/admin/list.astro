@@ -9,15 +9,6 @@ const pageTitle = "Manage Blog Posts";
 let allPosts = await getCollection("blog");
 allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
-// Get a list of slugs for which a QA file has been committed to the repo
-const qaFiles = await import.meta.glob('/src/data/qa/*.json');
-const committedQaSlugs = new Set(
-  Object.keys(qaFiles).map(path => {
-    const filename = path.split('/').pop();
-    return filename ? filename.replace('.json', '') : '';
-  }).filter(Boolean)
-);
-
 const r2Bucket = Astro.locals.runtime?.env?.BLGC_AI_LOGS_BUCKET as R2Bucket | undefined;
 const postStatusMap = new Map<string, { status: string; [key: string]: any }>();
 
@@ -40,6 +31,19 @@ const generationStartedSlug = Astro.url.searchParams.get('generation_started_for
 const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for');
 
 const hasGitHubSession = Astro.cookies.has("github_session");
+
+const postsWithStatus = await Promise.all(allPosts.map(async (post) => {
+  let isCommitted = false;
+  try {
+    // This dynamic import is resolved at runtime on the server.
+    // If the file exists in the deployment, the import succeeds.
+    await import(`../../../data/qa/${post.slug}.json`);
+    isCommitted = true;
+  } catch (e) {
+    // File doesn't exist, so isCommitted remains false.
+  }
+  return { ...post, isCommitted };
+}));
 ---
 
 <AdminLayout title={pageTitle}>
@@ -81,10 +85,10 @@ const hasGitHubSession = Astro.cookies.has("github_session");
 
         <ul class="post-list">
           {
-            allPosts.map((post) => {
+            postsWithStatus.map((post) => {
               const statusInfo = postStatusMap.get(post.slug);
               const r2Status = statusInfo?.status;
-              const isCommitted = committedQaSlugs.has(post.slug);
+              const isCommitted = post.isCommitted;
 
               let state = 'idle';
               if (r2Status === 'generating') state = 'generating';
