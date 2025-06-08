@@ -1,6 +1,6 @@
 ---
-import { getCollection, getEntryBySlug, type CollectionEntry } from "astro:content"; // Added CollectionEntry
-import BlogPostLayout from "../../layouts/BlogPostLayout.astro"; // Ensure this path is correct
+import { getCollection, getEntryBySlug, type CollectionEntry } from "astro:content";
+import BlogPostLayout from "../../layouts/BlogPostLayout.astro";
 import type { KVNamespace } from "@cloudflare/workers-types";
 import { marked } from "marked";
 
@@ -25,8 +25,6 @@ async function getUserInteractionHistory(
   const readPostSlugsSet = new Set<string>();
   const chatMessages: any[] = [];
 
-  // KV Key structure: deviceId/YYYY-MM-DD/slug
-  // Data structure: { read: boolean, messages: Array<{role: string, content: string, timestamp: string}> }
   const { keys } = await kv.list({ prefix: `${deviceId}/` });
 
   for (const key of keys) {
@@ -38,7 +36,6 @@ async function getUserInteractionHistory(
           readPostSlugsSet.add(parts[2]);
         }
         if (data.messages && Array.isArray(data.messages)) {
-          // Take last 5 message pairs (10 messages total) to manage context size. Adjust as needed.
           chatMessages.push(...data.messages.slice(-10));
         }
       }
@@ -52,14 +49,9 @@ async function getUserInteractionHistory(
   return { readPostSlugs: Array.from(readPostSlugsSet), chatMessages };
 }
 
-// LLAMA_API_URL and DEFAULT_MODEL are defined here as per your request structure
 const LLAMA_API_URL = "https://api.llama.com/v1/chat/completions";
 const DEFAULT_MODEL = "Llama-4-Maverick-17B-128E-Instruct-FP8";
 
-/**
- * Retrieves tailored content from the cache.
- * @returns {Promise<string | null>} Cached content or null.
- */
 async function getCachedTailoredContent(
   cache: KVNamespace,
   key: string,
@@ -82,10 +74,6 @@ async function getCachedTailoredContent(
   }
 }
 
-/**
- * Fetches tailored content from the LLM.
- * @returns {Promise<string | null>} LLM generated markdown or null.
- */
 async function fetchAndProcessLlmResponse(
   llmApiUrl: string,
   apiKey: string,
@@ -120,14 +108,8 @@ async function fetchAndProcessLlmResponse(
         llmData.choices?.[0]?.message?.content;
 
       if (llmGeneratedMarkdown && llmGeneratedMarkdown.trim() !== "") {
-        console.log(
-          `[SSR Tailoring] LLM generated content for ${currentPostSlug}, user ${deviceId}.`,
-        );
         return { content: llmGeneratedMarkdown };
       } else {
-        console.warn(
-          `[SSR Tailoring] LLM returned empty content for ${currentPostSlug}, user ${deviceId}.`,
-        );
         return { content: null, errorSource: "llm_error_empty_content_ssr" };
       }
     } else {
@@ -146,9 +128,6 @@ async function fetchAndProcessLlmResponse(
   }
 }
 
-/**
- * Caches the tailored content.
- */
 function cacheTailoredContent(
   cache: KVNamespace,
   key: string,
@@ -173,11 +152,6 @@ function cacheTailoredContent(
   );
 }
 
-/**
- * Orchestrates the generation of personalized content if not found in cache.
- * Fetches history, calls LLM, and caches the result.
- * @returns {Promise<{ personalizedMarkdown: string | null; source: string }>}
- */
 async function generatePersonalizedContent(
   currentEntry: CollectionEntry<"blog">,
   deviceId: string,
@@ -189,7 +163,7 @@ async function generatePersonalizedContent(
   const tailoredContentCache = locals.runtime?.env
     ?.BLGC_BLOGPOST_AI_CACHE as KVNamespace | undefined;
 
-  const currentPostSlug = currentEntry.slug; // Already checked that currentEntry.slug is valid before calling this
+  const currentPostSlug = currentEntry.slug;
 
   if (!userInteractionsKV) {
     return { personalizedMarkdown: null, source: "original_ssr_no_kv_access_for_history" };
@@ -204,7 +178,6 @@ async function generatePersonalizedContent(
     return { personalizedMarkdown: null, source: "original_ssr_no_history" };
   }
 
-  // Construct system prompt
   let readPostsCombinedContent = "";
   for (const readSlug of readPostSlugs) {
     if (readSlug === currentPostSlug) continue;
@@ -274,156 +247,57 @@ Focus on clarity and conciseness. The output should be ready-to-render Markdown.
     }
     return { personalizedMarkdown: llmResult.content, source: "llm_generated_ssr" };
   } else {
-    // LLM call failed or returned empty content
     return { personalizedMarkdown: null, source: llmResult.errorSource || "llm_error_unknown_ssr" };
   }
 }
-// --- End Helper functions & Constants ---
 
-export const prerender = false; // Enable SSR for this page
+export const prerender = false;
 
 export async function getStaticPaths() {
   const blogEntries = await getCollection("blog");
   return blogEntries.map((entry) => ({
     params: { slug: entry.slug },
-    // props: { entry }, // Props from getStaticPaths are not directly passed to Astro.props in SSR for dynamic routes.
-    // The entry is fetched below using Astro.params.slug.
   }));
 }
 
 const { slug } = Astro.params;
 
 if (typeof slug !== "string") {
-  // This should ideally not be reached if the route pattern is matched correctly by Astro.
-  console.error(
-    "[SSR Blog Page] Error: Slug is undefined or not a string from Astro.params.",
-  );
-  // Return a 400 Bad Request response as the slug is essential for this page.
-  return new Response(
-    "Invalid request: Slug parameter is missing or invalid.",
-    { status: 400 },
-  );
+  return new Response("Invalid request: Slug parameter is missing or invalid.", { status: 400 });
 }
 
 const entry = await getEntryBySlug("blog", slug);
 
 if (!entry) {
-  // If no entry is found for the given slug, return a 404 Not Found response.
-  console.warn(`[SSR Blog Page] No blog entry found for slug: ${slug}`);
   return new Response(null, { status: 404, statusText: "Not Found" });
 }
 
-// --- NEW: Fetch Q&A Data from local file ---
+// --- Fetch Q&A Data from local file ---
 let qaData: { question: string; answer: string }[] | null = null;
 try {
-  // Astro's dynamic import will find and bundle the JSON file at build time.
   const qaModule = await import(`../../data/qa/${slug}.json`);
-  // The structure from R2 was { slug, generatedAt, model, data: [...] }
-  // The new structure will be the same.
   if (qaModule.default && Array.isArray(qaModule.default.data)) {
     qaData = qaModule.default.data;
     console.log(`[QA Fetch] Successfully loaded local Q&A data for slug: ${slug}`);
   }
 } catch (e) {
-  // This is an expected error if the file doesn't exist for a post.
   console.log(`[QA Fetch] No local Q&A data file found for slug: ${slug}.`);
 }
-// --- END: Fetch Q&A Data ---
 
-// OriginalContentComponent is used as a fallback if personalization fails or is not applicable
 const { Content: OriginalContentComponent } = await entry.render();
-
-// Ensure originalMarkdown is explicitly defined for clarity
 const originalMarkdown = entry.body;
-
-let finalContentToRender: string | null = null; // This will hold the personalized Markdown string
-let contentSourceDebug = "original_static_fallback_ssr"; // For debugging the content source
-let currentPostSlug: string | undefined; // Declare currentPostSlug here
-
-// --- BEGIN KV & Runtime Diagnostics ---
-console.log("[SSR Tailoring Diagnostics] Checking Astro.locals.runtime...");
-if (Astro.locals.runtime) {
-  console.log(
-    "[SSR Tailoring Diagnostics] Astro.locals.runtime object IS PRESENT.",
-  );
-  if (Astro.locals.runtime.env) {
-    console.log(
-      "[SSR Tailoring Diagnostics] Astro.locals.runtime.env object IS PRESENT.",
-    );
-    const envKeys = Object.keys(Astro.locals.runtime.env);
-    console.log(
-      `[SSR Tailoring Diagnostics] Keys in Astro.locals.runtime.env: ${envKeys.length > 0 ? envKeys.join(", ") : "NONE"}`,
-    );
-
-    const kvBindingNames = [
-      "BLGC_USER_INTERACTIONS_KV",
-      "BLGC_BLOGPOST_AI_CACHE",
-      "BLGC_SITE_CONTENT_CACHE",
-      "BLGC_AI_LOGS_BUCKET",
-      "LLAMA_API_KEY",
-    ];
-    kvBindingNames.forEach((name) => {
-      const bindingValue = Astro.locals.runtime.env[name];
-      if (typeof bindingValue !== "undefined") {
-        console.log(
-          `[SSR Tailoring Diagnostics] Binding ${name} IS PRESENT in env. Type: ${typeof bindingValue}`,
-        );
-        // Basic check if it quacks like a KV/R2 binding (has a 'get' or 'put' method) or is a string (for API key)
-        if (name === "LLAMA_API_KEY" && typeof bindingValue === "string") {
-          console.log(
-            `[SSR Tailoring Diagnostics] Binding ${name} appears to be a valid string API key.`,
-          );
-        } else if (
-          typeof bindingValue === "object" &&
-          bindingValue !== null &&
-          (typeof bindingValue.get === "function" ||
-            typeof bindingValue.put === "function")
-        ) {
-          console.log(
-            `[SSR Tailoring Diagnostics] Binding ${name} appears to be a valid KV/R2 namespace object.`,
-          );
-        } else if (name !== "LLAMA_API_KEY") {
-          console.warn(
-            `[SSR Tailoring Diagnostics] Binding ${name} IS PRESENT but might NOT be a valid KV/R2 namespace object or expected type. Actual value:`,
-            bindingValue,
-          );
-        }
-      } else {
-        console.warn(
-          `[SSR Tailoring Diagnostics] Binding ${name} IS UNDEFINED in env.`,
-        );
-      }
-    });
-  } else {
-    console.warn(
-      "[SSR Tailoring Diagnostics] Astro.locals.runtime.env object IS UNDEFINED.",
-    );
-  }
-} else {
-  console.warn(
-    "[SSR Tailoring Diagnostics] Astro.locals.runtime object IS UNDEFINED. Cloudflare bindings will not be available.",
-  );
-}
-// --- END KV & Runtime Diagnostics ---
+let finalContentToRender: string | null = null;
+let contentSourceDebug = "original_static_fallback_ssr";
 
 const deviceId = Astro.cookies.get("blgcUserDeviceID_cookie")?.value;
-const shouldPersonalize = Astro.url.searchParams.get('personalize') === 'true'; // ADD THIS LINE
+const shouldPersonalize = Astro.url.searchParams.get('personalize') === 'true';
 
 if (!deviceId) {
   contentSourceDebug = "original_ssr_no_deviceid_cookie";
-  console.log("[SSR Tailoring] No deviceId cookie. Serving original content.");
-} else if (!entry.slug) {
-  // This check is redundant if `entry` itself is checked, but good for safety.
-  contentSourceDebug = "error_entry_missing_slug_ssr";
-  console.error("[SSR Tailoring] Current entry is missing a slug. Cannot personalize.");
-} else if (!shouldPersonalize) { // ADD THIS ELSE IF BLOCK
+} else if (!shouldPersonalize) {
   contentSourceDebug = "original_ssr_personalization_not_requested";
-  console.log("[SSR Tailoring] Personalization not requested via query param. Serving original content.");
-  // finalContentToRender will remain null by default, leading to original content.
 } else {
-  // Attempt to get from cache first
-  const tailoredContentCache = Astro.locals.runtime?.env
-    ?.BLGC_BLOGPOST_AI_CACHE as KVNamespace | undefined;
+  const tailoredContentCache = Astro.locals.runtime?.env?.BLGC_BLOGPOST_AI_CACHE as KVNamespace | undefined;
   const cacheKey = `tailored_ssr::${entry.slug}::${deviceId}`;
 
   if (tailoredContentCache) {
@@ -434,7 +308,6 @@ if (!deviceId) {
     }
   }
 
-  // If not in cache, try to generate personalized content
   if (!finalContentToRender) {
     const personalizationResult = await generatePersonalizedContent(
       entry,
@@ -443,65 +316,29 @@ if (!deviceId) {
       import.meta.env.DEV,
     );
     finalContentToRender = personalizationResult.personalizedMarkdown;
-    contentSourceDebug = personalizationResult.source; // This will reflect the outcome of generatePersonalizedContent
+    contentSourceDebug = personalizationResult.source;
   }
 }
-
-// If finalContentToRender is still null at this point, the OriginalContentComponent will be used.
-// contentSourceDebug will indicate why (e.g., no_history, no_apikey, llm_error, etc.)
 
 let processedMarkdownHtml: string | null = null;
-
-if (
-  finalContentToRender &&
-  typeof finalContentToRender === "string" &&
-  finalContentToRender.trim() !== ""
-) {
+if (finalContentToRender && typeof finalContentToRender === "string" && finalContentToRender.trim() !== "") {
   try {
-    // Use marked to convert markdown to HTML
-    // Note: We're not using DOMPurify here as it requires DOM APIs not available in Workers
-    // marked is safe by default for most use cases
     processedMarkdownHtml = await marked(finalContentToRender);
-    // contentSourceDebug would have been set (e.g., "llm_generated_ssr" or "cache_ssr")
   } catch (e) {
-    console.error(
-      `[SSR Tailoring] Error during markdown processing for slug ${entry.slug}:`,
-      e,
-    );
+    console.error(`[SSR Tailoring] Error during markdown processing for slug ${entry.slug}:`, e);
     contentSourceDebug += ";markdown_render_error";
-    finalContentToRender = null; // Force fallback
     processedMarkdownHtml = null;
   }
-} else if (finalContentToRender) {
-  // This case handles if finalContentToRender was set but was not a non-empty string.
-  console.warn(
-    `[SSR Tailoring] finalContentToRender was not a non-empty string for slug ${entry.slug}. Type: ${typeof finalContentToRender}. Value: '${String(finalContentToRender).substring(0, 50)}...' Falling back.`,
-  );
-  finalContentToRender = null; // Ensure fallback
-  processedMarkdownHtml = null;
 }
-// If finalContentToRender was null initially (e.g. no deviceId, error fetching history), it remains null, and OriginalContentComponent will be used.
 
-console.log(
-  `[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || "N/A"}, Source: ${contentSourceDebug}`,
-);
+console.log(`[SSR Blog Post] Slug: ${entry.slug}, DeviceID: ${deviceId || "N/A"}, Source: ${contentSourceDebug}`);
 ---
 
 <BlogPostLayout frontmatter={entry.data} slug={entry.slug}>
-  {/* The content below is slotted into .post-body of BlogPostLayout.astro */}
   <div id="main-content-display">
-  {
-    processedMarkdownHtml ? (
-      <Fragment
-        set:html={processedMarkdownHtml}
-      />
-    ) : (
-      <OriginalContentComponent />
-    )
-  }
+    {processedMarkdownHtml ? <Fragment set:html={processedMarkdownHtml} /> : <OriginalContentComponent />}
   </div>
 
-  {/* --- Render Q&A Section --- */}
   {qaData && qaData.length > 0 && (
     <section class="qa-section">
       <h2>Questions & Answers</h2>
@@ -515,49 +352,22 @@ console.log(
       ))}
     </section>
   )}
-  {/* --- END: Render Q&A Section --- */}
 
-  {/* Diff button and container */}
-  {
-    finalContentToRender && finalContentToRender !== originalMarkdown && (
-      <>
-        <div id="diff-container-wrapper">
-          <button id="show-diff-button" type="button">
-            Show Personalized Changes
-          </button>
-          {/* ADD THE NEW BUTTON HERE */}
-          <button id="toggle-content-button" type="button">
-            Show Original Content {/* Initial text, assuming personalized is shown */}
-          </button>
-        </div>
-        <div id="diff-output" class="hidden">
-          {/* Diff content will be rendered here by the client-side script */}
-        </div>
-      </>
-    )
-  }
-  {
-    /* For debugging, you can uncomment this to see the content source on the page: */
-    }
-    {
-      /* <p style="font-size: 0.8em; color: grey; margin-top: 2em; text-align: center; background: #f0f0f0; padding: 5px;">Content Source: {contentSourceDebug}</p> */
-    }
-  </div>
+  {finalContentToRender && finalContentToRender !== originalMarkdown && (
+    <>
+      <div id="diff-container-wrapper">
+        <button id="show-diff-button" type="button">Show Personalized Changes</button>
+        <button id="toggle-content-button" type="button">Show Original Content</button>
+      </div>
+      <div id="diff-output" class="hidden"></div>
+    </>
+  )}
 </BlogPostLayout>
 
-<script
-  define:vars={{ originalMarkdown, tailoredMarkdown: finalContentToRender, processedMarkdownHtmlFromAstro: processedMarkdownHtml }}
->
+<script define:vars={{ originalMarkdown, tailoredMarkdown: finalContentToRender, processedMarkdownHtmlFromAstro: processedMarkdownHtml }}>
   function escapeHtml(unsafe) {
-    if (typeof unsafe !== "string") {
-      return "";
-    }
-    return unsafe
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    if (typeof unsafe !== "string") return "";
+    return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -566,97 +376,43 @@ console.log(
     const toggleContentButton = document.getElementById("toggle-content-button");
     const mainContentDisplay = document.getElementById("main-content-display");
 
-    // originalMarkdown, tailoredMarkdown, processedMarkdownHtmlFromAstro are from define:vars
-
-    // Logic for content toggle button
-    // This button only exists if personalized content (MD) was available and different from original (MD).
-    // Attach toggle listener only when prerequisites are met.
-    // `marked` from the CDN is an *object* (with .parse), not a function, so check accordingly.
-    if (
-      toggleContentButton &&
-      mainContentDisplay &&
-      typeof originalMarkdown === 'string' &&
-      marked &&
-      typeof marked.parse === 'function'
-    ) {
-      console.debug('[TOGGLE-BTN] Listener attached. Initial personalized state:',
-        typeof processedMarkdownHtmlFromAstro === 'string' && processedMarkdownHtmlFromAstro.trim() !== '');
-      // Determine initial state based on what Astro rendered.
-      // Astro renders processedMarkdownHtml (personalized HTML) if it's a non-empty string, otherwise it renders OriginalContentComponent.
-      const initiallyShowingPersonalized = (typeof processedMarkdownHtmlFromAstro === 'string' && processedMarkdownHtmlFromAstro.trim() !== "");
+    if (toggleContentButton && mainContentDisplay && typeof originalMarkdown === 'string' && typeof marked?.parse === 'function') {
+      const initiallyShowingPersonalized = typeof processedMarkdownHtmlFromAstro === 'string' && processedMarkdownHtmlFromAstro.trim() !== "";
       let isShowingPersonalized = initiallyShowingPersonalized;
+      const clientSideOriginalHtml = originalMarkdown.trim() === "" ? "" : marked.parse(originalMarkdown);
 
-      // Prepare original content HTML (client-side parsing of originalMarkdown)
-      // It's good practice to ensure originalMarkdown is not empty before parsing,
-      // though marked.parse handles empty strings gracefully.
-      const clientSideOriginalHtml =
-        originalMarkdown.trim() === ""
-          ? ""
-          : marked.parse(originalMarkdown);
-      console.debug('[TOGGLE-BTN] Prepared original HTML length:', clientSideOriginalHtml.length);
-
-      // Set initial button text based on what's currently displayed
-      if (isShowingPersonalized) {
-        // Personalized HTML is currently shown. Button should offer to show Original.
-        toggleContentButton.textContent = "Show Original Content";
-      } else {
-        // Original HTML is currently shown (either as default or because personalized HTML was null/empty).
-        // Button should offer to show Personalized.
-        toggleContentButton.textContent = "Show Personalized Content";
-      }
+      toggleContentButton.textContent = isShowingPersonalized ? "Show Original Content" : "Show Personalized Content";
 
       toggleContentButton.addEventListener("click", () => {
         if (isShowingPersonalized) {
-          // Was showing personalized, switch to original
           mainContentDisplay.innerHTML = clientSideOriginalHtml;
           toggleContentButton.textContent = "Show Personalized Content";
         } else {
-          // Was showing original, switch to personalized
-          // If processedMarkdownHtmlFromAstro is null/empty, this will show that (e.g. blank or minimal HTML).
-          mainContentDisplay.innerHTML = processedMarkdownHtmlFromAstro || ""; // Fallback to empty string if null/undefined
+          mainContentDisplay.innerHTML = processedMarkdownHtmlFromAstro || "";
           toggleContentButton.textContent = "Show Original Content";
         }
         isShowingPersonalized = !isShowingPersonalized;
       });
     }
 
-    // Logic for diff button
-    // This button only exists if personalized content was available and different.
     if (showDiffButton && diffOutputDiv && typeof originalMarkdown === 'string' && typeof tailoredMarkdown === 'string' && typeof Diff !== 'undefined') {
       showDiffButton.addEventListener("click", () => {
-        const currentTailoredMd = tailoredMarkdown; // This is finalContentToRender (MD)
-
         if (diffOutputDiv.classList.contains("hidden")) {
-          const diff = Diff.structuredPatch(
-            "original.md",
-            "personalized.md",
-            originalMarkdown,
-            currentTailoredMd,
-            "",
-            "",
-            { context: 3 },
-          );
-
+          const diff = Diff.structuredPatch("original.md", "personalized.md", originalMarkdown, tailoredMarkdown, "", "", { context: 3 });
           let diffHtml = '<pre class="diff-view-output">';
           diffHtml += `<span class="diff-meta">--- Original Content</span>\n`;
           diffHtml += `<span class="diff-meta">+++ Personalized Content</span>\n`;
-
-          diff.hunks.forEach((hunk) => {
+          diff.hunks.forEach(hunk => {
             diffHtml += `<span class="diff-hunk-header">@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@</span>\n`;
-            hunk.lines.forEach((line) => {
+            hunk.lines.forEach(line => {
               const operation = line[0];
               const content = line.slice(1);
-              if (operation === "+") {
-                diffHtml += `<span class="diff-added">+${escapeHtml(content)}</span>\n`;
-              } else if (operation === "-") {
-                diffHtml += `<span class="diff-removed">-${escapeHtml(content)}</span>\n`;
-              } else {
-                diffHtml += `<span class="diff-context"> ${escapeHtml(content)}</span>\n`;
-              }
+              if (operation === "+") diffHtml += `<span class="diff-added">+${escapeHtml(content)}</span>\n`;
+              else if (operation === "-") diffHtml += `<span class="diff-removed">-${escapeHtml(content)}</span>\n`;
+              else diffHtml += `<span class="diff-context"> ${escapeHtml(content)}</span>\n`;
             });
           });
           diffHtml += "</pre>";
-
           diffOutputDiv.innerHTML = diffHtml;
           diffOutputDiv.classList.remove("hidden");
           showDiffButton.textContent = "Hide Personalized Changes";
@@ -671,117 +427,15 @@ console.log(
 </script>
 
 <style>
-  #diff-container-wrapper {
-    margin-top: 3rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--cstm-main-surface-secondary, #eee);
-    text-align: center;
-    display: flex; /* ADDED: For button layout */
-    justify-content: center; /* ADDED: Center buttons */
-    gap: 1rem; /* ADDED: Space between buttons */
-    flex-wrap: wrap; /* ADDED: Allow buttons to wrap */
-    margin-bottom: 1.5rem; /* MOVED: from button to wrapper */
-  }
-
-  #show-diff-button {
-    background-color: var(--cstm-main-surface-secondary, #e6d9ce);
-    color: var(--cstm-text-primary, #3d3d3d);
-    border: 1px solid var(--cstm-text-secondary, #5d5d5d);
-    padding: 0.6em 1.2em;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    font-family: var(--font-body);
-    font-size: 0.95rem;
-    transition:
-      background-color 0.2s ease,
-      color 0.2s ease;
-    /* margin-bottom: 1.5rem; REMOVED: margin handled by wrapper */
-  }
-
-  #show-diff-button:hover {
-    background-color: var(--cstm-text-secondary, #5d5d5d);
-    color: white;
-  }
-
-  #diff-output {
-    border: 1px solid var(--cstm-main-surface-secondary, #ddd);
-    padding: 1.5rem;
-    /* margin-top: 1rem; Ensure this is still appropriate or remove if wrapper margin is enough */
-    background-color: #fdfdfd;
-    text-align: left;
-  }
-
-  /* ADDED: Styles for the new toggle button */
-  #toggle-content-button {
-    background-color: var(--cstm-main-surface-secondary, #e6d9ce);
-    color: var(--cstm-text-primary, #3d3d3d);
-    border: 1px solid var(--cstm-text-secondary, #5d5d5d);
-    padding: 0.6em 1.2em;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    font-family: var(--font-body);
-    font-size: 0.95rem;
-    transition:
-      background-color 0.2s ease,
-      color 0.2s ease;
-  }
-
-  #toggle-content-button:hover {
-    background-color: var(--cstm-text-secondary, #5d5d5d);
-    color: white;
-  }
-
-  #diff-output.hidden {
-    display: none;
-  }
-
-  .diff-view-output {
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    background-color: #fff;
-    padding: 1rem;
-    border: 1px solid var(--cstm-main-surface-secondary, #eee);
-    border-radius: 4px;
-    max-height: 600px;
-    overflow-y: auto;
-    font-family: monospace;
-    font-size: 0.9em;
-    line-height: 1.5;
-    margin: 0;
-  }
-
-  .diff-added {
-    background-color: #e6ffed;
-    color: #24292e;
-    display: block;
-  }
-
-  .diff-removed {
-    background-color: #ffeef0;
-    color: #24292e;
-    display: block;
-  }
-
-  .diff-context {
-    color: #586069;
-    display: block;
-  }
-
-  .diff-hunk-header {
-    color: #0366d6;
-    background-color: #f1f8ff;
-    display: block;
-    padding: 0.2em 0.5em;
-    margin: 0.5em -1rem;
-    font-weight: bold;
-  }
-
-  .diff-meta {
-    color: #586069;
-    display: block;
-    font-weight: bold;
-    margin-bottom: 0.5em;
-  }
+  #diff-container-wrapper { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--cstm-main-surface-secondary, #eee); text-align: center; display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  #show-diff-button, #toggle-content-button { background-color: var(--cstm-main-surface-secondary, #e6d9ce); color: var(--cstm-text-primary, #3d3d3d); border: 1px solid var(--cstm-text-secondary, #5d5d5d); padding: 0.6em 1.2em; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: var(--font-body); font-size: 0.95rem; transition: background-color 0.2s ease, color 0.2s ease; }
+  #show-diff-button:hover, #toggle-content-button:hover { background-color: var(--cstm-text-secondary, #5d5d5d); color: white; }
+  #diff-output { border: 1px solid var(--cstm-main-surface-secondary, #ddd); padding: 1.5rem; background-color: #fdfdfd; text-align: left; }
+  #diff-output.hidden { display: none; }
+  .diff-view-output { white-space: pre-wrap; word-wrap: break-word; background-color: #fff; padding: 1rem; border: 1px solid var(--cstm-main-surface-secondary, #eee); border-radius: 4px; max-height: 600px; overflow-y: auto; font-family: monospace; font-size: 0.9em; line-height: 1.5; margin: 0; }
+  .diff-added { background-color: #e6ffed; color: #24292e; display: block; }
+  .diff-removed { background-color: #ffeef0; color: #24292e; display: block; }
+  .diff-context { color: #586069; display: block; }
+  .diff-hunk-header { color: #0366d6; background-color: #f1f8ff; display: block; padding: 0.2em 0.5em; margin: 0.5em -1rem; font-weight: bold; }
+  .diff-meta { color: #586069; display: block; font-weight: bold; margin-bottom: 0.5em; }
 </style>
