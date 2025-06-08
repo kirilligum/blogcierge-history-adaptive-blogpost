@@ -166,7 +166,6 @@ const hasGitHubSession = Astro.cookies.has("github_session");
       if (!list) return;
       fetch('/api/admin/deployments')
         .then(res => {
-          // Check if the response is JSON, otherwise it might be our HTML error page
           const contentType = res.headers.get("content-type");
           if (contentType && contentType.indexOf("application/json") !== -1) {
             return res.json();
@@ -281,7 +280,7 @@ const hasGitHubSession = Astro.cookies.has("github_session");
           const result = await response.json();
           if (response.ok) {
             showNotification('Delete commit successful! A new deployment has been triggered.', 'success');
-            targetButton.textContent = 'Deleted';
+            targetButton.remove(); // Remove the button on success
           } else {
             showNotification(`Delete failed: ${result.error || 'Unknown error'}`, 'error');
             targetButton.disabled = false;
