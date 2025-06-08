@@ -313,6 +313,23 @@ if (!entry) {
   return new Response(null, { status: 404, statusText: "Not Found" });
 }
 
+// --- NEW: Fetch Q&A Data from local file ---
+let qaData: { question: string; answer: string }[] | null = null;
+try {
+  // Astro's dynamic import will find and bundle the JSON file at build time.
+  const qaModule = await import(`../../data/qa/${slug}.json`);
+  // The structure from R2 was { slug, generatedAt, model, data: [...] }
+  // The new structure will be the same.
+  if (qaModule.default && Array.isArray(qaModule.default.data)) {
+    qaData = qaModule.default.data;
+    console.log(`[QA Fetch] Successfully loaded local Q&A data for slug: ${slug}`);
+  }
+} catch (e) {
+  // This is an expected error if the file doesn't exist for a post.
+  console.log(`[QA Fetch] No local Q&A data file found for slug: ${slug}.`);
+}
+// --- END: Fetch Q&A Data ---
+
 // OriginalContentComponent is used as a fallback if personalization fails or is not applicable
 const { Content: OriginalContentComponent } = await entry.render();
 
@@ -483,6 +500,22 @@ console.log(
     )
   }
   </div>
+
+  {/* --- Render Q&A Section --- */}
+  {qaData && qaData.length > 0 && (
+    <section class="qa-section">
+      <h2>Questions & Answers</h2>
+      {qaData.map(item => (
+        <details class="qa-item">
+          <summary class="qa-question">{item.question}</summary>
+          <div class="qa-answer">
+            <p>{item.answer}</p>
+          </div>
+        </details>
+      ))}
+    </section>
+  )}
+  {/* --- END: Render Q&A Section --- */}
 
   {/* Diff button and container */}
   {
