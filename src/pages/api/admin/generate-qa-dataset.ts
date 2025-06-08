@@ -84,7 +84,7 @@ async function generateAndStoreDataset(
     }
 
     // 2. Prepare and call the LLM
-    const systemPrompt = `You are a Q&A dataset generator. Given the following blog post, generate a JSON object containing an array of 5-10 diverse and insightful question-answer pairs that cover the main topics of the article. The questions should be what a curious reader might ask. The answers should be concise and directly derivable from the text.
+    const systemPrompt = `You are a Q&A dataset generator. Given the following blog post, generate a JSON object containing an array of 100 diverse and insightful question-answer pairs that cover the main topics of the article. The questions should be what a curious reader might ask. The answers should be concise and directly derivable from the text.
 
 You MUST output your response as a single JSON object adhering to the provided schema.
 
@@ -130,7 +130,7 @@ ${entry.body}
         type: "json_schema",
         json_schema: qaSchema,
       },
-      max_tokens: 4096,
+      max_tokens: 8192,
       temperature: 0.5,
     };
 
