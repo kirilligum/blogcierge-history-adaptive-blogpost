@@ -11,7 +11,8 @@
     "astro": "astro",
     "deploy": "astro build && wrangler pages deploy",
     "cf-typegen": "wrangler types",
-    "setup:cloudflare": "node scripts/setup-cloudflare.js"
+    "setup:cloudflare": "node scripts/setup-cloudflare.js",
+    "cleanup:bad-wrappers": "node scripts/cleanup.js"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^11.2.0",
