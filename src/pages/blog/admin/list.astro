@@ -157,8 +157,14 @@ const hasGitHubSession = Astro.cookies.has("github_session");
     if (githubStatusContainer) {
       if (hasGitHubSession) {
         githubStatusContainer.innerHTML = `<p>Connecting to GitHub...</p>`;
-        fetch('/api/auth/github/status')
-          .then(res => res.json())
+        // FIX: Add credentials: 'include' to ensure cookies are sent with the fetch request.
+        fetch('/api/auth/github/status', { credentials: 'include' })
+          .then(res => {
+            if (!res.ok) {
+              throw new Error(`GitHub status check failed: ${res.statusText}`);
+            }
+            return res.json();
+          })
           .then(data => {
             if (data.authenticated && data.user) {
               githubStatusContainer.innerHTML = `
@@ -168,19 +174,22 @@ const hasGitHubSession = Astro.cookies.has("github_session");
                 </div>
                 <a href="/api/admin/logout" class="github-logout-link">Logout from GitHub</a>
               `;
-              // FIX: Enable commit buttons now that we know the session is valid.
+              // Enable commit buttons now that we know the session is valid.
               document.querySelectorAll('.commit-btn').forEach(btn => (btn as HTMLButtonElement).disabled = false);
             } else {
               githubStatusContainer.innerHTML = `
                 <p>Your GitHub session may have expired.</p>
                 <a href="/api/auth/github/login?from=/blog/admin/list" class="github-login-btn">Login with GitHub</a>
               `;
+              // Disable commit buttons if session is invalid
               document.querySelectorAll('.commit-btn').forEach(btn => (btn as HTMLButtonElement).disabled = true);
             }
           })
           .catch(err => {
             console.error("Error fetching GitHub status:", err);
             githubStatusContainer.innerHTML = `<p class="error-text">Could not verify GitHub status.</p>`;
+            // Ensure buttons are disabled on error
+            document.querySelectorAll('.commit-btn').forEach(btn => (btn as HTMLButtonElement).disabled = true);
           });
       } else {
         githubStatusContainer.innerHTML = `
