@@ -67,6 +67,8 @@ If the setup script created a `.dev.vars` file, open it and add your API keys fo
 # Add your secret API keys below
 OPENROUTER_API_KEY="sk-or-..."
 LLAMA_API_KEY="llm-..."
+GITHUB_CLIENT_ID="..."
+GITHUB_CLIENT_SECRET="..."
 ```
 **Note:** `.dev.vars` is included in `.gitignore` and should never be committed to your repository.
 
@@ -90,6 +92,8 @@ Wrangler automatically reads the resource bindings from your modified `wrangler.
 6.  Go to **Settings > Environment variables** and add your secret API keys for production:
     *   `LLAMA_API_KEY`
     *   `OPENROUTER_API_KEY`
+    *   `GITHUB_CLIENT_ID`
+    *   `GITHUB_CLIENT_SECRET`
 7.  Click **Save and Deploy**.
 
 Your site should now build and deploy successfully. Bindings are handled automatically by `wrangler.toml`.

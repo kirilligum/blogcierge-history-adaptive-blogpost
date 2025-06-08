@@ -1,5 +1,7 @@
 OPENROUTER_API_KEY=""
 LLAMA_API_KEY=""
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET=""
 
 # This file contains secrets for local development.
 # Copy this file to .dev.vars and fill in your API keys.

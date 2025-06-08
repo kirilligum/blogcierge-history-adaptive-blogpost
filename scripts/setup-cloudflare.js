@@ -77,6 +77,8 @@ function main() {
       '# Add your secret API keys below.',
       'OPENROUTER_API_KEY=""',
       'LLAMA_API_KEY=""',
+      'GITHUB_CLIENT_ID=""',
+      'GITHUB_CLIENT_SECRET=""',
     ].join('\n');
     fs.writeFileSync(devVarsPath, devVarsContent);
     console.log(`✅ Successfully created ${devVarsPath}. Please add your API keys.`);
