@@ -1,9 +1,6 @@
 export const prerender = false; // This ensures the file is treated as a dynamic serverless function
 
 import type { APIRoute } from "astro";
-// REMOVE:
-// import { getEntryBySlug } from "astro:content";
-// ADD:
 import { getCollection, getEntryBySlug } from "astro:content"; // Added getEntryBySlug
 import type { KVNamespace, R2Bucket } from "@cloudflare/workers-types"; // Added R2Bucket
 import { getApiKey } from "../../utils/apiKey";
