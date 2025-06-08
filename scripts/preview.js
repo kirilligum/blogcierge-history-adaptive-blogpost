@@ -6,26 +6,43 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
 const isWindows = process.platform === 'win32';
 
-// A helper function to run a command and stream its output.
-// Returns a promise that resolves when the process exits successfully.
-function runCommand(command, args) {
+/**
+ * Runs a command and streams its output.
+ * @param {string} command The command to run.
+ * @param {string[]} args The arguments for the command.
+ * @param {boolean} isDevServer If true, non-zero exit codes (like from Ctrl+C) are not treated as errors.
+ * @returns {Promise<void>} A promise that resolves when the process exits.
+ */
+function runCommand(command, args, isDevServer = false) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: projectRoot,
-      stdio: 'inherit', // This pipes the child's stdio to the parent, including stdin for Ctrl+C
-      // On Unix, shell:true can prevent signals (like Ctrl+C) from reaching the child process.
-      // By setting shell:false on non-Windows platforms, we ensure wrangler shuts down correctly.
-      // On Windows, shell:true is often needed to correctly execute .cmd scripts from node_modules.
+      stdio: 'inherit',
       shell: isWindows,
     });
 
+    // Gracefully shut down the child process on script termination
+    const onSignal = (signal) => {
+      child.kill(signal);
+    };
+
+    process.on('SIGINT', onSignal);
+    process.on('SIGTERM', onSignal);
+
     child.on('close', (code) => {
+      // Clean up listeners once the child process is closed
+      process.removeListener('SIGINT', onSignal);
+      process.removeListener('SIGTERM', onSignal);
+
       if (code === 0) {
         resolve();
-      } else {
-        // A non-zero exit code is expected when we stop the dev server with Ctrl+C.
-        // We resolve here to prevent the main script from throwing an error.
+      } else if (isDevServer) {
+        // For a dev server, a non-zero exit code (e.g., from Ctrl+C) is not a failure.
+        console.log('\n> Dev server stopped.');
         resolve();
+      } else {
+        // For build steps, a non-zero code is a failure.
+        reject(new Error(`Process exited with code ${code}`));
       }
     });
 
@@ -45,7 +62,7 @@ async function main() {
     const args = ['pages', 'dev', './dist'];
     console.log(`> Executing: ${command} ${args.join(' ')}`);
     console.log('> Wrangler will automatically use `wrangler.toml` for bindings and `.dev.vars` for secrets.');
-    await runCommand(command, args);
+    await runCommand(command, args, true); // Pass true for isDevServer
   } catch (error) {
     console.error(`\n> Script failed: ${error.message}`);
     process.exit(1);
