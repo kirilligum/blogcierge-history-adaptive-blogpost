@@ -75,6 +75,12 @@ GITHUB_CLIENT_SECRET="..."
 # GitHub Repository details
 GITHUB_REPO_OWNER="your-github-username"
 GITHUB_REPO_NAME="your-repo-name"
+
+# Cloudflare API credentials for deployment status
+# Create a token with "Cloudflare Pages:Read" permissions.
+CLOUDFLARE_API_TOKEN="..."
+CLOUDFLARE_ACCOUNT_ID="..."
+CLOUDFLARE_PROJECT_NAME="your-cloudflare-pages-project-name"
 ```
 **Note:** `.dev.vars` is included in `.gitignore` and should never be committed to your repository.
 
@@ -102,6 +108,9 @@ Wrangler automatically reads the resource bindings from your modified `wrangler.
     *   `GITHUB_CLIENT_SECRET`
     *   `GITHUB_REPO_OWNER`
     *   `GITHUB_REPO_NAME`
+    *   `CLOUDFLARE_API_TOKEN`
+    *   `CLOUDFLARE_ACCOUNT_ID`
+    *   `CLOUDFLARE_PROJECT_NAME`
 7.  Click **Save and Deploy**.
 
 Your site should now build and deploy successfully. Bindings are handled automatically by `wrangler.toml`.
