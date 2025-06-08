@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
+// This script removes empty .js files that conflict with .ts/.astro routes.
 const filesToDelete = [
   'src/pages/about.js',
   'src/pages/blog.js',
@@ -32,7 +33,7 @@ const filesToDelete = [
 ];
 
 function main() {
-  console.log('Cleaning up bad wrapper files...');
+  console.log('Cleaning up conflicting .js wrapper files...');
   let deletedCount = 0;
   let notFoundCount = 0;
 
@@ -47,8 +48,6 @@ function main() {
         console.error(`  Error deleting ${file}:`, err);
       }
     } else {
-      // This is expected if the script has been run before or the file was already removed.
-      // console.log(`  Skipped (not found): ${file}`);
       notFoundCount++;
     }
   }
