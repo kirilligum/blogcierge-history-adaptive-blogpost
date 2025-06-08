@@ -12,7 +12,7 @@
     "deploy": "astro build && wrangler pages deploy",
     "cf-typegen": "wrangler types",
     "setup:cloudflare": "node scripts/setup-cloudflare.js",
-    "cleanup:bad-wrappers": "rm -f src/pages/about.js src/pages/blog.js src/pages/index.js src/pages/rss.xml.js src/pages/_image.js src/pages/blog/admin.js src/pages/blog/admin/analytics.js src/pages/blog/admin/list.js src/pages/blog/admin/login.js src/pages/blog/admin/setup.js src/pages/blog/'[...slug]'.js src/pages/api/admin/commit-qa-data.js src/pages/api/admin/forget-qa-job.js src/pages/api/admin/generate-qa-dataset.js src/pages/api/admin/login.js src/pages/api/admin/logout.js src/pages/api/admin/qa-dataset-status.js src/pages/api/admin/setup.js src/pages/api/analytics-query.js src/pages/api/ask.js src/pages/api/auth/github/callback.js src/pages/api/auth/github/login.js src/pages/api/auth/github/status.js src/pages/api/feedback.js src/pages/api/get-read-status.js src/pages/api/list-device-messages.js src/pages/api/track-interaction.js"
+    "cleanup:bad-wrappers": "node scripts/cleanup.js"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^11.2.0",
