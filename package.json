@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "packageManager": "yarn@1.22.22",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "wrangler pages dev -- astro dev",
     "start": "astro dev",
     "build": "mkdir -p src/data/qa && astro build",
     "preview": "node scripts/preview.js",
