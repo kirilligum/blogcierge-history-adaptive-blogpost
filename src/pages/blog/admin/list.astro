@@ -47,6 +47,9 @@ const hasGitHubSession = Astro.cookies.has("github_session");
       <!-- Content will be populated by client-side script -->
     </div>
 
+    <!-- Container for dynamic notifications -->
+    <div id="notification-container"></div>
+
     {generationStartedSlug && (
       <div class="notification info" id="notification-generating" data-slug={generationStartedSlug}>
         Generation started for post: <strong>{generationStartedSlug}</strong>. This page will update automatically when it's done.
@@ -130,6 +133,25 @@ const hasGitHubSession = Astro.cookies.has("github_session");
 
 <script define:vars={{ hasGitHubSession }}>
   document.addEventListener('DOMContentLoaded', () => {
+    // --- Notification Helper ---
+    function showNotification(message, type = 'info') {
+      const container = document.getElementById('notification-container');
+      if (!container) return;
+
+      const notification = document.createElement('div');
+      notification.className = `notification ${type}`;
+      notification.textContent = message;
+      
+      container.innerHTML = '';
+      container.appendChild(notification);
+
+      setTimeout(() => {
+        notification.style.transition = 'opacity 0.5s ease';
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 500);
+      }, 5000);
+    }
+
     // --- GitHub Status Logic ---
     const githubStatusContainer = document.getElementById('github-status-container');
     if (githubStatusContainer) {
@@ -151,7 +173,6 @@ const hasGitHubSession = Astro.cookies.has("github_session");
                 <p>Your GitHub session may have expired.</p>
                 <a href="/api/auth/github/login?from=/blog/admin/list" class="github-login-btn">Login with GitHub</a>
               `;
-              // Disable commit buttons if session is invalid
               document.querySelectorAll('.commit-btn').forEach(btn => btn.disabled = true);
             }
           })
@@ -188,17 +209,15 @@ const hasGitHubSession = Astro.cookies.has("github_session");
 
           if (response.ok) {
             targetButton.textContent = 'Committed!';
-            // Optionally, you could link to the commit
-            // targetButton.onclick = () => window.open(result.url, '_blank');
-            alert('Commit successful! A new deployment has been triggered on Cloudflare.');
+            showNotification('Commit successful! A new deployment has been triggered on Cloudflare.', 'success');
           } else {
-            alert(`Commit failed: ${result.error || 'Unknown error'}`);
+            showNotification(`Commit failed: ${result.error || 'Unknown error'}`, 'error');
             targetButton.disabled = false;
             targetButton.textContent = 'Commit to Site';
           }
         } catch (error) {
           console.error('Error committing data:', error);
-          alert('An error occurred while trying to commit the data.');
+          showNotification('An error occurred while trying to commit the data. Check the console for details.', 'error');
           targetButton.disabled = false;
           targetButton.textContent = 'Commit to Site';
         }
@@ -290,13 +309,13 @@ const hasGitHubSession = Astro.cookies.has("github_session");
             window.location.reload();
           } else {
             const errorData = await response.json();
-            alert(`Failed to forget job: ${errorData.error || 'Unknown error'}`);
+            showNotification(`Failed to forget job: ${errorData.error || 'Unknown error'}`, 'error');
             targetButton.disabled = false;
             targetButton.textContent = 'Forget';
           }
         } catch (error) {
           console.error('Error forgetting job:', error);
-          alert('An error occurred while trying to forget the job.');
+          showNotification('An error occurred while trying to forget the job.', 'error');
           targetButton.disabled = false;
           targetButton.textContent = 'Forget';
         }
@@ -321,6 +340,7 @@ const hasGitHubSession = Astro.cookies.has("github_session");
     padding: 1rem;
     border-radius: 4px;
     margin-bottom: 1.5rem;
+    opacity: 1;
   }
   .notification.info {
     background-color: #e6f7ff;
@@ -331,6 +351,16 @@ const hasGitHubSession = Astro.cookies.has("github_session");
     background-color: #fffbe6;
     border: 1px solid #ffe58f;
     color: #ad8b00;
+  }
+  .notification.success {
+    background-color: #d1fae5;
+    border: 1px solid #6ee7b7;
+    color: #065f46;
+  }
+  .notification.error {
+    background-color: #fee2e2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
   }
   .post-list {
     list-style: none;
