@@ -1,0 +1,43 @@
+{
+  "slug": "cash-in-clean-up-fashion-buy-backs",
+  "generatedAt": "2025-06-08T02:01:44.676Z",
+  "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+  "data": [
+    {
+      "question": "What is the main environmental problem that fashion buy-back programs aim to address in New York City?",
+      "answer": "New York City faces a significant textile waste problem, fueled by fast fashion."
+    },
+    {
+      "question": "How do fashion buy-back programs work?",
+      "answer": "Fashion buy-back programs involve brands offering customers a reward, typically cash, store credit, or a discount on future purchases, in exchange for returning previously bought items from that same brand."
+    },
+    {
+      "question": "What are some examples of brands that have implemented buy-back programs accessible to New Yorkers?",
+      "answer": "Examples include Levi's, Eileen Fisher Renew, Lululemon Like New, REI Re/Supply, Carhartt Reworked, Girlfriend Collective (ReGirlfriend), and Reformation (RefRecycle)."
+    },
+    {
+      "question": "What is the environmental advantage of buy-back programs over general donations?",
+      "answer": "Buy-back programs offer a more controlled and potentially higher-value circular loop, as brands have a vested interest in ensuring their own products are handled optimally for resale, repair, or recycling."
+    },
+    {
+      "question": "How do buy-back programs support a Circular Economy?",
+      "answer": "These programs enable product reuse, facilitate repairs, and direct items towards appropriate recycling channels, keeping products and materials in circulation and minimizing landfill waste."
+    },
+    {
+      "question": "What is Extended Producer Responsibility (EPR) and how do buy-back programs relate to it?",
+      "answer": "EPR is a policy concept that places responsibility for end-of-life product management on producers. Buy-back programs are a proactive step towards EPR, with brands taking responsibility for their products' end-of-life management."
+    },
+    {
+      "question": "How can New York City residents contribute to the buy-back revolution?",
+      "answer": "Residents can seek out and utilize buy-back programs, advocate for more programs, support genuinely circular brands, and spread the word about these initiatives."
+    },
+    {
+      "question": "What is the potential impact of extending a garment's life by nine months?",
+      "answer": "Extending a garment's life by nine months can reduce its associated carbon, water, and waste footprint by 30%."
+    },
+    {
+      "question": "Why are brands that implement buy-back programs better positioned for future EPR laws?",
+      "answer": "Brands that have developed efficient systems for collecting, sorting, reselling, and recycling their used items will be better prepared to meet EPR law requirements."
+    }
+  ]
+}
