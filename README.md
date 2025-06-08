@@ -14,6 +14,8 @@ This project uses two distinct architectures for its two primary features:
     *   **Deploy:** This commit to your `main` branch automatically triggers a new build and deployment on Cloudflare Pages.
     *   **Serve:** During the build, Astro finds the local Q&A JSON file and bakes its content directly into the static HTML of the blog post. The final page is served from Cloudflare's global CDN with zero runtime overhead.
 
+**Important:** Because of this Git-based workflow, newly committed Q&A data will **only appear on the live site after the new deployment is complete**. You can monitor the status of deployments in the admin panel.
+
 ---
 
 ## Getting Started: Deploying Your Own BlogCierge
