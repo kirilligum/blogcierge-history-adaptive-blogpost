@@ -11,7 +11,6 @@ allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
 // --- Server-Side Data Fetching & State Management ---
 const r2Bucket = Astro.locals.runtime?.env?.BLGC_AI_LOGS_BUCKET as R2Bucket | undefined;
-// NEW: Use a map for the index data
 const postStatusMap = new Map<string, { status: string; [key: string]: any }>();
 
 if (r2Bucket) {
@@ -31,14 +30,22 @@ if (r2Bucket) {
 
 const generationStartedSlug = Astro.url.searchParams.get('generation_started_for');
 const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for');
+
+// Check for GitHub session to control UI elements
+const hasGitHubSession = Astro.cookies.has("github_session");
 ---
 
 <AdminLayout title={pageTitle}>
   <main class="admin-main">
     <h1>{pageTitle}</h1>
     <p>
-      Generate a Q&A dataset for a post. The results will appear here automatically after generation is complete.
+      Generate a Q&A dataset for a post. The results will appear here automatically. Once successful, you can commit the data to the site.
     </p>
+
+    <!-- GitHub Status Section -->
+    <div id="github-status-container" class="github-status-container">
+      <!-- Content will be populated by client-side script -->
+    </div>
 
     {generationStartedSlug && (
       <div class="notification info" id="notification-generating" data-slug={generationStartedSlug}>
@@ -83,6 +90,11 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
                   </span>
                 </div>
                 <div class="post-actions">
+                  {status === 'success' && (
+                    <button type="button" class="commit-btn" data-slug={post.slug} disabled={!hasGitHubSession}>
+                      Commit to Site
+                    </button>
+                  )}
                   <form action="/api/admin/generate-qa-dataset" method="post" class="generate-form">
                     <input type="hidden" name="slug" value={post.slug} />
                     <button type="submit" class="generate-dataset-btn" disabled={status === 'generating'}>
@@ -108,9 +120,6 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
                   <p class="error-text">{statusInfo.error || 'An unknown error occurred.'}</p>
                 </div>
               )}
-
-              {/* The success data is no longer fetched here to speed up page load.
-                  The page reloads upon completion to show the updated status. */}
             </li>
           )
         })
@@ -119,10 +128,62 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
   </main>
 </AdminLayout>
 
-<script>
-  // This script provides progressive enhancement for live status updates.
+<script define:vars={{ hasGitHubSession }}>
   document.addEventListener('DOMContentLoaded', () => {
-    // --- Disable button on submit to prevent double-clicks ---
+    // --- GitHub Status Logic ---
+    const githubStatusContainer = document.getElementById('github-status-container');
+    if (githubStatusContainer) {
+      if (hasGitHubSession) {
+        githubStatusContainer.innerHTML = `<p>Connecting to GitHub...</p>`;
+        fetch('/api/auth/github/status')
+          .then(res => res.json())
+          .then(data => {
+            if (data.authenticated && data.user) {
+              githubStatusContainer.innerHTML = `
+                <div class="github-user-info">
+                  <img src="${data.user.avatar_url}" alt="GitHub Avatar" class="github-avatar" />
+                  <span>Connected as <strong>${data.user.login}</strong></span>
+                </div>
+                <a href="/api/admin/logout" class="github-logout-link">Logout from GitHub</a>
+              `;
+            } else {
+              githubStatusContainer.innerHTML = `
+                <p>Your GitHub session may have expired.</p>
+                <a href="/api/auth/github/login?from=/blog/admin/list" class="github-login-btn">Login with GitHub</a>
+              `;
+              // Disable commit buttons if session is invalid
+              document.querySelectorAll('.commit-btn').forEach(btn => btn.disabled = true);
+            }
+          })
+          .catch(err => {
+            console.error("Error fetching GitHub status:", err);
+            githubStatusContainer.innerHTML = `<p class="error-text">Could not verify GitHub status.</p>`;
+          });
+      } else {
+        githubStatusContainer.innerHTML = `
+          <p>Commiting Q&A data to the site requires GitHub authorization.</p>
+          <a href="/api/auth/github/login?from=/blog/admin/list" class="github-login-btn">Login with GitHub</a>
+        `;
+      }
+    }
+
+    // --- Commit Button Logic ---
+    document.querySelectorAll('.commit-btn').forEach(button => {
+      button.addEventListener('click', async (event) => {
+        const targetButton = event.currentTarget as HTMLButtonElement;
+        const slug = targetButton.dataset.slug;
+        if (!slug) return;
+
+        alert(`Committing for slug: ${slug}. This will be implemented in the next step.`);
+        // In the next step, this will be replaced with:
+        // targetButton.disabled = true;
+        // targetButton.textContent = 'Committing...';
+        // const response = await fetch('/api/admin/commit-qa-data', { ... });
+        // ... handle response ...
+      });
+    });
+
+    // --- Existing Logic (Polling, Timers, etc.) ---
     const forms = document.querySelectorAll('.generate-form');
     forms.forEach(form => {
       form.addEventListener('submit', (event) => {
@@ -140,40 +201,32 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
       });
     });
 
-    // --- Polling for status updates ---
     const notification = document.getElementById('notification-generating');
     if (notification) {
       const slug = notification.dataset.slug;
       if (slug) {
         let pollCount = 0;
-        const maxPolls = 60; // Poll for 5 minutes (60 * 5s)
-        const pollInterval = 5000; // 5 seconds
+        const maxPolls = 60;
+        const pollInterval = 5000;
 
         const poll = setInterval(async () => {
           pollCount++;
           if (pollCount > maxPolls) {
             clearInterval(poll);
-            console.error(`Polling for ${slug} timed out.`);
-            // Reload to show the latest state from the index, even if it's still 'generating'
             window.location.href = '/blog/admin/list';
             return;
           }
-
           try {
             const response = await fetch(`/api/admin/qa-dataset-status?slug=${slug}`);
             if (!response.ok) {
-              // Stop polling on server error
               clearInterval(poll);
               return;
             }
             const data = await response.json();
-
             if (data.status === 'success' || data.status === 'error') {
               clearInterval(poll);
-              // Reload the page to show the final result from the updated index
               window.location.href = '/blog/admin/list';
             }
-            // If status is 'generating' or 'idle' (after lock is gone but before success/error file), keep polling.
           } catch (error) {
             console.error('Polling error:', error);
             clearInterval(poll);
@@ -182,13 +235,10 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
       }
     }
 
-    // --- NEW: Timer and Forget Job Logic ---
     document.querySelectorAll('.status-indicator[data-status="generating"]').forEach(indicator => {
       const startedAt = (indicator as HTMLElement).dataset.startedAt;
       if (!startedAt) return;
-
       const startTime = new Date(startedAt).getTime();
-
       const updateTimer = () => {
         const now = Date.now();
         const elapsedSeconds = Math.round((now - startTime) / 1000);
@@ -196,14 +246,8 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
         const seconds = elapsedSeconds % 60;
         indicator.textContent = `Generating... (${minutes}m ${seconds}s)`;
       };
-
-      // Update immediately and then every second
       updateTimer();
       const timerId = setInterval(updateTimer, 1000);
-      
-      // Clean up interval when element is removed (e.g., on page navigation)
-      // This is a simple approach; a more robust solution might use MutationObserver
-      // but for this admin page, it's likely sufficient.
       indicator.addEventListener('DOMNodeRemoved', () => clearInterval(timerId));
     });
 
@@ -211,23 +255,16 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
       button.addEventListener('click', async (event) => {
         const targetButton = event.currentTarget as HTMLButtonElement;
         const slug = targetButton.dataset.slug;
-
-        if (!slug) {
-          return;
-        }
-
+        if (!slug) return;
         targetButton.disabled = true;
         targetButton.textContent = 'Forgetting...';
-
         try {
           const response = await fetch('/api/admin/forget-qa-job', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ slug }),
           });
-
           if (response.ok) {
-            // Reload the page to reflect the new state. This is the simplest way.
             window.location.reload();
           } else {
             const errorData = await response.json();
@@ -312,7 +349,7 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
     gap: 1rem;
     flex-shrink: 0;
   }
-  .generate-dataset-btn, .forget-job-btn {
+  .generate-dataset-btn, .forget-job-btn, .commit-btn {
     background-color: var(--cstm-main-surface-secondary);
     color: var(--cstm-text-primary);
     border: 1px solid var(--cstm-text-secondary);
@@ -322,10 +359,10 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
     font-weight: bold;
     transition: background-color 0.2s ease;
   }
-  .generate-dataset-btn:hover:not(:disabled), .forget-job-btn:hover:not(:disabled) {
+  .generate-dataset-btn:hover:not(:disabled), .forget-job-btn:hover:not(:disabled), .commit-btn:hover:not(:disabled) {
     background-color: #dcd0c4;
   }
-  .generate-dataset-btn:disabled, .forget-job-btn:disabled {
+  .generate-dataset-btn:disabled, .forget-job-btn:disabled, .commit-btn:disabled {
     background-color: #f0f0f0;
     color: #aaa;
     cursor: not-allowed;
@@ -337,6 +374,14 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
   }
   .forget-job-btn:hover:not(:disabled) {
     background-color: #fecaca;
+  }
+  .commit-btn {
+    background-color: #d1fae5;
+    border-color: #6ee7b7;
+    color: #065f46;
+  }
+  .commit-btn:hover:not(:disabled) {
+    background-color: #a7f3d0;
   }
   .status-indicator {
     font-size: 0.9em;
@@ -384,5 +429,40 @@ const generationLockedSlug = Astro.url.searchParams.get('generation_locked_for')
     margin: 0;
     white-space: pre-wrap;
     word-break: break-all;
+  }
+  .github-status-container {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .github-user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .github-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #dee2e6;
+  }
+  .github-login-btn, .github-logout-link {
+    background-color: #24292e;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+  .github-login-btn:hover, .github-logout-link:hover {
+    background-color: #4a5056;
   }
 </style>
