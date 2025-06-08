@@ -1,0 +1,3 @@
+import { default as page } from './blog.astro';
+export const onRequest = page.onRequest;
+export default page;

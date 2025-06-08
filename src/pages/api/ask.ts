@@ -1,8 +1,8 @@
 export const prerender = false; // This ensures the file is treated as a dynamic serverless function
 
 import type { APIRoute } from "astro";
-import { getCollection, getEntryBySlug } from "astro:content"; // Added getEntryBySlug
-import type { KVNamespace, R2Bucket } from "@cloudflare/workers-types"; // Added R2Bucket
+import { getCollection, getEntryBySlug } from "astro:content";
+import type { KVNamespace, R2Bucket } from "@cloudflare/workers-types";
 import { getApiKey } from "../../utils/apiKey";
 
 // CACHE_TTL_SECONDS for individual questions remains the same
@@ -238,7 +238,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const lastMessage = messages[messages.length - 1];
     let isCacheableQuestion = false;
     let cacheKey = "";
-    // let questionContentMatches = false; // REMOVED
 
     console.log(
       "[DEBUG] Initial cache eligibility check. KV available:",
@@ -266,7 +265,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
       console.log(
         `[DEBUG] Current user question (normalized): "${normalizedCurrentUserQuestion}"`,
       );
-      // The log for predefined cacheable question is no longer relevant here.
 
       // NEW CACHING LOGIC: Cache if it's the first message in the thread.
       if (messages.length === 1) {
@@ -274,9 +272,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
           "[DEBUG] This is the FIRST message. This question IS cacheable.",
         );
         isCacheableQuestion = true; // Mark as cacheable
-        // Generate a cache key based on the slug AND the normalized question content
-        // to ensure different initial questions for the same slug have different cache entries.
-        // Using a prefix like "initial-q::" to distinguish from other potential cache types in the future.
         cacheKey = `initial-q::${slug}::${normalizedCurrentUserQuestion}`;
         console.log(`[DEBUG] Generated cache key: "${cacheKey}"`);
 
@@ -329,14 +324,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
             `[CACHE] KV Cache read error for key ${cacheKey}:`,
             kvError,
           );
-          // If cache read fails, proceed to LLM call. Do not block the request.
         }
       } else {
         console.log(
           `[DEBUG] This is NOT the FIRST message (messages.length: ${messages.length}). Not attempting cache read, and will not write to cache later.`,
         );
       }
-      // The old 'if/else' block checking against NORMALIZED_CACHEABLE_QUESTION is removed.
     } else {
       let reason = "[DEBUG] Initial conditions for caching not met: ";
       if (!aiCache) reason += "KV unavailable. ";
@@ -347,15 +340,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // 5. Prepare the payload for OpenRouter if not served from cache
-    // The entire `post.body` is used as context, as requested.
-    // Be aware: Extremely large post bodies might exceed model context limits.
-    const siteUrl = new URL(request.url).origin; // Get site's base URL
+    const siteUrl = new URL(request.url).origin;
 
-    // --- Define Payload for the Answering LLM ---
-    // llmResponseSchema remains the same
     const llmResponseSchema = {
-      name: "blogPostAssistantResponse", // A descriptive name for the schema
-      strict: true, // Enforce schema strictly, as per Cerebras docs for best results
+      name: "blogPostAssistantResponse",
+      strict: true,
       schema: {
         type: "object",
         properties: {
@@ -376,11 +365,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
           },
         },
         required: ["relation", "related", "response"],
-        additionalProperties: false, // Disallow properties not defined in the schema
+        additionalProperties: false,
       },
     };
 
-    // MODIFY: Update the system prompt
     const answererSystemPrompt = `You are an expert assistant for a technical blog.
 Your task is to analyze the user's query in relation to ALL the provided blog post content from the entire site, then respond in a specific JSON format.
 
@@ -421,8 +409,7 @@ No additional text or explanation outside this JSON object.`;
       model: DEFAULT_MODEL,
       messages: [
         { role: "system", content: answererSystemPrompt },
-        // Ensure `messages` here is the chat history from the client, not the one used for cache check
-        ...(body.messages || []), // Use body.messages which is the chat history for LLM
+        ...(body.messages || []),
       ],
       max_tokens: 2048,
       temperature: 0.6,
@@ -430,12 +417,10 @@ No additional text or explanation outside this JSON object.`;
       top_p: 0.9,
       response_format: {
         type: "json_schema",
-        json_schema: llmResponseSchema, // llmResponseSchema contains name, strict, and the actual schema
+        json_schema: llmResponseSchema,
       },
-      // The system prompt still requests JSON output, and this will enforce it.
     };
 
-    // --- Prepare and Make Answerer LLM Call ---
     const commonHeaders = {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
@@ -446,8 +431,8 @@ No additional text or explanation outside this JSON object.`;
     let answererResponse;
     let attemptNumber = 1; 
     let finalLlmSuccessful = false;
-    let llmOutputString; // To store the successful LLM output string
-    let actualProviderUsed = DEFAULT_MODEL; // Initialize, might be updated by fallback
+    let llmOutputString;
+    let actualProviderUsed = DEFAULT_MODEL;
 
     console.log(
       `[LLM_CALL] Attempt ${attemptNumber}: Calling LLM with all posts context. Model: ${answererPayload.model}. API URL: ${LLAMA_API_URL}`,
@@ -455,7 +440,7 @@ No additional text or explanation outside this JSON object.`;
     console.log(
       "[MOCKING_LOG] LLM Input Payload:",
       JSON.stringify(answererPayload, null, 2),
-    ); // Added for mocking
+    );
     
     try {
       answererResponse = await fetch(LLAMA_API_URL, {
@@ -508,13 +493,12 @@ No additional text or explanation outside this JSON object.`;
         );
       }
 
-      // --- BEGIN FALLBACK LOGIC ---
       attemptNumber = 2;
       console.log(`[LLM_CALL] Attempt ${attemptNumber}: FALLBACK - Fetching current blog post content for slug: ${slug}`);
 
       let currentPostBodyForFallback: string | null = null;
       try {
-        const currentPostEntry = await getEntryBySlug("blog", slug); // Use the slug from the request
+        const currentPostEntry = await getEntryBySlug("blog", slug);
         if (!currentPostEntry) {
           console.error(`[FALLBACK_CONTEXT] Error: Blog post with slug '${slug}' not found for fallback.`);
           if (aiLogsBucket && r2Key) {
@@ -561,10 +545,10 @@ You MUST output your response as a single JSON object adhering to the following 
 No additional text or explanation outside this JSON object.`;
 
         const fallbackPayload = {
-          ...answererPayload, // Spread original payload (model, max_tokens, temp, etc.)
-          messages: [ // Override messages to change system prompt
+          ...answererPayload,
+          messages: [
             { role: "system", content: fallbackSystemPrompt },
-            ...(body.messages || []), // Keep the original chat history
+            ...(body.messages || []),
           ],
         };
 
@@ -572,7 +556,7 @@ No additional text or explanation outside this JSON object.`;
         console.log("[MOCKING_LOG] Fallback LLM Input Payload:", JSON.stringify(fallbackPayload, null, 2));
 
         try {
-          answererResponse = await fetch(LLAMA_API_URL, { // Re-assign answererResponse
+          answererResponse = await fetch(LLAMA_API_URL, {
             method: "POST",
             headers: commonHeaders,
             body: JSON.stringify(fallbackPayload),
@@ -591,7 +575,7 @@ No additional text or explanation outside this JSON object.`;
           finalLlmSuccessful = true;
           const answerDataFallback = await answererResponse.json();
           llmOutputString = answerDataFallback.completion_message?.content?.text;
-          actualProviderUsed = DEFAULT_MODEL; // Or derive if different for fallback
+          actualProviderUsed = DEFAULT_MODEL;
         } else {
           const fallbackErrorText = await answererResponse.text();
           console.error(`[LLM_CALL] Attempt ${attemptNumber} (Fallback) FAILED: Status ${answererResponse.status}`, fallbackErrorText.substring(0, 500));
@@ -602,23 +586,17 @@ No additional text or explanation outside this JSON object.`;
           return new Response(JSON.stringify({ error: `AI service fallback attempt also failed (Status ${answererResponse.status}). Details: ${fallbackErrorText}` }), { status: answererResponse.status, headers: { "Content-Type": "application/json" } });
         }
       } else {
-        // This case should be covered by earlier returns if currentPostBodyForFallback is null.
-        // For safety, returning the primary error if somehow reached.
         return new Response(JSON.stringify({ error: `AI service primary attempt failed (Status ${primaryStatus}). Fallback context was not available.` }), { status: primaryStatus, headers: { "Content-Type": "application/json" } });
       }
-      // --- END FALLBACK LOGIC ---
     } else {
-      // Primary LLM call was successful
       console.log(`[LLM_CALL] Attempt ${attemptNumber} (Primary) SUCCEEDED.`);
       finalLlmSuccessful = true;
       const answerData = await answererResponse.json();
       llmOutputString = answerData.completion_message?.content?.text;
-      actualProviderUsed = DEFAULT_MODEL; // From primary attempt
+      actualProviderUsed = DEFAULT_MODEL;
     }
 
     if (!finalLlmSuccessful || !llmOutputString) {
-      // This should ideally not be reached if all error paths return a Response.
-      // If llmOutputString is null/undefined after a supposedly successful call.
       console.error(
         "LLM response content is missing or empty after successful call flag. LLM Output:", llmOutputString ? llmOutputString.substring(0,100) : "undefined",
         "Raw response object (if available):", answererResponse ? JSON.stringify(await answererResponse.json()).substring(0,500) : "N/A"
@@ -632,7 +610,7 @@ No additional text or explanation outside this JSON object.`;
             userQuestion: currentUserQuestion,
             errorDetails: "LLM response content was missing or empty after successful call.",
             source: "error_llm_empty_response_content",
-            attempt: attemptNumber, // Add attempt number
+            attempt: attemptNumber,
           };
           locals.runtime.ctx.waitUntil(
             aiLogsBucket.put(r2Key, JSON.stringify(logData)),
@@ -653,7 +631,7 @@ No additional text or explanation outside this JSON object.`;
       console.log(
         "[MOCKING_LOG] LLM Parsed Output JSON:",
         JSON.stringify(parsedLlmJson, null, 2),
-      ); // Added for mocking
+      );
     } catch (e) {
       console.error(
         "Failed to parse LLM JSON response:",
@@ -670,7 +648,7 @@ No additional text or explanation outside this JSON object.`;
           userQuestion: currentUserQuestion,
           errorDetails: `Failed to parse LLM JSON. Error: ${e instanceof Error ? e.message : String(e)}. Raw: ${llmOutputString.substring(0, 500)}`,
           source: "error_llm_json_parse",
-          attempt: attemptNumber, // Add attempt number
+          attempt: attemptNumber,
         };
         locals.runtime.ctx.waitUntil(
           aiLogsBucket.put(r2Key, JSON.stringify(logData)),
@@ -704,7 +682,7 @@ No additional text or explanation outside this JSON object.`;
           userQuestion: currentUserQuestion,
           errorDetails: `LLM JSON response did not match expected schema. Received: ${JSON.stringify(parsedLlmJson).substring(0, 500)}`,
           source: "error_llm_schema_mismatch",
-          attempt: attemptNumber, // Add attempt number
+          attempt: attemptNumber,
         };
         locals.runtime.ctx.waitUntil(
           aiLogsBucket.put(r2Key, JSON.stringify(logData)),
@@ -773,12 +751,10 @@ No additional text or explanation outside this JSON object.`;
       );
     }
 
-    // If related is true, proceed with llmAnswerFromSchema
     const finalAnswer =
       llmAnswerFromSchema ||
       "The AI indicated this query is related to the blog post but didn't provide a specific answer. You could try rephrasing your question for more details.";
 
-    // Log successful LLM response to R2
     if (aiLogsBucket && r2Key) {
       const logData = {
         sessionId,
@@ -789,7 +765,7 @@ No additional text or explanation outside this JSON object.`;
         aiRawRelation: relation,
         aiRelatedFlag: related,
         aiResponse: finalAnswer,
-        source: attemptNumber === 1 ? "llm_primary" : "llm_fallback_single_post", // Differentiate source
+        source: attemptNumber === 1 ? "llm_primary" : "llm_fallback_single_post",
         modelUsed: DEFAULT_MODEL, 
         attempt: attemptNumber,
         providerUsed: actualProviderUsed,
@@ -806,23 +782,19 @@ No additional text or explanation outside this JSON object.`;
       );
     }
 
-    // Log successful LLM response to R2 (this part already exists)
-    // ... existing R2 logging for LLM response ...
-
-    // NEW: Log interaction to KV
     if (userInteractionsKV && readerId && slug && turnTimestamp && currentUserQuestion && finalAnswer) {
-      const interactionDate = new Date(turnTimestamp).toISOString().split('T')[0]; // YYYY-MM-DD
+      const interactionDate = new Date(turnTimestamp).toISOString().split('T')[0];
       const kvKey = `${readerId}/${interactionDate}/${slug}`;
 
       const userMessageEntry = {
         role: 'user',
-        content: currentUserQuestion, // This is the user's direct question for this turn
-        timestamp: turnTimestamp, // Timestamp of the user's question
+        content: currentUserQuestion,
+        timestamp: turnTimestamp,
       };
       const aiMessageEntry = {
         role: 'ai',
-        content: finalAnswer, // The AI's response for this turn
-        timestamp: new Date().toISOString(), // Timestamp for when AI response is finalized
+        content: finalAnswer,
+        timestamp: new Date().toISOString(),
       };
 
       locals.runtime.ctx.waitUntil(
@@ -830,12 +802,12 @@ No additional text or explanation outside this JSON object.`;
           try {
             let currentData = await userInteractionsKV.get<any>(kvKey, { type: 'json' });
             if (!currentData) {
-              currentData = { read: true, messages: [] }; // If asking, assume they've "read"
+              currentData = { read: true, messages: [] };
             } else if (typeof currentData.read === 'undefined' || !currentData.read) {
-              currentData.read = true; // Ensure read is true if messages are being added
+              currentData.read = true;
             }
             if (!currentData.messages) {
-                currentData.messages = []; // Ensure messages array exists
+                currentData.messages = [];
             }
             currentData.messages.push(userMessageEntry);
             currentData.messages.push(aiMessageEntry);
@@ -848,7 +820,6 @@ No additional text or explanation outside this JSON object.`;
       );
     }
 
-    // Cache logic: Only cache if the question was cacheable AND related
     console.log(
       `[DEBUG] Conditions for cache write: isCacheableQuestion=${isCacheableQuestion}, related=${related}, aiCache=${!!aiCache}, answererResponse.ok=${answererResponse.ok}, finalAnswer exists=${!!finalAnswer}`,
     );
@@ -884,15 +855,13 @@ No additional text or explanation outside this JSON object.`;
         }
       }
       if (isCacheableQuestion && !related) {
-        // Check if it was cacheable but then deemed unrelated
         skipReason += "Query was not related to blog post. ";
       }
       if (!aiCache && isCacheableQuestion && related)
-        // Only log if it would have been cached
         skipReason += "KV unavailable. ";
       if (!answererResponse.ok) skipReason += "LLM response not OK. ";
       if (!finalAnswer && related)
-        skipReason += "No AI answer (but was related). "; // Should be covered by fallback
+        skipReason += "No AI answer (but was related). ";
       console.log(skipReason.trim());
     }
 
@@ -907,10 +876,6 @@ No additional text or explanation outside this JSON object.`;
     console.error("Error in /api/ask endpoint:", error);
     const errorMessage =
       error instanceof Error ? error.message : "An unknown error occurred";
-    // Log general error to R2
-    // Note: slug, sessionId, readerId, currentUserQuestion might be undefined if error happened before body parsing.
-    // r2Key might also be empty.
-    // aiLogsBucket is now guaranteed to be in scope (or undefined if not available in env)
     if (aiLogsBucket) {
       const logSlug = typeof slug === "string" ? slug : "unknown_slug_in_error";
       const logSessionId =
@@ -922,8 +887,6 @@ No additional text or explanation outside this JSON object.`;
           ? currentUserQuestion
           : "unknown_question_in_error";
 
-      // Use the initial turnTimestamp for consistency if available, otherwise a new one.
-      // r2Key would be based on initial turnTimestamp if it was set.
       const finalR2Key =
         r2Key && slug && sessionId && turnTimestamp
           ? r2Key
@@ -937,7 +900,7 @@ No additional text or explanation outside this JSON object.`;
         sessionId: logSessionId,
         readerId: logReaderId,
         blogSlug: logSlug,
-        turnTimestampUTC: turnTimestamp || new Date().toISOString(), // Use original turnTimestamp if available, else a new one
+        turnTimestampUTC: turnTimestamp || new Date().toISOString(),
         userQuestion: logUserQuestion,
         errorDetails: `Outer API Error: ${errorMessage.substring(0, 1000)}`,
         source: "error_api_catch_all",
