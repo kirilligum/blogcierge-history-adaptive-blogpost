@@ -14,26 +14,31 @@ pages_build_output_dir = "./dist"
 #
 # API keys and other secrets are loaded from the `.dev.vars` file for
 # local development, and from the Cloudflare Pages dashboard for production.
+#
+# REQUIRED SECRETS:
+# - LLAMA_API_KEY: For LLM providers.
+# - GITHUB_CLIENT_ID: For the GitHub OAuth App.
+# - GITHUB_CLIENT_SECRET: For the GitHub OAuth App.
 
 [[kv_namespaces]]
 binding = "BLGC_ADMIN_KV"
-id = "2a9d5353e231403d823a105f3f78535a"
+id = "placeholder_id_for_blgc_admin_kv"
 
 [[kv_namespaces]]
 binding = "BLGC_BLOGPOST_AI_CACHE"
-id = "e05a15d829484001a8d3d37ba61cbe5f"
+id = "placeholder_id_for_blgc_blogpost_ai_cache"
 
 [[kv_namespaces]]
 binding = "BLGC_SITE_CONTENT_CACHE"
-id = "85199e6b7bc24882a6f7891a00910730"
+id = "placeholder_id_for_blgc_site_content_cache"
 
 [[kv_namespaces]]
 binding = "BLGC_USER_INTERACTIONS_KV"
-id = "de3646218ddd4be9ab12ca81bf6c8690"
+id = "placeholder_id_for_blgc_user_interactions_kv"
 
 [[r2_buckets]]
 binding = "BLGC_AI_LOGS_BUCKET"
-bucket_name = "blgc-blogpost-ai-turns"
+bucket_name = "placeholder-for-blgc-ai-logs-bucket"
 
 # Automatically place your workloads in an optimal location to minimize latency.
 # If you are running back-end logic in a Pages Function, running it closer to your back-end infrastructure

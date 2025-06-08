@@ -14,8 +14,9 @@ export const GET: APIRoute = async ({ locals, cookies, redirect, url }) => {
     }
   }
 
-  // Delete the session cookie from the browser
+  // Delete the session cookies from the browser
   cookies.delete("admin_session", { path: "/" });
+  cookies.delete("github_session", { path: "/" });
 
   const redirectTo = url.searchParams.get("redirect");
 
