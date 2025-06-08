@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
   const { GITHUB_REPO_OWNER, GITHUB_REPO_NAME } = locals.runtime.env;
   if (!GITHUB_REPO_OWNER || !GITHUB_REPO_NAME) {
     console.error("CRITICAL: GITHUB_REPO_OWNER or GITHUB_REPO_NAME is not configured.");
-    return new Response(JSON.stringify({ error: "Server configuration error: Repository details missing." }), { status: 500 });
+    return new Response(JSON.stringify({ error: "Server configuration error: Repository details (GITHUB_REPO_OWNER, GITHUB_REPO_NAME) are missing." }), { status: 500 });
   }
 
   const r2Bucket = locals.runtime.env.BLGC_AI_LOGS_BUCKET as R2Bucket | undefined;

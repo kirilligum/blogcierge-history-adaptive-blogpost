@@ -5,10 +5,22 @@ export const GET: APIRoute = async ({ locals, cookies, redirect, url }) => {
 
   if (!clientId) {
     console.error("CRITICAL: GITHUB_CLIENT_ID is not configured.");
-    return new Response(
-      "Server configuration error: GitHub OAuth is not configured.",
-      { status: 500 },
-    );
+    const errorMessage = `
+      <body style="font-family: sans-serif; padding: 2em;">
+        <h1>Configuration Error</h1>
+        <p>The <code>GITHUB_CLIENT_ID</code> is missing from your environment configuration.</p>
+        <p>Please ensure you have created a <code>.dev.vars</code> file in the root of your project and added your GitHub OAuth App credentials to it, like this:</p>
+        <pre style="background-color:#f0f0f0; padding: 1em; border-radius: 4px;"><code># .dev.vars
+GITHUB_CLIENT_ID="iv1.xxxxxxxxxxxxxxxx"
+# ... other secrets
+        </code></pre>
+        <p>Refer to the <code>README.md</code> for full setup instructions.</p>
+      </body>
+    `;
+    return new Response(errorMessage, {
+      status: 500,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   // Generate a random state string for CSRF protection

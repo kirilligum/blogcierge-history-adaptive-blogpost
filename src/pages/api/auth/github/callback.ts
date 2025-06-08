@@ -15,7 +15,18 @@ export const GET: APIRoute = async ({ url, cookies, locals, redirect }) => {
 
   if (!clientId || !clientSecret) {
     console.error("CRITICAL: GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET is not configured.");
-    return new Response("Server configuration error: GitHub OAuth is not configured.", { status: 500 });
+    const errorMessage = `
+      <body style="font-family: sans-serif; padding: 2em;">
+        <h1>Configuration Error</h1>
+        <p>The <code>GITHUB_CLIENT_ID</code> or <code>GITHUB_CLIENT_SECRET</code> is missing from your environment configuration.</p>
+        <p>Please ensure you have created a <code>.dev.vars</code> file and added your GitHub OAuth App credentials to it.</p>
+        <p>Refer to the <code>README.md</code> for full setup instructions.</p>
+      </body>
+    `;
+    return new Response(errorMessage, {
+      status: 500,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   try {
