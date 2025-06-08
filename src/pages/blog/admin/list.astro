@@ -174,12 +174,34 @@ const hasGitHubSession = Astro.cookies.has("github_session");
         const slug = targetButton.dataset.slug;
         if (!slug) return;
 
-        alert(`Committing for slug: ${slug}. This will be implemented in the next step.`);
-        // In the next step, this will be replaced with:
-        // targetButton.disabled = true;
-        // targetButton.textContent = 'Committing...';
-        // const response = await fetch('/api/admin/commit-qa-data', { ... });
-        // ... handle response ...
+        targetButton.disabled = true;
+        targetButton.textContent = 'Committing...';
+
+        try {
+          const response = await fetch('/api/admin/commit-qa-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slug }),
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            targetButton.textContent = 'Committed!';
+            // Optionally, you could link to the commit
+            // targetButton.onclick = () => window.open(result.url, '_blank');
+            alert('Commit successful! A new deployment has been triggered on Cloudflare.');
+          } else {
+            alert(`Commit failed: ${result.error || 'Unknown error'}`);
+            targetButton.disabled = false;
+            targetButton.textContent = 'Commit to Site';
+          }
+        } catch (error) {
+          console.error('Error committing data:', error);
+          alert('An error occurred while trying to commit the data.');
+          targetButton.disabled = false;
+          targetButton.textContent = 'Commit to Site';
+        }
       });
     });
 

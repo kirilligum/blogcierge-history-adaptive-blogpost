@@ -1,7 +1,16 @@
 OPENROUTER_API_KEY=""
 LLAMA_API_KEY=""
+
+# --- GitHub OAuth App Credentials ---
+# Create a GitHub OAuth App in your developer settings.
+# For local dev, set the callback URL to: http://localhost:8788/api/auth/github/callback
 GITHUB_CLIENT_ID=""
 GITHUB_CLIENT_SECRET=""
+
+# --- GitHub Repository Details ---
+# Used for committing Q&A data back to the repository.
+GITHUB_REPO_OWNER="your-github-username"
+GITHUB_REPO_NAME="your-repo-name"
 
 # This file contains secrets for local development.
 # Copy this file to .dev.vars and fill in your API keys.
