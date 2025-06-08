@@ -12,6 +12,15 @@ GITHUB_CLIENT_SECRET=""
 GITHUB_REPO_OWNER="your-github-username"
 GITHUB_REPO_NAME="your-repo-name"
 
+# --- Cloudflare API Credentials ---
+# Used for fetching deployment status.
+# Go to My Profile > API Tokens > Create Token > Use "Edit Cloudflare Pages" template.
+# Your Account ID is on the main overview page for your domain in the Cloudflare dashboard.
+CLOUDFLARE_API_TOKEN=""
+CLOUDFLARE_ACCOUNT_ID=""
+CLOUDFLARE_PROJECT_NAME="your-cloudflare-pages-project-name"
+
+
 # This file contains secrets for local development.
 # Copy this file to .dev.vars and fill in your API keys.
 # `wrangler` will automatically load this file for `yarn preview`.
