@@ -165,7 +165,15 @@ const hasGitHubSession = Astro.cookies.has("github_session");
       const list = document.getElementById('deployment-list');
       if (!list) return;
       fetch('/api/admin/deployments')
-        .then(res => res.json())
+        .then(res => {
+          // Check if the response is JSON, otherwise it might be our HTML error page
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.indexOf("application/json") !== -1) {
+            return res.json();
+          } else {
+            return res.text().then(text => { throw new Error(text) });
+          }
+        })
         .then(deployments => {
           if (deployments.error) {
             list.innerHTML = `<li>Error: ${deployments.error}</li>`;
@@ -182,7 +190,7 @@ const hasGitHubSession = Astro.cookies.has("github_session");
           `).join('');
         })
         .catch(err => {
-          list.innerHTML = `<li>Error loading deployments.</li>`;
+          list.innerHTML = `<li>Error loading deployments. Check console for details.</li>`;
           console.error("Error fetching deployments:", err);
         });
     }
@@ -242,7 +250,7 @@ const hasGitHubSession = Astro.cookies.has("github_session");
             link.className = 'commit-btn view-commit-link';
             targetButton.replaceWith(link);
             showNotification('Commit successful! A new deployment has been triggered.', 'success');
-            setTimeout(fetchAndRenderDeployments, 2000); // Refresh deployments after a short delay
+            setTimeout(fetchAndRenderDeployments, 2000);
           } else {
             showNotification(`Commit failed: ${result.error || 'Unknown error'}`, 'error');
             targetButton.disabled = false;
@@ -260,7 +268,7 @@ const hasGitHubSession = Astro.cookies.has("github_session");
       button.addEventListener('click', async (event) => {
         const targetButton = event.currentTarget as HTMLButtonElement;
         const slug = targetButton.dataset.slug;
-        if (!slug || !confirm(`Are you sure you want to delete the Q&A data for "${slug}" from the repository?`)) return;
+        if (!slug) return;
         
         targetButton.disabled = true;
         targetButton.textContent = 'Deleting...';
