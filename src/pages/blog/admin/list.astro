@@ -168,12 +168,14 @@ const hasGitHubSession = Astro.cookies.has("github_session");
                 </div>
                 <a href="/api/admin/logout" class="github-logout-link">Logout from GitHub</a>
               `;
+              // FIX: Enable commit buttons now that we know the session is valid.
+              document.querySelectorAll('.commit-btn').forEach(btn => (btn as HTMLButtonElement).disabled = false);
             } else {
               githubStatusContainer.innerHTML = `
                 <p>Your GitHub session may have expired.</p>
                 <a href="/api/auth/github/login?from=/blog/admin/list" class="github-login-btn">Login with GitHub</a>
               `;
-              document.querySelectorAll('.commit-btn').forEach(btn => btn.disabled = true);
+              document.querySelectorAll('.commit-btn').forEach(btn => (btn as HTMLButtonElement).disabled = true);
             }
           })
           .catch(err => {
@@ -208,7 +210,13 @@ const hasGitHubSession = Astro.cookies.has("github_session");
           const result = await response.json();
 
           if (response.ok) {
-            targetButton.textContent = 'Committed!';
+            // UX IMPROVEMENT: Change button to a link to the commit
+            const link = document.createElement('a');
+            link.href = result.url;
+            link.textContent = 'View Commit';
+            link.target = '_blank';
+            link.className = 'commit-btn view-commit-link'; // Use same base style
+            targetButton.replaceWith(link);
             showNotification('Commit successful! A new deployment has been triggered on Cloudflare.', 'success');
           } else {
             showNotification(`Commit failed: ${result.error || 'Unknown error'}`, 'error');
@@ -410,6 +418,8 @@ const hasGitHubSession = Astro.cookies.has("github_session");
     cursor: pointer;
     font-weight: bold;
     transition: background-color 0.2s ease;
+    text-decoration: none; /* For the 'a' tag version */
+    display: inline-block; /* For the 'a' tag version */
   }
   .generate-dataset-btn:hover:not(:disabled), .forget-job-btn:hover:not(:disabled), .commit-btn:hover:not(:disabled) {
     background-color: #dcd0c4;
@@ -434,6 +444,14 @@ const hasGitHubSession = Astro.cookies.has("github_session");
   }
   .commit-btn:hover:not(:disabled) {
     background-color: #a7f3d0;
+  }
+  .view-commit-link {
+    background-color: #e0e7ff !important;
+    border-color: #a5b4fc !important;
+    color: #3730a3 !important;
+  }
+  .view-commit-link:hover {
+    background-color: #c7d2fe !important;
   }
   .status-indicator {
     font-size: 0.9em;
