@@ -1,0 +1,47 @@
+{
+  "slug": "tackling-textile-trash-how-nyc-is-fighting-back-with-recycling-and-reuse",
+  "generatedAt": "2025-06-08T05:47:35.776Z",
+  "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+  "data": [
+    {
+      "question": "What is the main problem that NYC is facing regarding textiles?",
+      "answer": "New York City faces a significant textile waste problem, largely fueled by fast fashion."
+    },
+    {
+      "question": "What is refashionNYC, and how does it work?",
+      "answer": "refashionNYC is a program run by DSNY and Housing Works that provides clothing and textile donation bins for apartment buildings with 10 or more units. It's free for eligible buildings and has diverted over 5,000 tons of textiles from the waste stream."
+    },
+    {
+      "question": "How does the DSNY Curbside Textile Collection Pilot program work?",
+      "answer": "The DSNY Curbside Textile Collection Pilot was a four-week program that collected approximately 150 tons of textiles. 63% was diverted for local reuse, and 24% was sold as salvage for recycling."
+    },
+    {
+      "question": "What role do community-based initiatives play in tackling textile waste in NYC?",
+      "answer": "Community-based initiatives like GrowNYC Greenmarkets, Fabscrap, and the Sustainable Fashion Community Center play a crucial role in tackling textile waste by providing specialized services and fostering community engagement."
+    },
+    {
+      "question": "What are some limitations of traditional textile recycling and donation systems?",
+      "answer": "Traditional textile recycling and donation systems face challenges such as contamination, quality issues with fast fashion, 'wish-cycling', the complexities of the global secondhand market, and the technological complexity of textile-to-textile recycling."
+    },
+    {
+      "question": "What is 'wish-cycling' in the context of textile recycling?",
+      "answer": "'Wish-cycling' refers to the practice of donating items that are torn, stained, or otherwise unwearable, believing they can be recycled, which can burden sorting facilities and reduce recycling efficiency."
+    },
+    {
+      "question": "Why is textile-to-textile recycling challenging?",
+      "answer": "Textile-to-textile recycling is challenging due to the complexity of separating and recycling blended fibers, which are common in modern garments."
+    },
+    {
+      "question": "What is the significance of Fabscrap's work in NYC?",
+      "answer": "Fabscrap targets pre-consumer and post-industrial textile waste from fashion designers and commercial sources, diverting over 1.3 million pounds of fabric from landfills since 2016 and promoting reuse and creative repurposing."
+    },
+    {
+      "question": "How does the Sustainable Fashion Community Center contribute to textile sustainability?",
+      "answer": "The Sustainable Fashion Community Center operated a clothing swap system, hosted workshops on textile repair and upcycling, and partnered with organizations to ensure responsible recycling, engaging over 300 volunteers and collecting over 25,000 units of textiles."
+    },
+    {
+      "question": "What is needed to move beyond basic recycling in NYC's textile waste management?",
+      "answer": "NYC needs more innovative approaches, advanced recycling technologies, and a fundamental shift in how clothing is designed, consumed, and valued to truly address the textile waste crisis."
+    }
+  ]
+}
