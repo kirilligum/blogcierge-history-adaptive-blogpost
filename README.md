@@ -1,13 +1,20 @@
 # BlogCierge: AI-Adaptive Blog Platform
 
-BlogCierge is an experimental blog platform that uses AI to personalize blog posts for each reader based on their interaction history.
+BlogCierge is an experimental blog platform that uses AI to personalize blog posts for each reader and provides a Git-based workflow for generating and managing supplemental content.
 
-## Features
+## How It Works: A Dual Architecture
 
--   **Dynamic Content Personalization**: Rewrites blog posts on-the-fly using an LLM to match the reader's knowledge level.
--   **Interactive AI Assistant**: Readers can ask questions about the blog post content.
--   **Admin Panel**: A secure area to view analytics and manage posts.
--   **Powered by Cloudflare**: Built with Astro and deployed on Cloudflare Pages, using KV for storage and R2 for logging.
+This project uses two distinct architectures for its two primary features:
+
+1.  **Dynamic Content Personalization (Server-Side Rendering):** When a user visits a blog post with the `?personalize=true` query parameter, the page is rendered on-the-fly by a Cloudflare Worker. It fetches the user's interaction history from KV and uses an LLM to rewrite the post content to match the reader's knowledge level. This provides a tailored experience.
+
+2.  **Q&A Dataset Generation (Git-based Static Content):** The admin panel features a workflow to generate and manage Q&A datasets for blog posts. This process is designed to result in fast, static content for all visitors.
+    *   **Generate:** An admin clicks "Generate" to trigger a background job that creates a Q&A dataset and stores it temporarily in an R2 bucket.
+    *   **Commit:** After authenticating with GitHub, the admin clicks "Commit to Site." This calls a secure API that copies the Q&A data from R2 and commits it as a new JSON file to the `/src/data/qa/` directory in your GitHub repository.
+    *   **Deploy:** This commit to your `main` branch automatically triggers a new build and deployment on Cloudflare Pages.
+    *   **Serve:** During the build, Astro finds the local Q&A JSON file and bakes its content directly into the static HTML of the blog post. The final page is served from Cloudflare's global CDN with zero runtime overhead.
+
+---
 
 ## Getting Started: Deploying Your Own BlogCierge
 
@@ -16,8 +23,9 @@ Follow these steps to deploy your own version of BlogCierge.
 ### Prerequisites
 
 1.  A [Cloudflare account](https://dash.cloudflare.com/sign-up).
-2.  [Node.js](https://nodejs.org/en/) (version 18 or later) and [Yarn](https://yarnpkg.com/getting-started/install) installed.
-3.  `wrangler` CLI, the Cloudflare developer tool. Install and log in:
+2.  A [GitHub account](https://github.com).
+3.  [Node.js](https://nodejs.org/en/) (version 18 or later) and [Yarn](https://yarnpkg.com/getting-started/install) installed.
+4.  `wrangler` CLI, the Cloudflare developer tool. Install and log in:
     ```bash
     npm install -g wrangler
     wrangler login
@@ -55,71 +63,71 @@ This script will:
 2.  Automatically update your `wrangler.toml` file with the IDs of the newly created resources.
 3.  Create a `.dev.vars` file if one doesn't exist, for you to add your API keys.
 
-**Note:** The setup script modifies `wrangler.toml`. Do not commit these changes to version control.
+**Note:** The setup script modifies `wrangler.toml`. It is recommended not to commit these changes to version control if you plan to share your repository publicly.
 
-### Step 4: Add API Keys for Local Development
+### Step 4: Set Up GitHub OAuth App for Local Development
 
-If the setup script created a `.dev.vars` file, open it and add your API keys for the LLM providers you intend to use. If it already existed, ensure your keys are present.
+To use the "Commit to Site" feature locally, you need to create a GitHub OAuth App.
+
+1.  Go to your GitHub **Settings > Developer settings > OAuth Apps** and click **New OAuth App**.
+2.  Fill out the form with your **local development** details:
+    *   **Application name:** `BlogCierge Local Dev`
+    *   **Homepage URL:** `http://localhost:8788`
+    *   **Authorization callback URL:** `http://localhost:8788/api/auth/github/callback`
+3.  Click **Register application**.
+4.  Click **Generate a new client secret**. Copy both the **Client ID** and the new **Client Secret**.
+
+### Step 5: Add All Secrets to `.dev.vars`
+
+Open the `.dev.vars` file in your project root (or create it by copying `.dev.vars.example`). Add all your secrets for local development.
 
 ```ini
 # .dev.vars
 
-# Add your secret API keys below
+# LLM API Keys
 OPENROUTER_API_KEY="sk-or-..."
 LLAMA_API_KEY="llm-..."
 
-# GitHub OAuth App credentials
-GITHUB_CLIENT_ID="..."
-GITHUB_CLIENT_SECRET="..."
+# GitHub OAuth App credentials (for local development)
+GITHUB_CLIENT_ID="YOUR_LOCAL_CLIENT_ID"
+GITHUB_CLIENT_SECRET="YOUR_LOCAL_CLIENT_SECRET"
 
 # GitHub Repository details
 GITHUB_REPO_OWNER="your-github-username"
 GITHUB_REPO_NAME="your-repo-name"
 
 # Cloudflare API credentials for deployment status
-# Create a token with "Cloudflare Pages:Read" permissions.
-CLOUDFLARE_API_TOKEN="..."
-CLOUDFLARE_ACCOUNT_ID="..."
+# Go to My Profile > API Tokens > Create Token > Use "Edit Cloudflare Pages" template.
+CLOUDFLARE_API_TOKEN="YOUR_CLOUDFLARE_API_TOKEN"
+CLOUDFLARE_ACCOUNT_ID="YOUR_CLOUDFLARE_ACCOUNT_ID"
 CLOUDFLARE_PROJECT_NAME="your-cloudflare-pages-project-name"
 ```
-**Note:** `.dev.vars` is included in `.gitignore` and should never be committed to your repository.
 
-### Step 5: Local Development
+### Step 6: Local Development
 
-To run the project locally, use the `preview` script. This command first builds the Astro site and then starts a local server using `wrangler`.
+Run the project locally using the `preview` script. This command builds the site and then starts a local server using `wrangler`.
 
 ```bash
 yarn preview
 ```
 
-Wrangler automatically reads the resource bindings from your modified `wrangler.toml` and the secret keys from your `.dev.vars` file to simulate the Cloudflare environment.
+**Note on Local Workflow:** When you commit a Q&A file locally, it will trigger a deployment on Cloudflare, but it will **not** automatically appear in your local `yarn preview` session. To see the Q&A data locally, you would need to stop the server, `git pull` the changes from your repository, and then run `yarn preview` again.
 
-### Step 6: Deploy to Cloudflare Pages
+### Step 7: Production Deployment
 
-1.  Go to your [Cloudflare Dashboard](https://dash.cloudflare.com).
-2.  Navigate to **Workers & Pages** and click **Create application**.
-3.  Select the **Pages** tab and click **Connect to Git**.
-4.  Connect your GitHub account and select your forked `blogcierge-history-adaptive-blogpost` repository.
-5.  In the "Build settings", select **Astro** as the framework preset. This should configure the build command (`astro build`) and output directory (`/dist`) correctly.
-6.  Go to **Settings > Environment variables** and add your secret API keys for production:
-    *   `LLAMA_API_KEY`
-    *   `OPENROUTER_API_KEY`
-    *   `GITHUB_CLIENT_ID`
-    *   `GITHUB_CLIENT_SECRET`
-    *   `GITHUB_REPO_OWNER`
-    *   `GITHUB_REPO_NAME`
-    *   `CLOUDFLARE_API_TOKEN`
-    *   `CLOUDFLARE_ACCOUNT_ID`
-    *   `CLOUDFLARE_PROJECT_NAME`
-7.  Click **Save and Deploy**.
+1.  **Create a Production GitHub OAuth App:** Go back to your GitHub Developer settings and create a **second, separate OAuth App** for your live site.
+    *   **Application name:** `BlogCierge` (or your site's name)
+    *   **Homepage URL:** `https://your-domain.com` (e.g., `https://blogcierge.com`)
+    *   **Authorization callback URL:** `https://your-domain.com/api/auth/github/callback`
+2.  **Deploy to Cloudflare Pages:**
+    *   In your [Cloudflare Dashboard](https://dash.cloudflare.com), go to **Workers & Pages** and create a new **Pages** application.
+    *   Connect it to your forked GitHub repository.
+    *   In the "Build settings", select **Astro** as the framework preset.
+3.  **Add Production Environment Variables:**
+    *   In your Pages project settings, go to **Settings > Environment variables**.
+    *   Add all the same secrets from your `.dev.vars` file, but use the credentials from your **production** GitHub OAuth App.
+4.  **Deploy:** The first deployment will be triggered. Subsequent commits to your `main` branch will automatically trigger new deployments.
 
-Your site should now build and deploy successfully. Bindings are handled automatically by `wrangler.toml`.
+### Step 8: First-Time Admin Setup
 
-### Step 7: First-Time Admin Setup
-
-After your site is live, you need to create your admin account.
-1.  Navigate to `https://your-project-name.pages.dev/blog/admin`.
-2.  You will be redirected to the setup page.
-3.  Enter your desired admin email and password to create your account.
-
-Congratulations! Your BlogCierge instance is now fully deployed and configured.
+After your site is live, navigate to `https://your-domain.com/blog/admin` to create your admin account.
