@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getApiKey } from '../../utils/apiKey';
 import type { KVNamespace } from '@cloudflare/workers-types';
-import { getPhoenixInstance } from '../../utils/phoenix';
+import { getPhoenixTracer } from '../../utils/phoenix';
 import { trace, context as otelContext, SpanStatusCode } from "@opentelemetry/api";
 
 const LLAMA_URL = 'https://api.llama.com/v1/chat/completions';
@@ -9,8 +9,7 @@ const MODEL     = 'Llama-4-Maverick-17B-128E-Instruct-FP8';
 
 export const prerender = false;
 export const POST: APIRoute = async ({request, locals}) => {
-  const phoenix = getPhoenixInstance(locals);
-  const tracer = phoenix ? trace.getTracer("analytics-query-api") : undefined;
+  const tracer = getPhoenixTracer(locals);
 
   const execute = async () => {
     const {deviceIds, question} = await request.json() ?? {};

@@ -4,7 +4,7 @@ import type { APIRoute } from "astro";
 import { getCollection, getEntryBySlug } from "astro:content";
 import type { D1Database, KVNamespace, R2Bucket, VectorizeIndex } from "@cloudflare/workers-types";
 import { getApiKey } from "../../utils/apiKey";
-import { getPhoenixInstance } from "../../utils/phoenix";
+import { getPhoenixTracer } from "../../utils/phoenix";
 import { trace, context as otelContext, SpanStatusCode } from "@opentelemetry/api";
 
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 60; // 2 months
@@ -164,8 +164,7 @@ export const POST: APIRoute = async (context) => {
   const { request, locals } = context;
   const aiLogsBucket = locals.runtime?.env?.BLGC_AI_LOGS_BUCKET;
   const userInteractionsKV = locals.runtime?.env?.BLGC_USER_INTERACTIONS_KV as KVNamespace | undefined;
-  const phoenix = getPhoenixInstance(locals);
-  const tracer = phoenix ? trace.getTracer("ask-api") : undefined;
+  const tracer = getPhoenixTracer(locals);
 
   let slug, readerId, sessionId, currentUserQuestion, turnTimestamp, r2Key, useRag;
   let messages;
