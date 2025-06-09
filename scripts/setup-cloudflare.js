@@ -19,14 +19,14 @@ const BINDINGS = {
  * @param {string} command The command to run.
  * @param {object} options
  * @param {boolean} [options.ignoreExistError=false] - If true, ignores "already exists" errors.
- * @param {boolean} [options.expectJson=true] - If true, parses the output as JSON.
+ * @param {boolean} [options.parseJson=true] - If true, parses the output as JSON.
  * @returns {any} Parsed JSON object or raw string output.
  */
-function runCommand(command, { ignoreExistError = false, expectJson = true } = {}) {
+function runCommand(command, { ignoreExistError = false, parseJson = true } = {}) {
   try {
     console.log(`\n> Executing: ${command}`);
     const output = execSync(command, { encoding: 'utf8' });
-    if (expectJson) {
+    if (parseJson) {
       const parsedOutput = JSON.parse(output);
       console.log(`✅ Success!`);
       return parsedOutput;
@@ -64,11 +64,11 @@ function main() {
   console.log('\n--- Creating KV Namespaces ---');
   for (const name of BINDINGS.kv) {
     // Step 1: Create the namespace. This command does not support --json.
-    runCommand(`npx wrangler kv namespace create ${name}`, { ignoreExistError: true, expectJson: false });
+    runCommand(`npx wrangler kv namespace create ${name}`, { ignoreExistError: true, parseJson: false });
     
     // Step 2: List all namespaces to find the ID of the one we just created/ensured exists.
     // This command outputs JSON by default to stdout when not a TTY.
-    const namespacesList = runCommand(`npx wrangler kv namespace list`, { expectJson: true });
+    const namespacesList = runCommand(`npx wrangler kv namespace list`, { parseJson: true });
     const namespace = namespacesList.find(ns => ns.title === name);
     
     if (namespace && namespace.id) {
@@ -91,7 +91,7 @@ function main() {
   // Create R2 Bucket
   console.log('\n--- Creating R2 Bucket ---');
   for (const name of BINDINGS.r2) {
-    runCommand(`npx wrangler r2 bucket create ${name}`, { ignoreExistError: true, expectJson: false });
+    runCommand(`npx wrangler r2 bucket create ${name}`, { ignoreExistError: true, parseJson: false });
     const validBucketName = name.toLowerCase().replace(/_/g, '-');
     const placeholder = `placeholder-for-${validBucketName}`;
     if (wranglerTomlContent.includes(placeholder)) {
@@ -104,13 +104,13 @@ function main() {
   console.log('\n--- Creating D1 Database for RAG ---');
   for (const name of BINDINGS.d1) {
     const dbName = name.toLowerCase().replace(/_/g, '-');
-    const output = runCommand(`npx wrangler d1 create ${dbName} --json`, { ignoreExistError: true, expectJson: true });
+    const output = runCommand(`npx wrangler d1 create ${dbName} --json`, { ignoreExistError: true, parseJson: true });
     if (output) {
         const placeholder = `placeholder_id_for_${name.toLowerCase()}`;
         wranglerTomlContent = wranglerTomlContent.replace(placeholder, output.uuid);
         console.log(`   -> Updated binding for ${name} in wrangler.toml`);
         console.log(`   -> Creating table 'content_chunks' in new database ${dbName}...`);
-        runCommand(`npx wrangler d1 execute ${dbName} --remote --command "CREATE TABLE IF NOT EXISTS content_chunks (id INTEGER PRIMARY KEY, slug TEXT NOT NULL, text TEXT NOT NULL);"`, { expectJson: false });
+        runCommand(`npx wrangler d1 execute ${dbName} --remote --command "CREATE TABLE IF NOT EXISTS content_chunks (id INTEGER PRIMARY KEY, slug TEXT NOT NULL, text TEXT NOT NULL);"`, { parseJson: false });
     }
   }
 
@@ -118,7 +118,7 @@ function main() {
   console.log('\n--- Creating Vectorize Index for RAG ---');
   for (const name of BINDINGS.vectorize) {
     const indexName = name.toLowerCase().replace(/_/g, '-');
-    runCommand(`npx wrangler vectorize create ${indexName} --dimensions=768 --metric=cosine --json`, { ignoreExistError: true, expectJson: true });
+    runCommand(`npx wrangler vectorize create ${indexName} --dimensions=768 --metric=cosine --json`, { ignoreExistError: true, parseJson: true });
     console.log(`   -> Binding for Vectorize index '${indexName}' in wrangler.toml is correct.`);
   }
 
