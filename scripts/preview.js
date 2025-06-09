@@ -64,7 +64,7 @@ async function main() {
 
     console.log(`> Build complete. Starting dev server...`);
     const command = 'wrangler';
-    const args = ['pages', 'dev', './dist', '--experimental-vectorize-bind-to-prod'];
+    const args = ['pages', 'dev', './dist'];
     console.log(`> Executing: ${command} ${args.join(' ')}`);
     console.log('> Wrangler will automatically use `wrangler.toml` for bindings and `.dev.vars` for secrets.');
     await runCommand(command, args, true); // Pass true for isDevServer

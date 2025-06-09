@@ -38,8 +38,14 @@ async function handleRagMode(
   if (!db || !vectorIndex || !ai) {
     const errorDetail = `CRITICAL: RAG dependencies are not configured. DB ready: ${!!db}, Vectorize ready: ${!!vectorIndex}, AI ready: ${!!ai}.`;
     console.error(errorDetail);
+    
+    let userMessage = "Server configuration error: RAG system dependencies are not available.";
+    if (!vectorIndex) {
+      userMessage = "RAG mode is not supported in the current environment (likely local development). Please uncheck 'Use RAG (Fast)' or test in a deployed environment.";
+    }
+
     if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ errorDetails: errorDetail, source: "error_rag_misconfigured" })));
-    return new Response(JSON.stringify({ error: "Server configuration error: RAG system dependencies are not available." }), { status: 500 });
+    return new Response(JSON.stringify({ error: userMessage }), { status: 501 });
   }
 
   const { data: embeddingData } = await ai.run(EMBEDDING_MODEL, { text: [currentUserQuestion] });

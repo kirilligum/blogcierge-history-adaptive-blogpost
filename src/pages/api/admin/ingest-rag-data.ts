@@ -79,6 +79,12 @@ async function ingest(locals: App.Locals) {
 }
 
 export const POST: APIRoute = async ({ locals }) => {
+    const vectorIndex = locals.runtime.env.BLGC_RAG_VECTORS;
+    if (!vectorIndex) {
+        const errorMessage = "RAG ingestion is not supported in the local development environment because Vectorize is not available. Please use a deployed environment (e.g., a preview deployment) to build the RAG index.";
+        return new Response(JSON.stringify({ error: errorMessage }), { status: 501 }); // 501 Not Implemented
+    }
+
     try {
         // Run ingestion in the background
         locals.runtime.ctx.waitUntil(ingest(locals));
