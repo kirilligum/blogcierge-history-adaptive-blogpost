@@ -119,17 +119,15 @@ function main() {
         if (wranglerTomlContent.includes(placeholder)) {
             wranglerTomlContent = wranglerTomlContent.replace(placeholder, database.uuid);
             console.log(`   -> Updated binding for ${name} in wrangler.toml`);
-            console.log(`   -> Creating table 'content_chunks' in new database ${dbName}...`);
-            runCommand(`npx wrangler d1 execute ${dbName} --remote --command "CREATE TABLE IF NOT EXISTS content_chunks (id INTEGER PRIMARY KEY, slug TEXT NOT NULL, text TEXT NOT NULL);"`, { parseJson: false });
         }
+        // ALWAYS ensure the table exists in the remote DB. The command is idempotent.
+        console.log(`   -> Ensuring table 'content_chunks' exists in remote database ${dbName}...`);
+        runCommand(`npx wrangler d1 execute ${dbName} --remote --command "CREATE TABLE IF NOT EXISTS content_chunks (id INTEGER PRIMARY KEY, slug TEXT NOT NULL, text TEXT NOT NULL);"`, { parseJson: false });
     } else {
-        const placeholder = `placeholder_id_for_${name.toLowerCase()}`;
-        if (wranglerTomlContent.includes(placeholder)) {
-            console.error(`\n❌ FATAL: Could not find UUID for D1 database ${dbName}. Please check your Cloudflare account.`);
-            process.exit(1);
-        } else {
-            console.log(`   -> Binding for ${name} already seems to be set. Skipping update.`);
-        }
+        // This block is now only for the case where the database truly doesn't exist after trying to create it.
+        // This should be a rare failure case.
+        console.error(`\n❌ FATAL: Could not find D1 database ${dbName} after attempting creation. Please check your Cloudflare account.`);
+        process.exit(1);
     }
   }
 
