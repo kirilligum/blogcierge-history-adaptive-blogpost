@@ -54,6 +54,11 @@ database_id = "placeholder_id_for_blgc_rag_db"
 binding = "BLGC_RAG_VECTORS"
 index_name = "blgc-rag-vectors"
 
+# Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
+# Docs: https://developers.cloudflare.com/pages/functions/bindings/#workers-ai
+[ai]
+binding = "AI"
+
 # Automatically place your workloads in an optimal location to minimize latency.
 # If you are running back-end logic in a Pages Function, running it closer to your back-end infrastructure
 # rather than the end user may result in better performance.
@@ -68,11 +73,6 @@ index_name = "blgc-rag-vectors"
 # - https://developers.cloudflare.com/pages/functions/bindings/#secrets
 # [vars]
 # MY_VARIABLE = "production_value"
-
-# Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
-# Docs: https://developers.cloudflare.com/pages/functions/bindings/#workers-ai
-# [ai]
-# binding = "AI"
 
 # Bind a D1 database. D1 is Cloudflare’s native serverless SQL database.
 # Docs: https://developers.cloudflare.com/pages/functions/bindings/#d1-databases

@@ -1,7 +1,7 @@
 /// <reference path="../.astro/types.d.ts" />
 /// <reference types="astro/client" />
 
-import type { D1Database, KVNamespace, R2Bucket, VectorizeIndex } from "@cloudflare/workers-types";
+import type { Ai, D1Database, KVNamespace, R2Bucket, VectorizeIndex } from "@cloudflare/workers-types";
 
 // Define the Env interface for Cloudflare bindings
 interface Env {
@@ -23,6 +23,7 @@ interface Env {
   // Add other Cloudflare bindings (D1, R2, etc.) here if you use them
   BLGC_RAG_DB: D1Database;
   BLGC_RAG_VECTORS: VectorizeIndex;
+  AI: Ai;
 }
 
 type Runtime = import("@astrojs/cloudflare").Runtime<Env>;
