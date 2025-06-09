@@ -11,6 +11,13 @@ async function ingest(locals: App.Locals) {
     const vectorIndex = locals.runtime.env.BLGC_RAG_VECTORS;
     const ai = locals.runtime.env.AI;
 
+    // Safeguard: This function runs in the background. If Vectorize is somehow
+    // unavailable, we log it and stop to prevent a crash.
+    if (!vectorIndex) {
+        console.error("[RAG INGESTION ERROR] Vectorize is not available in the current environment. Ingestion cannot proceed.");
+        return;
+    }
+
     console.log("Starting RAG ingestion process...");
 
     // 1. Clear existing data
@@ -72,6 +79,12 @@ async function ingest(locals: App.Locals) {
 }
 
 export const POST: APIRoute = async ({ locals }) => {
+    // Check if Vectorize is available before starting the background task.
+    const vectorIndex = locals.runtime.env.BLGC_RAG_VECTORS;
+    if (!vectorIndex) {
+        return new Response(JSON.stringify({ error: "RAG ingestion is not supported in local development because Vectorize is not available. Please test in a deployed environment." }), { status: 501 }); // 501 Not Implemented
+    }
+
     try {
         // Run ingestion in the background
         locals.runtime.ctx.waitUntil(ingest(locals));
