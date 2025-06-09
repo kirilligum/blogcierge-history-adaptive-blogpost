@@ -18,7 +18,8 @@ async function updateIndex(
   status: "generating" | "success" | "error",
   data: any,
 ) {
-  for (let i = 0; i < 5; i++) { // Retry loop for optimistic locking
+  for (let i = 0; i < 5; i++) {
+    // Retry loop for optimistic locking
     const indexObj = await r2Bucket.get(INDEX_KEY);
     // This will be a string if the object exists, otherwise undefined.
     const etag = indexObj?.etag;
@@ -50,12 +51,18 @@ async function updateIndex(
       return; // Success
     } catch (e: any) {
       // This is how we check for precondition failure (etag mismatch)
-      if (e.constructor.name === 'PreconditionFailedError' || (e.message && e.message.includes('status code 412'))) {
+      if (
+        e.constructor.name === "PreconditionFailedError" ||
+        (e.message && e.message.includes("status code 412"))
+      ) {
         console.log(`Etag mismatch on index update for ${slug}. Retrying...`);
-        await new Promise(res => setTimeout(res, Math.random() * 200 + 50)); // Small random delay
+        await new Promise((res) => setTimeout(res, Math.random() * 200 + 50)); // Small random delay
       } else {
         // If it's another error, we should probably stop.
-        console.error(`Failed to update index for ${slug} with a non-retryable error:`, e);
+        console.error(
+          `Failed to update index for ${slug} with a non-retryable error:`,
+          e,
+        );
         throw e; // rethrow
       }
     }
@@ -84,7 +91,7 @@ async function generateAndStoreDataset(
     }
 
     // 2. Prepare and call the LLM
-    const systemPrompt = `You are a Q&A dataset generator. Given the following blog post, generate a JSON object containing an array of 50 diverse and insightful question-answer pairs that cover the main topics of the article. The questions should be what a curious reader might ask. The answers should be concise and directly derivable from the text.
+    const systemPrompt = `You are a Q&A dataset generator that translates content into a format that is easier to learn for LLMs during pre-trainining and fine-tuning. Given the following blog post, generate a JSON object containing an array of 10 diverse and insightful question-answer pairs that cover the main topics of the article. The questions should be what a curious reader might ask. The answers should be concise and directly derivable from the text.
 
 You MUST output your response as a single JSON object adhering to the provided schema.
 
@@ -106,11 +113,13 @@ ${entry.body}
               properties: {
                 question: {
                   type: "string",
-                  description: "A question a reader might ask about the blog post.",
+                  description:
+                    "A question a reader might ask about the blog post.",
                 },
                 answer: {
                   type: "string",
-                  description: "A concise answer to the question, derived from the blog post.",
+                  description:
+                    "A concise answer to the question, derived from the blog post.",
                 },
               },
               required: ["question", "answer"],
@@ -149,7 +158,9 @@ ${entry.body}
     }
 
     const llmData = await llmResponse.json();
-    const jsonString = llmData.completion_message?.content?.text || llmData.choices?.[0]?.message?.content;
+    const jsonString =
+      llmData.completion_message?.content?.text ||
+      llmData.choices?.[0]?.message?.content;
 
     if (!jsonString) {
       throw new Error("LLM returned an empty response.");
@@ -160,12 +171,16 @@ ${entry.body}
     try {
       parsedJson = JSON.parse(jsonString);
     } catch (e) {
-      throw new Error(`Failed to parse LLM JSON response. Raw response: ${jsonString}`);
+      throw new Error(
+        `Failed to parse LLM JSON response. Raw response: ${jsonString}`,
+      );
     }
 
     const qaData = parsedJson.qa_pairs;
     if (!Array.isArray(qaData)) {
-      throw new Error(`LLM response did not contain a 'qa_pairs' array. Raw response: ${jsonString}`);
+      throw new Error(
+        `LLM response did not contain a 'qa_pairs' array. Raw response: ${jsonString}`,
+      );
     }
 
     const resultPayload = {
@@ -181,8 +196,9 @@ ${entry.body}
     console.log(`Successfully generated and stored QA dataset for ${slug}.`);
 
     // 4. Update the central index to 'success'
-    await updateIndex(r2Bucket, slug, "success", { generatedAt: resultPayload.generatedAt });
-
+    await updateIndex(r2Bucket, slug, "success", {
+      generatedAt: resultPayload.generatedAt,
+    });
   } catch (error) {
     console.error(`Error generating dataset for ${slug}:`, error);
     const errorPayload = {
@@ -195,8 +211,10 @@ ${entry.body}
     });
 
     // Update index with error status
-    await updateIndex(r2Bucket, slug, "error", { error: errorPayload.error, timestamp: errorPayload.timestamp });
-
+    await updateIndex(r2Bucket, slug, "error", {
+      error: errorPayload.error,
+      timestamp: errorPayload.timestamp,
+    });
   } finally {
     // 5. Clean up the lock file
     await r2Bucket.delete(lockKey);
@@ -205,11 +223,16 @@ ${entry.body}
 }
 
 export const POST: APIRoute = async ({ request, locals, redirect }) => {
-  const r2Bucket = locals.runtime?.env?.BLGC_AI_LOGS_BUCKET as R2Bucket | undefined;
+  const r2Bucket = locals.runtime?.env?.BLGC_AI_LOGS_BUCKET as
+    | R2Bucket
+    | undefined;
   const apiKey = getApiKey(locals, import.meta.env.DEV);
 
   if (!r2Bucket || !apiKey) {
-    return new Response("Server configuration error: R2 or API key not available.", { status: 500 });
+    return new Response(
+      "Server configuration error: R2 or API key not available.",
+      { status: 500 },
+    );
   }
 
   const formData = await request.formData();
@@ -228,7 +251,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     if (lockAge < LOCK_EXPIRATION_SECONDS * 1000) {
       console.log(`Lock for ${slug} is still active.`);
       const redirectUrl = new URL("/blog/admin/list", request.url);
-      redirectUrl.searchParams.set('generation_locked_for', slug);
+      redirectUrl.searchParams.set("generation_locked_for", slug);
       return redirect(redirectUrl.toString(), 303);
     }
     console.log(`Found expired lock for ${slug}. Overwriting.`);
@@ -236,19 +259,22 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 
   // Create lock file. A simple put is sufficient given the check above.
   // A race condition is possible but unlikely and low-impact for this use case.
-  await r2Bucket.put(lockKey, JSON.stringify({ startedAt: new Date().toISOString() }));
+  await r2Bucket.put(
+    lockKey,
+    JSON.stringify({ startedAt: new Date().toISOString() }),
+  );
   console.log(`Lock acquired for ${slug}.`);
 
   // 2. Update index to 'generating' status
-  await updateIndex(r2Bucket, slug, "generating", { startedAt: new Date().toISOString() });
+  await updateIndex(r2Bucket, slug, "generating", {
+    startedAt: new Date().toISOString(),
+  });
 
   // 3. Trigger background process
-  locals.runtime.ctx.waitUntil(
-    generateAndStoreDataset(slug, r2Bucket, apiKey)
-  );
+  locals.runtime.ctx.waitUntil(generateAndStoreDataset(slug, r2Bucket, apiKey));
 
   // 4. Redirect back to the list page
   const redirectUrl = new URL("/blog/admin/list", request.url);
-  redirectUrl.searchParams.set('generation_started_for', slug);
+  redirectUrl.searchParams.set("generation_started_for", slug);
   return redirect(redirectUrl.toString(), 303); // Use 303 See Other for POST-redirect-GET
 };
