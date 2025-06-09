@@ -15,9 +15,15 @@ const BINDINGS = {
 };
 
 function runCommand(command, { ignoreExistError = false } = {}) {
+  // Re-order the command to place --json flag correctly for wrangler
+  const commandParts = command.split(' ');
+  const executable = commandParts.shift(); // 'npx'
+  const cli = commandParts.shift(); // 'wrangler'
+  const fullCommand = `${executable} ${cli} --json ${commandParts.join(' ')}`;
+
   try {
-    console.log(`\n> Executing: ${command}`);
-    const output = execSync(`${command} --json`, { encoding: 'utf8' });
+    console.log(`\n> Executing: ${fullCommand}`);
+    const output = execSync(fullCommand, { encoding: 'utf8' });
     const parsedOutput = JSON.parse(output);
     console.log(`✅ Success!`);
     return parsedOutput;
@@ -29,7 +35,7 @@ function runCommand(command, { ignoreExistError = false } = {}) {
       return null; // Indicate that it was skipped
     }
     
-    console.error(`\n❌ Error executing command: ${command}`);
+    console.error(`\n❌ Error executing command: ${fullCommand}`);
     try {
         const errorJson = JSON.parse(stderr);
         console.error(`   Error Code: ${errorJson.code}`);
