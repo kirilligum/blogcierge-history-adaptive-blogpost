@@ -15,7 +15,9 @@ export default defineConfig({
   integrations: [tailwind(), sitemap()],
   // Add Squoosh for Cloudflare-compatible image processing
   image: {
-    service: 'squoosh'
+    service: {
+      entrypoint: 'astro/assets/services/squoosh'
+    }
   },
   // Add Vite config to ensure Phoenix/OpenTelemetry are bundled
   vite: {
