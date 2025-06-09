@@ -14,23 +14,28 @@ const BINDINGS = {
   vectorize: ['BLGC_RAG_VECTORS'],
 };
 
-function runCommand(command) {
+function runCommand(command, { ignoreExistError = false } = {}) {
   try {
     console.log(`\n> Executing: ${command}`);
-    // We add --json flag to get predictable output
     const output = execSync(`${command} --json`, { encoding: 'utf8' });
     const parsedOutput = JSON.parse(output);
     console.log(`✅ Success!`);
     return parsedOutput;
   } catch (error) {
+    const stderr = error.stderr || '';
+    // Check for common "already exists" error messages from wrangler
+    if (ignoreExistError && (stderr.includes('already exists') || stderr.includes('already has a binding'))) {
+      console.log(`   -> Resource already exists. Skipping creation.`);
+      return null; // Indicate that it was skipped
+    }
+    
     console.error(`\n❌ Error executing command: ${command}`);
-    // Try to parse JSON from stderr for more specific wrangler errors
     try {
-        const errorJson = JSON.parse(error.stderr);
+        const errorJson = JSON.parse(stderr);
         console.error(`   Error Code: ${errorJson.code}`);
-        console.error(`   Error Message: ${errorJson.message}`);
+        console.error(`   Error Message: ${errorJson.message || (errorJson.errors && errorJson.errors[0]?.message)}`);
     } catch (e) {
-        console.error(error.stderr || error.stdout || error.message);
+        console.error(stderr || error.stdout || error.message);
     }
     process.exit(1);
   }
@@ -38,7 +43,7 @@ function runCommand(command) {
 
 function main() {
   console.log('🚀 Starting Cloudflare resource setup...');
-  console.log('This script will create the necessary KV namespaces and R2 bucket for BlogCierge.');
+  console.log('This script will create the necessary KV, R2, D1, and Vectorize resources for BlogCierge.');
   console.log('Please ensure you are logged into wrangler (`npx wrangler login`).');
 
   const wranglerTomlPath = path.join(process.cwd(), 'wrangler.toml');
@@ -47,47 +52,51 @@ function main() {
   // Create KV Namespaces
   console.log('\n--- Creating KV Namespaces ---');
   for (const name of BINDINGS.kv) {
-    const output = runCommand(`npx wrangler kv:namespace create ${name}`);
-    const placeholder = `placeholder_id_for_${name.toLowerCase()}`;
-    wranglerTomlContent = wranglerTomlContent.replace(placeholder, output.id);
-    console.log(`   -> Updated binding for ${name} in wrangler.toml`);
+    const output = runCommand(`npx wrangler kv:namespace create ${name}`, { ignoreExistError: true });
+    if (output) {
+      const placeholder = `placeholder_id_for_${name.toLowerCase()}`;
+      wranglerTomlContent = wranglerTomlContent.replace(placeholder, output.id);
+      console.log(`   -> Updated binding for ${name} in wrangler.toml`);
+    }
   }
 
   // Create R2 Bucket
   console.log('\n--- Creating R2 Bucket ---');
   for (const name of BINDINGS.r2) {
-    runCommand(`npx wrangler r2 bucket create ${name}`);
+    runCommand(`npx wrangler r2 bucket create ${name}`, { ignoreExistError: true });
     const validBucketName = name.toLowerCase().replace(/_/g, '-');
     const placeholder = `placeholder-for-${validBucketName}`;
-    wranglerTomlContent = wranglerTomlContent.replace(placeholder, validBucketName);
-    console.log(`   -> Updated binding for ${name} in wrangler.toml`);
+    if (wranglerTomlContent.includes(placeholder)) {
+        wranglerTomlContent = wranglerTomlContent.replace(placeholder, validBucketName);
+        console.log(`   -> Updated binding for ${name} in wrangler.toml`);
+    }
   }
 
   // Create D1 Database for RAG
   console.log('\n--- Creating D1 Database for RAG ---');
   for (const name of BINDINGS.d1) {
     const dbName = name.toLowerCase().replace(/_/g, '-');
-    const output = runCommand(`npx wrangler d1 create ${dbName}`);
-    const placeholder = `placeholder_id_for_${name.toLowerCase()}`;
-    wranglerTomlContent = wranglerTomlContent.replace(placeholder, output.uuid);
-    console.log(`   -> Updated binding for ${name} in wrangler.toml`);
-    console.log(`   -> Creating table 'content_chunks' in ${dbName}...`);
-    runCommand(`npx wrangler d1 execute ${dbName} --remote --command "CREATE TABLE IF NOT EXISTS content_chunks (id INTEGER PRIMARY KEY, slug TEXT NOT NULL, text TEXT NOT NULL);"`);
+    const output = runCommand(`npx wrangler d1 create ${dbName}`, { ignoreExistError: true });
+    if (output) {
+        const placeholder = `placeholder_id_for_${name.toLowerCase()}`;
+        wranglerTomlContent = wranglerTomlContent.replace(placeholder, output.uuid);
+        console.log(`   -> Updated binding for ${name} in wrangler.toml`);
+        console.log(`   -> Creating table 'content_chunks' in new database ${dbName}...`);
+        runCommand(`npx wrangler d1 execute ${dbName} --remote --command "CREATE TABLE IF NOT EXISTS content_chunks (id INTEGER PRIMARY KEY, slug TEXT NOT NULL, text TEXT NOT NULL);"`);
+    }
   }
 
   // Create Vectorize Index for RAG
   console.log('\n--- Creating Vectorize Index for RAG ---');
   for (const name of BINDINGS.vectorize) {
     const indexName = name.toLowerCase().replace(/_/g, '-');
-    // The embedding model has 768 dimensions
-    runCommand(`npx wrangler vectorize create ${indexName} --dimensions=768 --metric=cosine`);
-    // No ID to replace in wrangler.toml for vectorize, name is sufficient
-    console.log(`   -> Created Vectorize index ${indexName}. Binding in wrangler.toml is correct.`);
+    runCommand(`npx wrangler vectorize create ${indexName} --dimensions=768 --metric=cosine`, { ignoreExistError: true });
+    console.log(`   -> Binding for Vectorize index '${indexName}' in wrangler.toml is correct.`);
   }
 
   // Write back the updated wrangler.toml
   fs.writeFileSync(wranglerTomlPath, wranglerTomlContent);
-  console.log(`\n✅ Successfully updated ${wranglerTomlPath} with new resource IDs.`);
+  console.log(`\n✅ Successfully updated ${wranglerTomlPath}.`);
 
   // Create .dev.vars file if it doesn't exist, for API keys
   const devVarsPath = path.join(process.cwd(), '.dev.vars');
