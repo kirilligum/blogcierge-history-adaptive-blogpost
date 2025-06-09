@@ -69,9 +69,16 @@ async function handleRagMode(
     if (results) contextChunks = results;
   }
 
-  const contextMessage = contextChunks.length > 0
-    ? `Context:\n${contextChunks.map(chunk => `- ${chunk.text}`).join("\n\n")}`
-    : "No relevant context found in the blog posts for this question.";
+  if (contextChunks.length === 0) {
+    const userMessage = "I couldn't find any relevant information in the blog posts to answer your question. The search index might be empty or still being built. Please try again later or ask a different question.";
+    if (aiLogsBucket && r2Key) {
+      const logData = { sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, systemResponse: userMessage, source: "system_filter_no_rag_context" };
+      locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify(logData)));
+    }
+    return new Response(JSON.stringify({ answer: userMessage, source: "system_filter_no_rag_context" }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+
+  const contextMessage = `Context:\n${contextChunks.map(chunk => `- ${chunk.text}`).join("\n\n")}`;
 
   const answererSystemPrompt = `You are an expert assistant for a technical blog. Your task is to analyze the user's query in relation to the provided context from the blog, then respond in a specific JSON format. The context consists of the most relevant snippets from blog posts based on the user's question.
 
@@ -186,11 +193,20 @@ export const POST: APIRoute = async (context) => {
     }
 
     const modeArgs = { slug, currentUserQuestion, messages, readerId, sessionId, turnTimestamp, r2Key };
-    const { payload, source } = useRag
+    
+    const modeResult = useRag
       ? await handleRagMode(modeArgs, context)
       : await handleFullContextMode(modeArgs, context);
 
-    if (payload instanceof Response) return payload; // Error response from handler
+    if (modeResult instanceof Response) {
+      return modeResult;
+    }
+
+    const { payload, source } = modeResult;
+
+    if (payload instanceof Response) {
+      return payload;
+    }
 
     const llmResponse = await fetch(LLAMA_API_URL, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
 
@@ -252,6 +268,6 @@ export const POST: APIRoute = async (context) => {
       const finalR2Key = r2Key || `ai-logs/error/${new Date().toISOString()}.json`;
       locals.runtime.ctx.waitUntil(aiLogsBucket.put(finalR2Key, JSON.stringify({ errorDetails: `Outer API Error: ${errorMessage}`, source: "error_api_catch_all" })));
     }
-    return new Response(JSON.stringify({ error: `An unexpected server error occurred: ${errorMessage}` }), { status: 500 });
+    return new Response(JSON.stringify({ error: `An unexpected server error occurred: ${errorMessage}` }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 };
