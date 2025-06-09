@@ -94,14 +94,8 @@ if (githubStatusWarning) {
     <h1>{pageTitle}</h1>
     <div class="page-description">
       <p>
-        Generate a Q&A dataset for a post. The results will appear here automatically. Once successful, you can commit the data to the site, which will trigger a new deployment.
+        Generate a Q&A dataset for a post. The results will appear here automatically. Once successful, you can commit the data to the site, which will trigger a new deployment. The "Committed" status is checked live from your GitHub repository.
       </p>
-      <div class="refresh-info">
-        <p>
-          The "Committed" status reflects data from your GitHub repository. After a deployment finishes, you may need to refresh this page to see the latest status.
-        </p>
-        <button type="button" id="refresh-page-btn" class="refresh-btn">Refresh Page</button>
-      </div>
     </div>
 
     <div class="admin-grid">
@@ -241,11 +235,6 @@ if (githubStatusWarning) {
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // Add this event listener for the new refresh button
-    document.getElementById('refresh-page-btn')?.addEventListener('click', () => {
-      window.location.reload();
-    });
-
     function showNotification(message, type = 'info') {
       const container = document.getElementById('notification-container');
       if (!container) return;
@@ -556,37 +545,5 @@ if (githubStatusWarning) {
   .github-login-btn:hover, .github-logout-link:hover { background-color: #4a5056; }
   .page-description {
     margin-bottom: 1.5rem;
-  }
-  .refresh-info {
-    background-color: #f0f8ff;
-    border: 1px solid #add8e6;
-    padding: 1rem;
-    border-radius: 6px;
-    margin-top: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-  .refresh-info p {
-    margin: 0;
-    font-size: 0.9em;
-    color: #31708f;
-  }
-  .refresh-btn {
-    background-color: #fff;
-    color: #31708f;
-    border: 1px solid #31708f;
-    padding: 0.4em 0.8em;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    white-space: nowrap;
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-  .refresh-btn:hover {
-    background-color: #31708f;
-    color: #fff;
   }
 </style>
