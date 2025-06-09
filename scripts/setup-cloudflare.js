@@ -34,19 +34,22 @@ function runCommand(command, { ignoreExistError = false, parseJson = true } = {}
     console.log(output); // Log raw output for non-json commands
     return output;
   } catch (error) {
-    const stderr = error.stderr || '';
-    if (ignoreExistError && (stderr.includes('already exists') || stderr.includes('already has a binding'))) {
+    // Combine stdout and stderr from the error object to ensure we catch the message
+    const output = (error.stdout || '') + (error.stderr || '');
+    if (ignoreExistError && (output.includes('already exists') || output.includes('already has a binding'))) {
       console.log(`   -> Resource already exists. Skipping creation.`);
       return null;
     }
     
     console.error(`\n❌ Error executing command: ${command}`);
     try {
-        const errorJson = JSON.parse(stderr);
+        // Try to parse JSON from stderr for structured wrangler errors
+        const errorJson = JSON.parse(error.stderr);
         console.error(`   Error Code: ${errorJson.code}`);
         console.error(`   Error Message: ${errorJson.message || (errorJson.errors && errorJson.errors[0]?.message)}`);
     } catch (e) {
-        console.error(stderr || error.stdout || error.message);
+        // Fallback to printing the raw output if it's not JSON
+        console.error(output);
     }
     process.exit(1);
   }
