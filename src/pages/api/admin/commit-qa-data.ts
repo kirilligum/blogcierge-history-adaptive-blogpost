@@ -1,9 +1,15 @@
 import type { APIRoute } from "astro";
 import type { R2Bucket } from "@cloudflare/workers-types";
 
-// Helper to encode string to Base64, required by GitHub API
+// Helper to encode string to Base64, supporting Unicode characters
 function toBase64(str: string): string {
-  return btoa(str);
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  let binary = '';
+  for (let i = 0; i < data.length; i++) {
+    binary += String.fromCharCode(data[i]);
+  }
+  return btoa(binary);
 }
 
 async function updateIndexForForget(r2Bucket: R2Bucket, slug: string) {
