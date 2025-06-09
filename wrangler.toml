@@ -48,7 +48,7 @@ bucket_name = "blgc-blogpost-ai-turns"
 [[d1_databases]]
 binding = "BLGC_RAG_DB"
 database_name = "blgc-rag-db"
-database_id = "placeholder_id_for_blgc_rag_db"
+database_id = "cba53c92-b7b2-4a33-84d9-6c923b22bf9a"
 
 [[vectorize]]
 binding = "BLGC_RAG_VECTORS"
