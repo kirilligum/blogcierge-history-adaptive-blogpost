@@ -165,6 +165,12 @@ function main() {
       '# GitHub Repository details',
       'GITHUB_REPO_OWNER="your-github-username"',
       'GITHUB_REPO_NAME="your-repo-name"',
+      '#',
+      '# Phoenix/Arize LLM Tracing',
+      '# Set this to your Phoenix collector endpoint. For local Phoenix, it is http://127.0.0.1:6006',
+      'PHOENIX_COLLECTOR_ENDPOINT="http://127.0.0.1:6006"',
+      '# Set this if your Phoenix instance requires an API key for authentication.',
+      '# PHOENIX_API_KEY=""',
     ].join('\n');
     fs.writeFileSync(devVarsPath, devVarsContent);
     console.log(`✅ Successfully created ${devVarsPath}. Please add your API keys.`);

@@ -19,6 +19,8 @@ pages_build_output_dir = "./dist"
 # - LLAMA_API_KEY: For LLM providers.
 # - GITHUB_CLIENT_ID: For the GitHub OAuth App.
 # - GITHUB_CLIENT_SECRET: For the GitHub OAuth App.
+# - PHOENIX_COLLECTOR_ENDPOINT: For Phoenix/Arize LLM tracing (e.g., your production Phoenix URL).
+# - PHOENIX_API_KEY: (Optional) API key for your Phoenix instance.
 
 # IMPORTANT: The following IDs are specific to a development environment.
 # Before publishing this repository for public use, these IDs should be
