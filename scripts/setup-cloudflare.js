@@ -58,7 +58,7 @@ function main() {
   // Create KV Namespaces
   console.log('\n--- Creating KV Namespaces ---');
   for (const name of BINDINGS.kv) {
-    const output = runCommand(`npx wrangler kv:namespace create ${name}`, { ignoreExistError: true });
+    const output = runCommand(`npx wrangler kv namespace create ${name}`, { ignoreExistError: true });
     if (output) {
       const placeholder = `placeholder_id_for_${name.toLowerCase()}`;
       wranglerTomlContent = wranglerTomlContent.replace(placeholder, output.id);
