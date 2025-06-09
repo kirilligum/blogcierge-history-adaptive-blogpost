@@ -96,6 +96,10 @@ if (githubStatusWarning) {
       <p>
         Generate a Q&A dataset for a post. The results will appear here automatically. Once successful, you can commit the data to the site, which will trigger a new deployment. The "Committed" status is checked live from your GitHub repository.
       </p>
+      <div class="rag-management">
+        <p>The AI Assistant uses a search index (RAG) to find relevant information across all blog posts. Re-build this index if you have added or significantly changed blog post content.</p>
+        <button id="rebuild-rag-index-btn" class="action-btn">Re-build RAG Index</button>
+      </div>
     </div>
 
     <div class="admin-grid">
@@ -248,6 +252,33 @@ if (githubStatusWarning) {
         notification.style.opacity = '0';
         setTimeout(() => notification.remove(), 500);
       }, 5000);
+    }
+
+    const rebuildRagBtn = document.getElementById('rebuild-rag-index-btn');
+    if (rebuildRagBtn) {
+      rebuildRagBtn.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to re-build the RAG index? This will delete all existing indexed data and can take a few minutes.')) {
+          return;
+        }
+        rebuildRagBtn.disabled = true;
+        rebuildRagBtn.textContent = 'Re-building...';
+        try {
+          const response = await fetch('/api/admin/ingest-rag-data', { method: 'POST' });
+          const result = await response.json();
+          if (response.ok) {
+            showNotification('RAG index re-build started in the background.', 'info');
+          } else {
+            showNotification(`Error starting RAG re-build: ${result.error || 'Unknown error'}`, 'error');
+          }
+        } catch (error) {
+          showNotification('A client-side error occurred while starting the RAG re-build.', 'error');
+        } finally {
+          setTimeout(() => {
+            rebuildRagBtn.disabled = false;
+            rebuildRagBtn.textContent = 'Re-build RAG Index';
+          }, 5000);
+        }
+      });
     }
 
     function fetchAndRenderDeployments() {
@@ -545,5 +576,36 @@ if (githubStatusWarning) {
   .github-login-btn:hover, .github-logout-link:hover { background-color: #4a5056; }
   .page-description {
     margin-bottom: 1.5rem;
+  }
+  .rag-management {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+  }
+  .rag-management p {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+  }
+  .action-btn {
+    background-color: #e0e7ff;
+    border-color: #a5b4fc;
+    color: #3730a3;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid;
+    transition: background-color 0.2s;
+  }
+  .action-btn:hover:not(:disabled) {
+    background-color: #c7d2fe;
+  }
+  .action-btn:disabled {
+    background-color: #f0f0f0;
+    color: #aaa;
+    cursor: not-allowed;
   }
 </style>

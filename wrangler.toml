@@ -45,6 +45,15 @@ id = "de3646218ddd4be9ab12ca81bf6c8690"
 binding = "BLGC_AI_LOGS_BUCKET"
 bucket_name = "blgc-blogpost-ai-turns"
 
+[[d1_databases]]
+binding = "BLGC_RAG_DB"
+database_name = "blgc-rag-db"
+database_id = "placeholder_id_for_blgc_rag_db"
+
+[[vectorize]]
+binding = "BLGC_RAG_VECTORS"
+index_name = "blgc-rag-vectors"
+
 # Automatically place your workloads in an optimal location to minimize latency.
 # If you are running back-end logic in a Pages Function, running it closer to your back-end infrastructure
 # rather than the end user may result in better performance.

@@ -24,6 +24,12 @@ const { slug } = Astro.props;
         wrapperClass="ai-panel-chip-button-wrapper">Ask AI</ChipButton
       >
     </div>
+    <div class="mode-toggle-container">
+      <label class="mode-toggle-label" for="rag-toggle" title="Retrieval-Augmented Generation uses a search index for faster, more focused answers.">
+        <input type="checkbox" id="rag-toggle" class="mode-toggle-checkbox" checked />
+        <span>Use RAG (Fast)</span>
+      </label>
+    </div>
   </div>
   <div id="response-pane-wrapper">
     <div id="ai-response-pane" class="assistant-pane scrollable-pane">
@@ -61,6 +67,9 @@ const { slug } = Astro.props;
     const askButton = assistantContainer.querySelector(
       "#ask-ai-button",
     ) as HTMLButtonElement | null;
+    const ragToggle = assistantContainer.querySelector(
+      "#rag-toggle",
+    ) as HTMLInputElement | null;
     
     const responsePaneWrapper = assistantContainer.querySelector(
       "#response-pane-wrapper",
@@ -80,13 +89,14 @@ const { slug } = Astro.props;
       !responsePane ||
       !questionInput ||
       !askButton ||
+      !ragToggle || // Add to check
       !fabContainer ||
       !responsePaneWrapper ||
       !toggleResponseExpandButton ||
       !blogContentPane // Add to the check
     ) {
       console.error(
-        "One or more BlogAssistant UI elements, the FAB container, expand/collapse elements, or blogContentPane are missing.",
+        "One or more BlogAssistant UI elements (including RAG toggle), the FAB container, expand/collapse elements, or blogContentPane are missing.",
       );
       return;
     }
@@ -385,6 +395,7 @@ const { slug } = Astro.props;
       // The current question is already the last item in messagesForApi if it's a 'user' message
 
       try {
+        const useRag = ragToggle.checked; // Get the state of the toggle
         const apiResponse = await fetch("/api/ask", {
           // Calls your backend API endpoint
           method: "POST",
@@ -398,6 +409,7 @@ const { slug } = Astro.props;
             readerId: currentReaderId,
             sessionId: currentSessionId,
             currentUserQuestion: question, // This is the 'question' variable from the outer scope
+            useRag: useRag, // Pass the selected mode
           }),
         });
 
@@ -571,6 +583,26 @@ const { slug } = Astro.props;
   #ai-input-pane {
     background-color: #ffffff;
     border-bottom: 1px solid var(--blgc-main-surface-secondary, #ddd); 
+  }
+
+  .mode-toggle-container {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding-top: 0.5rem;
+    font-size: 0.85em;
+  }
+
+  .mode-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    color: var(--cstm-text-secondary);
+  }
+
+  .mode-toggle-checkbox {
+    margin-right: 0.4rem;
+    cursor: pointer;
   }
 
   .input-controls {

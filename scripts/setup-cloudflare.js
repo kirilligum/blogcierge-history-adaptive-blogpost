@@ -10,6 +10,8 @@ const BINDINGS = {
     'BLGC_USER_INTERACTIONS_KV',
   ],
   r2: ['BLGC_AI_LOGS_BUCKET'],
+  d1: ['BLGC_RAG_DB'],
+  vectorize: ['BLGC_RAG_VECTORS'],
 };
 
 function runCommand(command) {
@@ -59,6 +61,28 @@ function main() {
     const placeholder = `placeholder-for-${validBucketName}`;
     wranglerTomlContent = wranglerTomlContent.replace(placeholder, validBucketName);
     console.log(`   -> Updated binding for ${name} in wrangler.toml`);
+  }
+
+  // Create D1 Database for RAG
+  console.log('\n--- Creating D1 Database for RAG ---');
+  for (const name of BINDINGS.d1) {
+    const dbName = name.toLowerCase().replace(/_/g, '-');
+    const output = runCommand(`npx wrangler d1 create ${dbName}`);
+    const placeholder = `placeholder_id_for_${name.toLowerCase()}`;
+    wranglerTomlContent = wranglerTomlContent.replace(placeholder, output.uuid);
+    console.log(`   -> Updated binding for ${name} in wrangler.toml`);
+    console.log(`   -> Creating table 'content_chunks' in ${dbName}...`);
+    runCommand(`npx wrangler d1 execute ${dbName} --remote --command "CREATE TABLE IF NOT EXISTS content_chunks (id INTEGER PRIMARY KEY, slug TEXT NOT NULL, text TEXT NOT NULL);"`);
+  }
+
+  // Create Vectorize Index for RAG
+  console.log('\n--- Creating Vectorize Index for RAG ---');
+  for (const name of BINDINGS.vectorize) {
+    const indexName = name.toLowerCase().replace(/_/g, '-');
+    // The embedding model has 768 dimensions
+    runCommand(`npx wrangler vectorize create ${indexName} --dimensions=768 --metric=cosine`);
+    // No ID to replace in wrangler.toml for vectorize, name is sufficient
+    console.log(`   -> Created Vectorize index ${indexName}. Binding in wrangler.toml is correct.`);
   }
 
   // Write back the updated wrangler.toml
