@@ -15,11 +15,8 @@ const BINDINGS = {
 };
 
 function runCommand(command, { ignoreExistError = false } = {}) {
-  // Re-order the command to place --json flag correctly for wrangler
-  const commandParts = command.split(' ');
-  const executable = commandParts.shift(); // 'npx'
-  const cli = commandParts.shift(); // 'wrangler'
-  const fullCommand = `${executable} ${cli} --json ${commandParts.join(' ')}`;
+  // Append the --json flag to the end of the command for correct parsing by wrangler
+  const fullCommand = `${command} --json`;
 
   try {
     console.log(`\n> Executing: ${fullCommand}`);
