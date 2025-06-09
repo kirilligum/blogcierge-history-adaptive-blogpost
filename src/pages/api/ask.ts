@@ -60,7 +60,8 @@ async function handleRagMode(
 
   const topK = 5;
   const vectorQuery = await vectorIndex.query(questionEmbedding, { topK });
-  const chunkIds = vectorQuery.matches.map(match => parseInt(match.id));
+  const vectorMatches = vectorQuery.matches;
+  const chunkIds = vectorMatches.map(match => parseInt(match.id));
 
   let contextChunks: { text: string }[] = [];
   if (chunkIds.length > 0) {
@@ -103,7 +104,7 @@ No additional text or explanation outside this JSON object.`;
   const llmResponseSchema = { name: "blogPostAssistantResponse", strict: true, schema: { type: "object", properties: { relation: { type: "string" }, related: { type: "boolean" }, response: { type: "string" } }, required: ["relation", "related", "response"], additionalProperties: false } };
   const payload = { model: DEFAULT_MODEL, messages: [{ role: "system", content: answererSystemPrompt }, ...messages], max_tokens: 2048, temperature: 0.6, response_format: { type: "json_schema", json_schema: llmResponseSchema } };
   
-  return { payload, source: 'llm_rag' };
+  return { payload, source: 'llm_rag', vectorMatches };
 }
 
 async function handleFullContextMode(
@@ -202,7 +203,7 @@ export const POST: APIRoute = async (context) => {
       return modeResult;
     }
 
-    const { payload, source } = modeResult;
+    const { payload, source, vectorMatches } = modeResult;
 
     if (payload instanceof Response) {
       return payload;
@@ -240,7 +241,7 @@ export const POST: APIRoute = async (context) => {
     }
 
     const finalAnswer = llmAnswerFromSchema || "The AI indicated this query is related but didn't provide a specific answer. Try rephrasing your question.";
-    if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, aiRawRelation: relation, aiRelatedFlag: related, aiResponse: finalAnswer, source, modelUsed: DEFAULT_MODEL })));
+    if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, aiRawRelation: relation, aiRelatedFlag: related, aiResponse: finalAnswer, source, modelUsed: DEFAULT_MODEL, ...(vectorMatches && { ragVectorMatches: vectorMatches }) })));
 
     if (userInteractionsKV && readerId && slug && turnTimestamp && currentUserQuestion && finalAnswer) {
       const interactionDate = new Date(turnTimestamp).toISOString().split('T')[0];
