@@ -2,13 +2,25 @@
 
 BlogCierge is an experimental blog platform that uses AI to personalize blog posts for each reader and provides a Git-based workflow for generating and managing supplemental content.
 
-## How It Works: A Dual Architecture
+## How It Works: Core Features
 
-This project uses two distinct architectures for its two primary features:
+This project uses distinct architectures for its primary features:
 
 1.  **Dynamic Content Personalization (Server-Side Rendering):** When a user visits a blog post with the `?personalize=true` query parameter, the page is rendered on-the-fly by a Cloudflare Worker. It fetches the user's interaction history from KV and uses an LLM to rewrite the post content to match the reader's knowledge level. This provides a tailored experience.
 
-2.  **Q&A Dataset Generation (Git-based Static Content):** The admin panel features a workflow to generate and manage Q&A datasets for blog posts. This process is designed to result in fast, static content for all visitors.
+2.  **AI Assistant (Retrieval-Augmented Generation):** The "Ask AI" feature uses a Retrieval-Augmented Generation (RAG) architecture to provide fast and contextually relevant answers. This system has two modes, selectable via a toggle in the assistant UI:
+    *   **RAG Mode (Default, Fast):** When a user asks a question, the system finds the most relevant snippets of text from across all blog posts and provides them to the Large Language Model (LLM) as context. This is highly efficient as it doesn't require the LLM to process entire articles.
+    *   **Full-Context Mode (Slow):** This mode provides the entire content of all blog posts to the LLM. It can be useful for broad, summary-style questions but is significantly slower.
+
+    **RAG Ingestion Process:**
+    To enable the fast RAG mode, the content must be indexed first. This is handled by a background process that can be triggered from the admin panel:
+    1.  **Trigger:** In the **Admin > Posts** panel, an admin clicks the "Re-build RAG Index" button.
+    2.  **Chunking:** The system fetches all blog posts and splits their content into smaller, overlapping text chunks.
+    3.  **Storage & Embedding:** Each chunk is stored in a D1 database. Simultaneously, an "embedding" (a vector representation of the text) is generated for each chunk using a Workers AI model.
+    4.  **Indexing:** The generated embeddings are stored in a Vectorize index, linking each vector back to its corresponding text chunk in the D1 database.
+    This ingestion process needs to be run whenever significant changes are made to the blog content to keep the search index up-to-date.
+
+3.  **Q&A Dataset Generation (Git-based Static Content):** The admin panel features a workflow to generate and manage Q&A datasets for blog posts. This process is designed to result in fast, static content for all visitors.
     *   **Generate:** An admin clicks "Generate" to trigger a background job that creates a Q&A dataset and stores it temporarily in an R2 bucket.
     *   **Commit:** After authenticating with GitHub, the admin clicks "Commit to Site." This calls a secure API that copies the Q&A data from R2 and commits it as a new JSON file to the `/src/data/qa/` directory in your GitHub repository.
     *   **Deploy:** This commit to your `main` branch automatically triggers a new build and deployment on Cloudflare Pages.
