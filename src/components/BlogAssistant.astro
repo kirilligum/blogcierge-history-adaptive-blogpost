@@ -355,18 +355,24 @@ const { slug } = Astro.props;
         const matches = aiMessage.vectorMatches;
         const chunks = aiMessage.contextChunks || [];
         let content = '<h4>RAG Debug Info</h4>';
-        content += `<p>Found ${matches.length} vector matches and retrieved ${chunks.length} text chunks:</p>`;
+        content += `<p>Found ${matches.length} vector matches. Corresponding text chunks from database:</p>`;
         
-        if (chunks.length > 0) {
-          content += '<h5>Retrieved Chunks:</h5>';
+        if (matches.length > 0) {
           content += '<ol class="rag-chunk-list">';
-          chunks.forEach((chunk) => {
-            const scoreText = matches.find(m => m.id === chunk.id.toString())?.score.toFixed(4) || 'N/A';
-            content += `<li><strong>Chunk ID ${chunk.id}</strong> (Score: ${scoreText})<pre class="rag-chunk-text">${escapeHTML(chunk.text)}</pre></li>`;
+          matches.forEach((match) => {
+            const chunk = chunks.find(c => c.id.toString() === match.id);
+            const scoreText = match.score.toFixed(4);
+            content += `<li><strong>Vector ID ${match.id}</strong> (Score: ${scoreText})`;
+            if (chunk) {
+              content += `<pre class="rag-chunk-text">${escapeHTML(chunk.text)}</pre>`;
+            } else {
+              content += `<p class="rag-chunk-missing"><em>Text for this chunk could not be retrieved from the database.</em></p>`;
+            }
+            content += `</li>`;
           });
           content += '</ol>';
         } else {
-          content += '<p>No text chunks were retrieved from the database, though vector matches were found.</p>';
+          content += '<p>No vector matches were found for this query.</p>';
         }
 
         ragInfoContainer.innerHTML = content;
@@ -866,6 +872,15 @@ const { slug } = Astro.props;
     border-radius: 3px;
     white-space: pre-wrap;
     word-break: break-word;
+    margin-top: 0.25em;
+  }
+  .rag-chunk-missing {
+    font-style: italic;
+    color: #888;
+    background-color: #fff;
+    border: 1px dashed #ccc;
+    padding: 0.5em;
+    border-radius: 3px;
     margin-top: 0.25em;
   }
 </style>
