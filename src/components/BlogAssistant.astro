@@ -138,6 +138,8 @@ const { slug } = Astro.props;
     let chatHistory: Array<{
       type: "user" | "ai" | "system" | "error";
       content: string;
+      feedbackRating?: "like" | "dislike";
+      durationMs?: number;
     }> = [];
     const initialMessage =
       "Hello! Ask me any technical questions about this blog post.";
@@ -175,7 +177,7 @@ const { slug } = Astro.props;
 
             // If this AI message has a preceding user message, prepare feedback buttons HTML
             if (currentMessage.type === "ai" && previousMessage && previousMessage.type === "user") {
-              const aiMessageWithFeedback = currentMessage as (typeof chatHistory[0] & { feedbackRating?: "like" | "dislike" });
+              const aiMessageWithFeedback = currentMessage;
               const likeButtonId = `like-btn-${i}`;
               const dislikeButtonId = `dislike-btn-${i}`;
 
@@ -196,10 +198,17 @@ const { slug } = Astro.props;
                 }
               }
 
+              let durationHTML = '';
+              if (typeof aiMessageWithFeedback.durationMs === 'number') {
+                const durationSeconds = (aiMessageWithFeedback.durationMs / 1000).toFixed(2);
+                durationHTML = `<span class="response-duration" title="Response generation time">(${durationSeconds}s)</span>`;
+              }
+
               const feedbackHTMLString = `
                 <span class="feedback-container-inline">
                   <button id="${likeButtonId}" class="${likeBtnClasses}" title="Like this response" ${likeBtnDisabled}>👍</button>
                   <button id="${dislikeButtonId}" class="${dislikeBtnClasses}" title="Dislike this response" ${dislikeBtnDisabled}>👎</button>
+                  ${durationHTML}
                 </span>
               `;
               questionHTML += feedbackHTMLString;
@@ -247,7 +256,7 @@ const { slug } = Astro.props;
     };
 
     async function handleFeedbackClick(buttonElement: HTMLButtonElement, aiMessageIndex: number, rating: "like" | "dislike") {
-      const aiMessage = chatHistory[aiMessageIndex] as (typeof chatHistory[0] & { feedbackRating?: "like" | "dislike" });
+      const aiMessage = chatHistory[aiMessageIndex];
       const userMessage = chatHistory[aiMessageIndex - 1];
 
       if (!aiMessage || aiMessage.type !== 'ai' || !userMessage || userMessage.type !== 'user') {
@@ -419,7 +428,7 @@ const { slug } = Astro.props;
         chatHistory.pop();
 
         if (apiResponse.ok) {
-          chatHistory.push({ type: "ai", content: data.answer });
+          chatHistory.push({ type: "ai", content: data.answer, durationMs: data.durationMs });
         } else {
           chatHistory.push({
             type: "error",
@@ -722,5 +731,11 @@ const { slug } = Astro.props;
 
   .feedback-dislike:hover:not(:disabled) {
     /* Optional: specific hover for dislike */
+  }
+
+  .response-duration {
+    font-size: 0.8em;
+    color: var(--blgc-text-secondary, #5d5d5d);
+    font-style: italic;
   }
 </style>

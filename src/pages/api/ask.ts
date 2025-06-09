@@ -76,7 +76,7 @@ async function handleRagMode(
       const logData = { sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, systemResponse: userMessage, source: "system_filter_no_rag_context" };
       locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify(logData)));
     }
-    return new Response(JSON.stringify({ answer: userMessage, source: "system_filter_no_rag_context" }), { status: 200, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ answer: userMessage, source: "system_filter_no_rag_context", durationMs: 0 }), { status: 200, headers: { "Content-Type": "application/json" } });
   }
 
   const contextMessage = `Context:\n${contextChunks.map(chunk => `- ${chunk.text}`).join("\n\n")}`;
@@ -183,7 +183,7 @@ export const POST: APIRoute = async (context) => {
       const cachedAnswer = await aiCache.get(cacheKey);
       if (cachedAnswer) {
         if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, aiResponse: cachedAnswer, source: "cache", cacheKey })));
-        return new Response(JSON.stringify({ answer: cachedAnswer, source: "cache" }), { status: 200 });
+        return new Response(JSON.stringify({ answer: cachedAnswer, source: "cache", durationMs: 0 }), { status: 200 });
       }
     }
 
@@ -209,7 +209,9 @@ export const POST: APIRoute = async (context) => {
       return payload;
     }
 
+    const startTime = Date.now();
     const llmResponse = await fetch(LLAMA_API_URL, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const durationMs = Date.now() - startTime;
 
     if (!llmResponse.ok) {
       const errorText = await llmResponse.text();
@@ -237,11 +239,11 @@ export const POST: APIRoute = async (context) => {
       const funnyResponses = ["My circuits are tingling to chat about the blog post, but your question seems to be exploring a different galaxy! How about we steer back to LLM data curation?", "Hold your horses, thinker! That question's a bit of a wild stallion, off the blog's trail. Let's wrangle it back to AI and data insights!", "I'm geared up to dissect the blog's content! Your query, though, appears to have wandered into a parallel universe. Shall we return to the fascinating realm of LLMs?", "Bleep, blorp! My prime directive is to assist with this blog post. That question is like asking a dictionary for dance moves! Got any queries about data curation strategies?", "While I admire your expansive curiosity, my expertise is finely tuned to the blog post's subject matter. Let's delve into those topics, shall we?"];
       const corkyResponse = funnyResponses[Math.floor(Math.random() * funnyResponses.length)];
       if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, aiRawRelation: relation, aiRelatedFlag: related, systemResponse: corkyResponse, source: "system_filter_off_topic" })));
-      return new Response(JSON.stringify({ answer: corkyResponse, source: "system_filter_off_topic" }), { status: 200 });
+      return new Response(JSON.stringify({ answer: corkyResponse, source: "system_filter_off_topic", durationMs: 0 }), { status: 200 });
     }
 
     const finalAnswer = llmAnswerFromSchema || "The AI indicated this query is related but didn't provide a specific answer. Try rephrasing your question.";
-    if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, aiRawRelation: relation, aiRelatedFlag: related, aiResponse: finalAnswer, source, modelUsed: DEFAULT_MODEL, ...(vectorMatches && { ragVectorMatches: vectorMatches }) })));
+    if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, aiRawRelation: relation, aiRelatedFlag: related, aiResponse: finalAnswer, source, modelUsed: DEFAULT_MODEL, durationMs, ...(vectorMatches && { ragVectorMatches: vectorMatches }) })));
 
     if (userInteractionsKV && readerId && slug && turnTimestamp && currentUserQuestion && finalAnswer) {
       const interactionDate = new Date(turnTimestamp).toISOString().split('T')[0];
@@ -260,7 +262,7 @@ export const POST: APIRoute = async (context) => {
       );
     }
 
-    return new Response(JSON.stringify({ answer: finalAnswer, source: "llm" }), { status: 200 });
+    return new Response(JSON.stringify({ answer: finalAnswer, source: "llm", durationMs }), { status: 200 });
 
   } catch (error: unknown) {
     console.error("Error in /api/ask endpoint:", error);
