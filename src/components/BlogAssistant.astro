@@ -142,9 +142,15 @@ const { slug } = Astro.props;
       durationMs?: number;
       source?: string;
       vectorMatches?: Array<{ id: string; score: number }>;
+      contextChunks?: Array<{ id: number; text: string }>;
     }> = [];
     const initialMessage =
       "Hello! Ask me any technical questions about this blog post.";
+
+    function escapeHTML(unsafe) {
+      if (typeof unsafe !== "string") return "";
+      return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
 
     const renderChatHistory = () => {
       if (!responsePane) return;
@@ -347,13 +353,22 @@ const { slug } = Astro.props;
       if (ragInfoContainer.classList.contains('hidden')) {
         // Show info
         const matches = aiMessage.vectorMatches;
+        const chunks = aiMessage.contextChunks || [];
         let content = '<h4>RAG Debug Info</h4>';
-        content += `<p>Found ${matches.length} vector matches:</p>`;
-        content += '<ul>';
-        matches.forEach(match => {
-          content += `<li>Chunk ID: <strong>${match.id}</strong>, Score: ${match.score.toFixed(4)}</li>`;
-        });
-        content += '</ul>';
+        content += `<p>Found ${matches.length} vector matches and retrieved ${chunks.length} text chunks:</p>`;
+        
+        if (chunks.length > 0) {
+          content += '<h5>Retrieved Chunks:</h5>';
+          content += '<ol class="rag-chunk-list">';
+          chunks.forEach((chunk) => {
+            const scoreText = matches.find(m => m.id === chunk.id.toString())?.score.toFixed(4) || 'N/A';
+            content += `<li><strong>Chunk ID ${chunk.id}</strong> (Score: ${scoreText})<pre class="rag-chunk-text">${escapeHTML(chunk.text)}</pre></li>`;
+          });
+          content += '</ol>';
+        } else {
+          content += '<p>No text chunks were retrieved from the database, though vector matches were found.</p>';
+        }
+
         ragInfoContainer.innerHTML = content;
         ragInfoContainer.classList.remove('hidden');
       } else {
@@ -484,6 +499,7 @@ const { slug } = Astro.props;
             durationMs: data.durationMs,
             source: data.source,
             vectorMatches: data.vectorMatches,
+            contextChunks: data.contextChunks,
           });
         } else {
           chatHistory.push({
@@ -827,8 +843,29 @@ const { slug } = Astro.props;
     margin-bottom: 0.5em;
     font-size: 1.1em;
   }
-  .rag-info-container ul {
+  .rag-info-container h5 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+  }
+  .rag-info-container ul, .rag-info-container ol {
     margin: 0;
     padding-left: 1.2em;
+  }
+  .rag-chunk-list {
+    list-style-type: decimal;
+    padding-left: 1.5em;
+    margin-top: 0.5em;
+  }
+  .rag-chunk-list li {
+    margin-bottom: 1em;
+  }
+  .rag-chunk-text {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    padding: 0.5em;
+    border-radius: 3px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-top: 0.25em;
   }
 </style>

@@ -64,10 +64,10 @@ async function handleRagMode(
   console.log(`[RAG] Found ${vectorMatches.length} vector matches for question "${currentUserQuestion.substring(0, 50)}...". Matches: ${JSON.stringify(vectorMatches)}`);
   const chunkIds = vectorMatches.map(match => parseInt(match.id));
 
-  let contextChunks: { text: string }[] = [];
+  let contextChunks: { id: number; text: string }[] = [];
   if (chunkIds.length > 0) {
-    const query = `SELECT text FROM content_chunks WHERE id IN (${'?,'.repeat(chunkIds.length).slice(0, -1)})`;
-    const { results } = await db.prepare(query).bind(...chunkIds).all<{ text: string }>();
+    const query = `SELECT id, text FROM content_chunks WHERE id IN (${'?,'.repeat(chunkIds.length).slice(0, -1)})`;
+    const { results } = await db.prepare(query).bind(...chunkIds).all<{ id: number; text: string }>();
     if (results) contextChunks = results;
   }
   console.log(`[RAG] Fetched ${contextChunks.length} context chunks from D1 for context.`);
@@ -106,7 +106,7 @@ No additional text or explanation outside this JSON object.`;
   const llmResponseSchema = { name: "blogPostAssistantResponse", strict: true, schema: { type: "object", properties: { relation: { type: "string" }, related: { type: "boolean" }, response: { type: "string" } }, required: ["relation", "related", "response"], additionalProperties: false } };
   const payload = { model: DEFAULT_MODEL, messages: [{ role: "system", content: answererSystemPrompt }, ...messages], max_tokens: 2048, temperature: 0.6, response_format: { type: "json_schema", json_schema: llmResponseSchema } };
   
-  return { payload, source: 'llm_rag', vectorMatches };
+  return { payload, source: 'llm_rag', vectorMatches, contextChunks };
 }
 
 async function handleFullContextMode(
@@ -205,7 +205,7 @@ export const POST: APIRoute = async (context) => {
       return modeResult;
     }
 
-    const { payload, source, vectorMatches } = modeResult;
+    const { payload, source, vectorMatches, contextChunks } = modeResult;
 
     if (payload instanceof Response) {
       return payload;
@@ -269,6 +269,7 @@ export const POST: APIRoute = async (context) => {
       source: source,
       durationMs,
       ...(vectorMatches && { vectorMatches }),
+      ...(contextChunks && { contextChunks }),
     };
 
     return new Response(JSON.stringify(responsePayload), { status: 200, headers: { "Content-Type": "application/json" } });
