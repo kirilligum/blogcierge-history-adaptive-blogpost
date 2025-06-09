@@ -35,15 +35,8 @@ async function handleRagMode(
   const ai = locals.runtime.env.AI;
   const aiLogsBucket = locals.runtime.env.BLGC_AI_LOGS_BUCKET;
 
-  if (!vectorIndex) {
-    const errorDetail = "Vectorize is not available in the current environment (likely local development).";
-    console.error(`[RAG MODE ERROR] ${errorDetail}`);
-    if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ errorDetails: errorDetail, source: "error_rag_unsupported_env" })));
-    return new Response(JSON.stringify({ error: "RAG mode is not supported in local development. Please uncheck 'Use RAG (Fast)' or test in a deployed environment." }), { status: 501 }); // 501 Not Implemented
-  }
-
-  if (!db || !ai) {
-    const errorDetail = `CRITICAL: RAG dependencies are not configured. DB ready: ${!!db}, AI ready: ${!!ai}.`;
+  if (!db || !vectorIndex || !ai) {
+    const errorDetail = `CRITICAL: RAG dependencies are not configured. DB ready: ${!!db}, Vectorize ready: ${!!vectorIndex}, AI ready: ${!!ai}.`;
     console.error(errorDetail);
     if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ errorDetails: errorDetail, source: "error_rag_misconfigured" })));
     return new Response(JSON.stringify({ error: "Server configuration error: RAG system dependencies are not available." }), { status: 500 });
