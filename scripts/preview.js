@@ -57,9 +57,14 @@ async function main() {
     console.log(`> Building project...`);
     await runCommand('astro', ['build']);
 
+    console.log(`> Initializing local D1 database for RAG...`);
+    const d1SetupCommand = 'wrangler';
+    const d1SetupArgs = ['d1', 'execute', 'blgc-rag-db', '--local', '--command', 'CREATE TABLE IF NOT EXISTS content_chunks (id INTEGER PRIMARY KEY, slug TEXT NOT NULL, text TEXT NOT NULL);'];
+    await runCommand(d1SetupCommand, d1SetupArgs);
+
     console.log(`> Build complete. Starting dev server...`);
     const command = 'wrangler';
-    const args = ['pages', 'dev', './dist'];
+    const args = ['pages', 'dev', './dist', '--port=8789'];
     console.log(`> Executing: ${command} ${args.join(' ')}`);
     console.log('> Wrangler will automatically use `wrangler.toml` for bindings and `.dev.vars` for secrets.');
     await runCommand(command, args, true); // Pass true for isDevServer
