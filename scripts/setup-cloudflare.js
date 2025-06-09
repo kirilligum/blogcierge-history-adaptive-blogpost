@@ -107,13 +107,29 @@ function main() {
   console.log('\n--- Creating D1 Database for RAG ---');
   for (const name of BINDINGS.d1) {
     const dbName = name.toLowerCase().replace(/_/g, '-');
-    const output = runCommand(`npx wrangler d1 create ${dbName} --json`, { ignoreExistError: true, parseJson: true });
-    if (output) {
+    // Step 1: Create the database. This command does not support --json.
+    runCommand(`npx wrangler d1 create ${dbName}`, { ignoreExistError: true, parseJson: false });
+
+    // Step 2: List all databases to find the UUID of the one we just created/ensured exists.
+    const d1List = runCommand(`npx wrangler d1 list --json`, { parseJson: true });
+    const database = d1List.find(db => db.name === dbName);
+
+    if (database && database.uuid) {
         const placeholder = `placeholder_id_for_${name.toLowerCase()}`;
-        wranglerTomlContent = wranglerTomlContent.replace(placeholder, output.uuid);
-        console.log(`   -> Updated binding for ${name} in wrangler.toml`);
-        console.log(`   -> Creating table 'content_chunks' in new database ${dbName}...`);
-        runCommand(`npx wrangler d1 execute ${dbName} --remote --command "CREATE TABLE IF NOT EXISTS content_chunks (id INTEGER PRIMARY KEY, slug TEXT NOT NULL, text TEXT NOT NULL);"`, { parseJson: false });
+        if (wranglerTomlContent.includes(placeholder)) {
+            wranglerTomlContent = wranglerTomlContent.replace(placeholder, database.uuid);
+            console.log(`   -> Updated binding for ${name} in wrangler.toml`);
+            console.log(`   -> Creating table 'content_chunks' in new database ${dbName}...`);
+            runCommand(`npx wrangler d1 execute ${dbName} --remote --command "CREATE TABLE IF NOT EXISTS content_chunks (id INTEGER PRIMARY KEY, slug TEXT NOT NULL, text TEXT NOT NULL);"`, { parseJson: false });
+        }
+    } else {
+        const placeholder = `placeholder_id_for_${name.toLowerCase()}`;
+        if (wranglerTomlContent.includes(placeholder)) {
+            console.error(`\n❌ FATAL: Could not find UUID for D1 database ${dbName}. Please check your Cloudflare account.`);
+            process.exit(1);
+        } else {
+            console.log(`   -> Binding for ${name} already seems to be set. Skipping update.`);
+        }
     }
   }
 
