@@ -137,7 +137,9 @@ function main() {
   console.log('\n--- Creating Vectorize Index for RAG ---');
   for (const name of BINDINGS.vectorize) {
     const indexName = name.toLowerCase().replace(/_/g, '-');
-    runCommand(`npx wrangler vectorize create ${indexName} --dimensions=768 --metric=cosine --json`, { ignoreExistError: true, parseJson: true });
+    // This command does not support --json, but it prints the binding info we need.
+    // We don't need to parse it, just ensure it runs.
+    runCommand(`npx wrangler vectorize create ${indexName} --dimensions=768 --metric=cosine`, { ignoreExistError: true, parseJson: false });
     console.log(`   -> Binding for Vectorize index '${indexName}' in wrangler.toml is correct.`);
   }
 
