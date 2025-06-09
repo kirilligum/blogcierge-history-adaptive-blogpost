@@ -36,7 +36,7 @@ function runCommand(command, { ignoreExistError = false, parseJson = true } = {}
   } catch (error) {
     // Combine stdout and stderr from the error object to ensure we catch the message
     const output = (error.stdout || '') + (error.stderr || '');
-    if (ignoreExistError && (output.includes('already exists') || output.includes('already has a binding'))) {
+    if (ignoreExistError && (output.includes('already exists') || output.includes('already has a binding') || output.includes('duplicate_name'))) {
       console.log(`   -> Resource already exists. Skipping creation.`);
       return null;
     }
