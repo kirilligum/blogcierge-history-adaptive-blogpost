@@ -4,6 +4,7 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import type { D1Database, VectorizeIndex } from "@cloudflare/workers-types";
 
 const BATCH_SIZE = 100; // For inserting into D1 and Vectorize
+const DELETE_BATCH_SIZE = 1000; // For deleting from Vectorize
 const EMBEDDING_MODEL = '@cf/baai/bge-base-en-v1.5';
 
 async function ingest(locals: App.Locals) {
@@ -22,8 +23,24 @@ async function ingest(locals: App.Locals) {
 
     // 1. Clear existing data
     console.log("Clearing existing data from D1 and Vectorize...");
+
+    // Step 1a: Get all existing vector IDs from D1
+    const { results: existingChunks } = await db.prepare("SELECT id FROM content_chunks").all<{ id: number }>();
+    if (existingChunks && existingChunks.length > 0) {
+        const idsToDelete = existingChunks.map(chunk => chunk.id.toString());
+        console.log(`Found ${idsToDelete.length} existing vectors to delete from Vectorize.`);
+        
+        // Step 1b: Delete from Vectorize in batches
+        for (let i = 0; i < idsToDelete.length; i += DELETE_BATCH_SIZE) {
+            const batchIds = idsToDelete.slice(i, i + DELETE_BATCH_SIZE);
+            await vectorIndex.deleteByIds(batchIds);
+            console.log(`Deleted batch of ${batchIds.length} vectors.`);
+        }
+    }
+
+    // Step 1c: Delete all records from D1 table
     await db.prepare("DELETE FROM content_chunks").run();
-    await vectorIndex.deleteAll();
+    
     console.log("Existing data cleared.");
 
     // 2. Get all blog posts
