@@ -64,7 +64,11 @@ async function main() {
 
     console.log(`> Build complete. Starting dev server...`);
     const command = 'wrangler';
-    const args = ['pages', 'dev', './dist', '--experimental-vectorize-bind-to-prod', '--vectorize', 'BLGC_RAG_VECTORS:blgc-rag-vectors'];
+    // The --vectorize flag is not a valid argument for `wrangler pages dev`.
+    // The correct way to bind to a production Vectorize index is by using
+    // the `--experimental-vectorize-bind-to-prod` flag, which relies on the
+    // `[[vectorize]]` configuration in your `wrangler.toml` file.
+    const args = ['pages', 'dev', './dist', '--experimental-vectorize-bind-to-prod'];
     console.log(`> Executing: ${command} ${args.join(' ')}`);
     console.log('> Wrangler will automatically use `wrangler.toml` for bindings and `.dev.vars` for secrets.');
     await runCommand(command, args, true); // Pass true for isDevServer
