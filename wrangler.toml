@@ -27,7 +27,7 @@ pages_build_output_dir = "./dist"
 
 [[kv_namespaces]]
 binding = "BLGC_ADMIN_KV"
-id = "2a9d5353e231403d823a105f3f78535a"
+id = "9b7b2d51d3fb4fb6b139ef96fdda2672"
 
 [[kv_namespaces]]
 binding = "BLGC_BLOGPOST_AI_CACHE"
@@ -43,7 +43,7 @@ id = "de3646218ddd4be9ab12ca81bf6c8690"
 
 [[r2_buckets]]
 binding = "BLGC_AI_LOGS_BUCKET"
-bucket_name = "blgc-blogpost-ai-turns"
+bucket_name = "blgc-ai-logs-bucket"
 
 [[d1_databases]]
 binding = "BLGC_RAG_DB"

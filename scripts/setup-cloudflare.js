@@ -94,8 +94,8 @@ function main() {
   // Create R2 Bucket
   console.log('\n--- Creating R2 Bucket ---');
   for (const name of BINDINGS.r2) {
-    runCommand(`npx wrangler r2 bucket create ${name}`, { ignoreExistError: true, parseJson: false });
     const validBucketName = name.toLowerCase().replace(/_/g, '-');
+    runCommand(`npx wrangler r2 bucket create ${validBucketName}`, { ignoreExistError: true, parseJson: false });
     const placeholder = `placeholder-for-${validBucketName}`;
     if (wranglerTomlContent.includes(placeholder)) {
         wranglerTomlContent = wranglerTomlContent.replace(placeholder, validBucketName);
