@@ -201,8 +201,10 @@ if (githubStatusWarning) {
                         {statusText}
                       </span>
 
-                      {state === 'generating' && (
-                        <button type="button" class="forget-job-btn" data-slug={post.slug}>Forget</button>
+                      {(state === 'generating' || state === 'error') && (
+                        <button type="button" class="forget-job-btn" data-slug={post.slug}>
+                          {state === 'generating' ? 'Cancel' : 'Clear Error'}
+                        </button>
                       )}
 
                       {isCommitted && state !== 'success' && state !== 'generating' && (
@@ -434,6 +436,7 @@ if (githubStatusWarning) {
     document.querySelectorAll('.forget-job-btn').forEach(button => {
       button.addEventListener('click', async (event) => {
         const targetButton = event.currentTarget as HTMLButtonElement;
+        const originalText = targetButton.textContent;
         const slug = targetButton.dataset.slug;
         if (!slug) return;
         targetButton.disabled = true;
@@ -450,12 +453,12 @@ if (githubStatusWarning) {
             const errorData = await response.json();
             showNotification(`Failed to forget job: ${errorData.error || 'Unknown error'}`, 'error');
             targetButton.disabled = false;
-            targetButton.textContent = 'Forget';
+            targetButton.textContent = originalText;
           }
         } catch (error) {
           showNotification('An error occurred while trying to forget the job.', 'error');
           targetButton.disabled = false;
-          targetButton.textContent = 'Forget';
+          targetButton.textContent = originalText;
         }
       });
     });
