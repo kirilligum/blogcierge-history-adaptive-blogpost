@@ -12,5 +12,15 @@ export default defineConfig({
       enabled: true
     }
   }),
-  integrations: [tailwind(), sitemap()]
+  integrations: [tailwind(), sitemap()],
+  // Add Squoosh for Cloudflare-compatible image processing
+  image: {
+    service: 'squoosh'
+  },
+  // Add Vite config to ensure Phoenix/OpenTelemetry are bundled
+  vite: {
+    ssr: {
+      noExternal: ['@opentelemetry/api', '@arizeai/phoenix']
+    }
+  }
 });
