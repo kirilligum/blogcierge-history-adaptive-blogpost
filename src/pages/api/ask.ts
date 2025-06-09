@@ -4,8 +4,6 @@ import type { APIRoute } from "astro";
 import { getCollection, getEntryBySlug } from "astro:content";
 import type { D1Database, KVNamespace, R2Bucket, VectorizeIndex } from "@cloudflare/workers-types";
 import { getApiKey } from "../../utils/apiKey";
-import { getPhoenixTracer } from "../../utils/phoenix";
-import { trace, context as otelContext, SpanStatusCode } from "@opentelemetry/api";
 
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 60; // 2 months
 const ALL_POSTS_CACHE_KEY = "ALL_POSTS_CONCATENATED_V1";
@@ -164,7 +162,6 @@ export const POST: APIRoute = async (context) => {
   const { request, locals } = context;
   const aiLogsBucket = locals.runtime?.env?.BLGC_AI_LOGS_BUCKET;
   const userInteractionsKV = locals.runtime?.env?.BLGC_USER_INTERACTIONS_KV as KVNamespace | undefined;
-  const tracer = getPhoenixTracer(locals);
 
   let slug, readerId, sessionId, currentUserQuestion, turnTimestamp, r2Key, useRag;
   let messages;
@@ -214,117 +211,68 @@ export const POST: APIRoute = async (context) => {
       return payload;
     }
 
-    const executeLlmCall = async () => {
-      const startTime = Date.now();
-      const llmResponse = await fetch(LLAMA_API_URL, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const durationMs = Date.now() - startTime;
+    const startTime = Date.now();
+    const llmResponse = await fetch(LLAMA_API_URL, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const durationMs = Date.now() - startTime;
 
-      const currentSpan = trace.getActiveSpan();
-      currentSpan?.setAttributes({
-          "llm.request.type": "chat",
-          "llm.request.model": payload.model,
-          "llm.request.max_tokens": payload.max_tokens,
-          "llm.request.temperature": payload.temperature,
-          "duration.ms": durationMs,
-      });
-      payload.messages.forEach((msg, index) => {
-          currentSpan?.addEvent(`message.${index}`, {
-              "llm.input.role": msg.role,
-              "llm.input.content": msg.content,
-          });
-      });
+    if (!llmResponse.ok) {
+      const errorText = await llmResponse.text();
+      if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ errorDetails: `LLM API Error: Status ${llmResponse.status}. Details: ${errorText.substring(0, 1000)}`, source: "error_llm_api_response" })));
+      return new Response(JSON.stringify({ error: `AI service failed with status ${llmResponse.status}` }), { status: llmResponse.status });
+    }
 
-      if (!llmResponse.ok) {
-        const errorText = await llmResponse.text();
-        currentSpan?.recordException(new Error(`LLM API Error: Status ${llmResponse.status}. Details: ${errorText.substring(0, 1000)}`));
-        currentSpan?.setStatus({ code: SpanStatusCode.ERROR, message: `LLM API Error: ${llmResponse.status}` });
-        if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ errorDetails: `LLM API Error: Status ${llmResponse.status}. Details: ${errorText.substring(0, 1000)}`, source: "error_llm_api_response" })));
-        return new Response(JSON.stringify({ error: `AI service failed with status ${llmResponse.status}` }), { status: llmResponse.status });
-      }
+    const answerData = await llmResponse.json();
+    const llmOutputString = answerData.completion_message?.content?.text || answerData.choices?.[0]?.message?.content;
 
-      const answerData = await llmResponse.json();
-      const llmOutputString = answerData.completion_message?.content?.text || answerData.choices?.[0]?.message?.content;
+    if (!llmOutputString) {
+      if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ errorDetails: "LLM response content was missing or empty.", source: "error_llm_empty_response_content" })));
+      return new Response(JSON.stringify({ error: "AI service returned an empty response." }), { status: 500 });
+    }
 
-      if (!llmOutputString) {
-        currentSpan?.recordException(new Error("LLM response content was missing or empty."));
-        currentSpan?.setStatus({ code: SpanStatusCode.ERROR, message: "LLM empty response" });
-        if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ errorDetails: "LLM response content was missing or empty.", source: "error_llm_empty_response_content" })));
-        return new Response(JSON.stringify({ error: "AI service returned an empty response." }), { status: 500 });
-      }
+    const parsedLlmJson = JSON.parse(llmOutputString);
+    const { relation, related, response: llmAnswerFromSchema } = parsedLlmJson;
 
-      currentSpan?.addEvent("llm.output", { "llm.output.content": llmOutputString });
-      const parsedLlmJson = JSON.parse(llmOutputString);
-      const { relation, related, response: llmAnswerFromSchema } = parsedLlmJson;
+    if (typeof related !== "boolean" || typeof llmAnswerFromSchema === "undefined") {
+      if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ errorDetails: `LLM JSON response did not match expected schema.`, source: "error_llm_schema_mismatch" })));
+      return new Response(JSON.stringify({ error: "AI service returned data in an unexpected format." }), { status: 500 });
+    }
 
-      currentSpan?.addEvent("llm_output_parsed", {
-          relation,
-          related: related.toString(),
-          response_length: llmAnswerFromSchema.length,
-      });
+    if (!related) {
+      const funnyResponses = ["My circuits are tingling to chat about the blog post, but your question seems to be exploring a different galaxy! How about we steer back to LLM data curation?", "Hold your horses, thinker! That question's a bit of a wild stallion, off the blog's trail. Let's wrangle it back to AI and data insights!", "I'm geared up to dissect the blog's content! Your query, though, appears to have wandered into a parallel universe. Shall we return to the fascinating realm of LLMs?", "Bleep, blorp! My prime directive is to assist with this blog post. That question is like asking a dictionary for dance moves! Got any queries about data curation strategies?", "While I admire your expansive curiosity, my expertise is finely tuned to the blog post's subject matter. Let's delve into those topics, shall we?"];
+      const corkyResponse = funnyResponses[Math.floor(Math.random() * funnyResponses.length)];
+      if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, aiRawRelation: relation, aiRelatedFlag: related, systemResponse: corkyResponse, source: "system_filter_off_topic" })));
+      return new Response(JSON.stringify({ answer: corkyResponse, source: "system_filter_off_topic", durationMs: 0 }), { status: 200 });
+    }
 
-      if (typeof related !== "boolean" || typeof llmAnswerFromSchema === "undefined") {
-        currentSpan?.recordException(new Error("LLM JSON response did not match expected schema."));
-        currentSpan?.setStatus({ code: SpanStatusCode.ERROR, message: "LLM schema mismatch" });
-        if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ errorDetails: `LLM JSON response did not match expected schema.`, source: "error_llm_schema_mismatch" })));
-        return new Response(JSON.stringify({ error: "AI service returned data in an unexpected format." }), { status: 500 });
-      }
+    const finalAnswer = llmAnswerFromSchema || "The AI indicated this query is related but didn't provide a specific answer. Try rephrasing your question.";
+    if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, aiRawRelation: relation, aiRelatedFlag: related, aiResponse: finalAnswer, source, modelUsed: DEFAULT_MODEL, durationMs, ...(vectorMatches && { ragVectorMatches: vectorMatches }) })));
 
-      if (!related) {
-        const funnyResponses = ["My circuits are tingling to chat about the blog post, but your question seems to be exploring a different galaxy! How about we steer back to LLM data curation?", "Hold your horses, thinker! That question's a bit of a wild stallion, off the blog's trail. Let's wrangle it back to AI and data insights!", "I'm geared up to dissect the blog's content! Your query, though, appears to have wandered into a parallel universe. Shall we return to the fascinating realm of LLMs?", "Bleep, blorp! My prime directive is to assist with this blog post. That question is like asking a dictionary for dance moves! Got any queries about data curation strategies?", "While I admire your expansive curiosity, my expertise is finely tuned to the blog post's subject matter. Let's delve into those topics, shall we?"];
-        const corkyResponse = funnyResponses[Math.floor(Math.random() * funnyResponses.length)];
-        if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, aiRawRelation: relation, aiRelatedFlag: related, systemResponse: corkyResponse, source: "system_filter_off_topic" })));
-        return new Response(JSON.stringify({ answer: corkyResponse, source: "system_filter_off_topic", durationMs: 0 }), { status: 200 });
-      }
+    if (userInteractionsKV && readerId && slug && turnTimestamp && currentUserQuestion && finalAnswer) {
+      const interactionDate = new Date(turnTimestamp).toISOString().split('T')[0];
+      const kvKey = `${readerId}/${interactionDate}/${slug}`;
+      const userMessageEntry = { role: 'user', content: currentUserQuestion, timestamp: turnTimestamp };
+      const aiMessageEntry = { role: 'ai', content: finalAnswer, timestamp: new Date().toISOString() };
+      locals.runtime.ctx.waitUntil(
+        (async () => {
+          try {
+            let currentData = await userInteractionsKV.get<any>(kvKey, { type: 'json' }) || { read: true, messages: [] };
+            currentData.read = true;
+            currentData.messages.push(userMessageEntry, aiMessageEntry);
+            await userInteractionsKV.put(kvKey, JSON.stringify(currentData));
+          } catch (e) { console.error(`KV store error for /api/ask messages (${kvKey}):`, e); }
+        })()
+      );
+    }
 
-      const finalAnswer = llmAnswerFromSchema || "The AI indicated this query is related but didn't provide a specific answer. Try rephrasing your question.";
-      if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ sessionId, readerId, blogSlug: slug, turnTimestampUTC: turnTimestamp, userQuestion: currentUserQuestion, aiRawRelation: relation, aiRelatedFlag: related, aiResponse: finalAnswer, source, modelUsed: DEFAULT_MODEL, durationMs, ...(vectorMatches && { ragVectorMatches: vectorMatches }) })));
-
-      if (userInteractionsKV && readerId && slug && turnTimestamp && currentUserQuestion && finalAnswer) {
-        const interactionDate = new Date(turnTimestamp).toISOString().split('T')[0];
-        const kvKey = `${readerId}/${interactionDate}/${slug}`;
-        const userMessageEntry = { role: 'user', content: currentUserQuestion, timestamp: turnTimestamp };
-        const aiMessageEntry = { role: 'ai', content: finalAnswer, timestamp: new Date().toISOString() };
-        locals.runtime.ctx.waitUntil(
-          (async () => {
-            try {
-              let currentData = await userInteractionsKV.get<any>(kvKey, { type: 'json' }) || { read: true, messages: [] };
-              currentData.read = true;
-              currentData.messages.push(userMessageEntry, aiMessageEntry);
-              await userInteractionsKV.put(kvKey, JSON.stringify(currentData));
-            } catch (e) { console.error(`KV store error for /api/ask messages (${kvKey}):`, e); }
-          })()
-        );
-      }
-
-      const responsePayload = {
-        answer: finalAnswer,
-        source: source,
-        durationMs,
-        ...(vectorMatches && { vectorMatches }),
-        ...(contextChunks && { contextChunks }),
-      };
-
-      return new Response(JSON.stringify(responsePayload), { status: 200, headers: { "Content-Type": "application/json" } });
+    const responsePayload = {
+      answer: finalAnswer,
+      source: source,
+      durationMs,
+      ...(vectorMatches && { vectorMatches }),
+      ...(contextChunks && { contextChunks }),
     };
 
-    if (tracer) {
-      const traceName = `ask-api-${source}`;
-      const spanAttributes = { slug, readerId, sessionId, source, model: payload.model, useRag };
-      const span = tracer.startSpan(traceName, { attributes: spanAttributes });
-      return otelContext.with(trace.setSpan(otelContext.active(), span), async () => {
-        try {
-          return await executeLlmCall();
-        } catch (e) {
-          span.recordException(e);
-          span.setStatus({ code: SpanStatusCode.ERROR, message: e.message });
-          throw e;
-        } finally {
-          span.end();
-        }
-      });
-    } else {
-      return executeLlmCall();
-    }
+    return new Response(JSON.stringify(responsePayload), { status: 200, headers: { "Content-Type": "application/json" } });
 
   } catch (error: unknown) {
     console.error("Error in /api/ask endpoint:", error);

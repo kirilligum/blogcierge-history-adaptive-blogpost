@@ -25,14 +25,6 @@ CLOUDFLARE_API_TOKEN=""
 CLOUDFLARE_ACCOUNT_ID=""
 CLOUDFLARE_PROJECT_NAME="your-cloudflare-pages-project-name"
 
-# --- Phoenix/Arize LLM Tracing ---
-# Set this to your Phoenix collector endpoint. For local Phoenix, it is http://127.0.0.1:6006
-# For production, get this from your Arize account.
-PHOENIX_COLLECTOR_ENDPOINT="http://127.0.0.1:6006"
-# Set this if your Phoenix instance requires an API key for authentication.
-# For production, get this from your Arize account.
-PHOENIX_API_KEY=""
-
 
 # This file contains secrets for local development.
 # Copy this file to .dev.vars and fill in your API keys.

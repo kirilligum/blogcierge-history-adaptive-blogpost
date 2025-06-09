@@ -24,8 +24,6 @@ interface Env {
   BLGC_RAG_DB: D1Database;
   BLGC_RAG_VECTORS: VectorizeIndex;
   AI: Ai;
-  PHOENIX_COLLECTOR_ENDPOINT: string;
-  PHOENIX_API_KEY: string;
 }
 
 type Runtime = import("@astrojs/cloudflare").Runtime<Env>;

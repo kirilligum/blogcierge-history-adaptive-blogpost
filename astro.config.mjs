@@ -19,10 +19,4 @@ export default defineConfig({
       entrypoint: 'astro/assets/services/squoosh'
     }
   },
-  // Add Vite config to ensure Phoenix/OpenTelemetry are bundled
-  vite: {
-    ssr: {
-      noExternal: ['@opentelemetry/api', '@arizeai/phoenix']
-    }
-  }
 });
