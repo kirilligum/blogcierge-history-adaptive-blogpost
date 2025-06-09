@@ -114,7 +114,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       timestamp: errorLogTimestamp,
     };
      locals.runtime.ctx.waitUntil(
-        aiLogsBucket.put(errorR2Key, JSON.stringify(errorLogData))
+        aiLogsBucket.put(errorR2Key, JSON.stringify(errorLogData), {
+          httpMetadata: { contentType: "application/json" },
+        })
      );
 
     return new Response(

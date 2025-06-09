@@ -262,6 +262,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   await r2Bucket.put(
     lockKey,
     JSON.stringify({ startedAt: new Date().toISOString() }),
+    { httpMetadata: { contentType: "application/json" } },
   );
   console.log(`Lock acquired for ${slug}.`);
 
