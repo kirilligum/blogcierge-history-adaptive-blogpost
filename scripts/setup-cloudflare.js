@@ -120,17 +120,16 @@ function main() {
   // Print instructions for local dev and production
   console.log('\n\n✅✅✅ Setup Complete! ✅✅✅');
 
-  console.log('\n--- Local Development ---');
+  console.log('\n--- Next Steps ---');
   console.log('`wrangler.toml` has been updated with your new resource IDs.');
-  console.log('IMPORTANT: Remember to add your API keys to the `.dev.vars` file for local testing.');
-  console.log('You can now run `yarn preview` to start the local development server.');
+  console.log('IMPORTANT: You must now commit the updated `wrangler.toml` file to your repository.');
+  console.log('  git add wrangler.toml');
+  console.log('  git commit -m "feat: configure Cloudflare resources"');
+  console.log('\nAfter committing, push your changes to trigger a new deployment with the correct bindings.');
 
   console.log('\n--- Production Deployment ---');
-  console.log('For your deployed application to work, you must add your API keys as secrets in your Cloudflare Pages project dashboard.');
+  console.log('For your deployed application to work, you must also add your API keys as secrets in your Cloudflare Pages project dashboard.');
   console.log('Go to your Pages Project > Settings > Environment variables > Production > Add secret.');
-  console.log('Bindings are now managed by `wrangler.toml` and will be deployed automatically.');
-  console.log('\nAfter adding secrets, commit and push your changes to deploy!');
-  console.log('NOTE: Do NOT commit the changes made to `wrangler.toml` by this script.');
 }
 
 main();

@@ -77,7 +77,7 @@ This script will:
 2.  Automatically update your `wrangler.toml` file with the IDs of the newly created resources.
 3.  Create a `.dev.vars` file if one doesn't exist, for you to add your API keys.
 
-**Note:** The setup script modifies `wrangler.toml`. It is recommended not to commit these changes to version control if you plan to share your repository publicly.
+**Important:** The setup script modifies `wrangler.toml` with your unique resource IDs. For your project to deploy correctly, you **must commit the updated `wrangler.toml` file** to your repository after running the script.
 
 ### Step 4: Set Up GitHub OAuth App for Local Development
 
