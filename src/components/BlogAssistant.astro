@@ -140,6 +140,8 @@ const { slug } = Astro.props;
       content: string;
       feedbackRating?: "like" | "dislike";
       durationMs?: number;
+      source?: string;
+      vectorMatches?: Array<{ id: string; score: number }>;
     }> = [];
     const initialMessage =
       "Hello! Ask me any technical questions about this blog post.";
@@ -204,11 +206,18 @@ const { slug } = Astro.props;
                 durationHTML = `<span class="response-duration" title="Response generation time">(${durationSeconds}s)</span>`;
               }
 
+              let debugHTML = '';
+              if (aiMessageWithFeedback.source === 'llm_rag' && aiMessageWithFeedback.vectorMatches) {
+                const debugButtonId = `debug-btn-${i}`;
+                debugHTML = `<button id="${debugButtonId}" class="debug-button" title="Show RAG Info">ℹ️</button>`;
+              }
+
               const feedbackHTMLString = `
                 <span class="feedback-container-inline">
                   <button id="${likeButtonId}" class="${likeBtnClasses}" title="Like this response" ${likeBtnDisabled}>👍</button>
                   <button id="${dislikeButtonId}" class="${dislikeBtnClasses}" title="Dislike this response" ${dislikeBtnDisabled}>👎</button>
                   ${durationHTML}
+                  ${debugHTML}
                 </span>
               `;
               questionHTML += feedbackHTMLString;
@@ -236,6 +245,16 @@ const { slug } = Astro.props;
                   handleFeedbackClick(e.currentTarget as HTMLButtonElement, i, "dislike");
                 });
               }
+
+              if (currentMessage.source === 'llm_rag' && currentMessage.vectorMatches) {
+                const debugButtonId = `debug-btn-${i}`;
+                const debugButton = questionElement.querySelector(`#${debugButtonId}`);
+                if (debugButton) {
+                  debugButton.addEventListener('click', () => {
+                    toggleRagInfo(i);
+                  });
+                }
+              }
             }
           }
 
@@ -250,6 +269,12 @@ const { slug } = Astro.props;
           );
 
           responsePane.appendChild(answerElement);
+
+          const ragInfoContainerId = `rag-info-${i}`;
+          const ragInfoContainer = document.createElement('div');
+          ragInfoContainer.id = ragInfoContainerId;
+          ragInfoContainer.classList.add('rag-info-container', 'hidden');
+          responsePane.appendChild(ragInfoContainer);
         }
       }
       responsePane.scrollTop = 0;
@@ -310,6 +335,31 @@ const { slug } = Astro.props;
         console.error("Client-side error submitting feedback:", error);
         // The visual state remains "voted".
         // No need to revert UI changes here.
+      }
+    }
+
+    function toggleRagInfo(aiMessageIndex: number) {
+      const ragInfoContainer = document.getElementById(`rag-info-${aiMessageIndex}`);
+      const aiMessage = chatHistory[aiMessageIndex];
+
+      if (!ragInfoContainer || !aiMessage || !aiMessage.vectorMatches) return;
+
+      if (ragInfoContainer.classList.contains('hidden')) {
+        // Show info
+        const matches = aiMessage.vectorMatches;
+        let content = '<h4>RAG Debug Info</h4>';
+        content += `<p>Found ${matches.length} vector matches:</p>`;
+        content += '<ul>';
+        matches.forEach(match => {
+          content += `<li>Chunk ID: <strong>${match.id}</strong>, Score: ${match.score.toFixed(4)}</li>`;
+        });
+        content += '</ul>';
+        ragInfoContainer.innerHTML = content;
+        ragInfoContainer.classList.remove('hidden');
+      } else {
+        // Hide info
+        ragInfoContainer.classList.add('hidden');
+        ragInfoContainer.innerHTML = '';
       }
     }
 
@@ -428,7 +478,13 @@ const { slug } = Astro.props;
         chatHistory.pop();
 
         if (apiResponse.ok) {
-          chatHistory.push({ type: "ai", content: data.answer, durationMs: data.durationMs });
+          chatHistory.push({
+            type: "ai",
+            content: data.answer,
+            durationMs: data.durationMs,
+            source: data.source,
+            vectorMatches: data.vectorMatches,
+          });
         } else {
           chatHistory.push({
             type: "error",
@@ -737,5 +793,42 @@ const { slug } = Astro.props;
     font-size: 0.8em;
     color: var(--blgc-text-secondary, #5d5d5d);
     font-style: italic;
+  }
+
+  .debug-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2em;
+    padding: 0 0.2em;
+    vertical-align: middle;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+  .debug-button:hover {
+    opacity: 1;
+  }
+
+  .rag-info-container {
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.5em 1em;
+    margin: 0.5em 0 1em 10%;
+    max-width: 80%;
+    font-size: 0.85em;
+    color: #333;
+  }
+  .rag-info-container.hidden {
+    display: none;
+  }
+  .rag-info-container h4 {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+    font-size: 1.1em;
+  }
+  .rag-info-container ul {
+    margin: 0;
+    padding-left: 1.2em;
   }
 </style>

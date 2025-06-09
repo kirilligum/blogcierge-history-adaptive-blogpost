@@ -264,7 +264,14 @@ export const POST: APIRoute = async (context) => {
       );
     }
 
-    return new Response(JSON.stringify({ answer: finalAnswer, source: "llm", durationMs }), { status: 200 });
+    const responsePayload = {
+      answer: finalAnswer,
+      source: source,
+      durationMs,
+      ...(vectorMatches && { vectorMatches }),
+    };
+
+    return new Response(JSON.stringify(responsePayload), { status: 200, headers: { "Content-Type": "application/json" } });
 
   } catch (error: unknown) {
     console.error("Error in /api/ask endpoint:", error);
