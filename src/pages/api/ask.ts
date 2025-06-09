@@ -61,6 +61,7 @@ async function handleRagMode(
   const topK = 5;
   const vectorQuery = await vectorIndex.query(questionEmbedding, { topK });
   const vectorMatches = vectorQuery.matches;
+  console.log(`[RAG] Found ${vectorMatches.length} vector matches for question "${currentUserQuestion.substring(0, 50)}...". Matches: ${JSON.stringify(vectorMatches)}`);
   const chunkIds = vectorMatches.map(match => parseInt(match.id));
 
   let contextChunks: { text: string }[] = [];
@@ -69,6 +70,7 @@ async function handleRagMode(
     const { results } = await db.prepare(query).bind(...chunkIds).all<{ text: string }>();
     if (results) contextChunks = results;
   }
+  console.log(`[RAG] Fetched ${contextChunks.length} context chunks from D1 for context.`);
 
   if (contextChunks.length === 0) {
     const userMessage = "I couldn't find any relevant information in the blog posts to answer your question. The search index might be empty or still being built. Please try again later or ask a different question.";
