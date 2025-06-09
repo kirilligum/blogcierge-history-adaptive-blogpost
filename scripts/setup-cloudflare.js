@@ -19,15 +19,13 @@ const BINDINGS = {
  * @param {string} command The command to run.
  * @param {object} options
  * @param {boolean} [options.ignoreExistError=false] - If true, ignores "already exists" errors.
- * @param {boolean} [options.expectJson=true] - If true, appends --json and parses the output.
+ * @param {boolean} [options.expectJson=true] - If true, parses the output as JSON.
  * @returns {any} Parsed JSON object or raw string output.
  */
 function runCommand(command, { ignoreExistError = false, expectJson = true } = {}) {
-  const fullCommand = expectJson ? `${command} --json` : command;
-
   try {
-    console.log(`\n> Executing: ${fullCommand}`);
-    const output = execSync(fullCommand, { encoding: 'utf8' });
+    console.log(`\n> Executing: ${command}`);
+    const output = execSync(command, { encoding: 'utf8' });
     if (expectJson) {
       const parsedOutput = JSON.parse(output);
       console.log(`✅ Success!`);
@@ -42,7 +40,7 @@ function runCommand(command, { ignoreExistError = false, expectJson = true } = {
       return null;
     }
     
-    console.error(`\n❌ Error executing command: ${fullCommand}`);
+    console.error(`\n❌ Error executing command: ${command}`);
     try {
         const errorJson = JSON.parse(stderr);
         console.error(`   Error Code: ${errorJson.code}`);
@@ -69,6 +67,7 @@ function main() {
     runCommand(`npx wrangler kv namespace create ${name}`, { ignoreExistError: true, expectJson: false });
     
     // Step 2: List all namespaces to find the ID of the one we just created/ensured exists.
+    // This command outputs JSON by default to stdout when not a TTY.
     const namespacesList = runCommand(`npx wrangler kv namespace list`, { expectJson: true });
     const namespace = namespacesList.find(ns => ns.title === name);
     
@@ -105,7 +104,7 @@ function main() {
   console.log('\n--- Creating D1 Database for RAG ---');
   for (const name of BINDINGS.d1) {
     const dbName = name.toLowerCase().replace(/_/g, '-');
-    const output = runCommand(`npx wrangler d1 create ${dbName}`, { ignoreExistError: true, expectJson: true });
+    const output = runCommand(`npx wrangler d1 create ${dbName} --json`, { ignoreExistError: true, expectJson: true });
     if (output) {
         const placeholder = `placeholder_id_for_${name.toLowerCase()}`;
         wranglerTomlContent = wranglerTomlContent.replace(placeholder, output.uuid);
@@ -119,7 +118,7 @@ function main() {
   console.log('\n--- Creating Vectorize Index for RAG ---');
   for (const name of BINDINGS.vectorize) {
     const indexName = name.toLowerCase().replace(/_/g, '-');
-    runCommand(`npx wrangler vectorize create ${indexName} --dimensions=768 --metric=cosine`, { ignoreExistError: true, expectJson: true });
+    runCommand(`npx wrangler vectorize create ${indexName} --dimensions=768 --metric=cosine --json`, { ignoreExistError: true, expectJson: true });
     console.log(`   -> Binding for Vectorize index '${indexName}' in wrangler.toml is correct.`);
   }
 
