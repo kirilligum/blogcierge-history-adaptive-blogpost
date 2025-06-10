@@ -10,8 +10,12 @@ diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 
 // In Cloudflare Pages, environment variables are available on `process.env`
 // when using the nodejs_compat flag.
-const phoenixEndpoint =
-  (globalThis as any)?.process?.env?.PHOENIX_COLLECTOR_ENDPOINT || "http://127.0.0.1:6006";
+const phoenixApiKey = (globalThis as any)?.process?.env?.PHOENIX_API_KEY;
+
+// Default to cloud if API key is present, otherwise default to local.
+// Allow override with PHOENIX_COLLECTOR_ENDPOINT.
+const defaultEndpoint = phoenixApiKey ? "https://app.phoenix.arize.com" : "http://127.0.0.1:6006";
+const phoenixEndpoint = (globalThis as any)?.process?.env?.PHOENIX_COLLECTOR_ENDPOINT || defaultEndpoint;
 
 const resource = new Resource({
   [SemanticResourceAttributes.SERVICE_NAME]: "blogcierge-ai-assistant",
@@ -20,6 +24,7 @@ const resource = new Resource({
 
 const exporter = new OTLPTraceExporter({
   url: `${phoenixEndpoint}/v1/traces`,
+  headers: phoenixApiKey ? { "api_key": phoenixApiKey } : {},
 });
 
 export const provider = new BasicTracerProvider({ resource });

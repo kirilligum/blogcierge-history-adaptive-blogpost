@@ -7,6 +7,7 @@ import type { Ai, D1Database, KVNamespace, R2Bucket, VectorizeIndex } from "@clo
 interface Env {
   LLAMA_API_KEY: string; // For Cloudflare runtime
   PHOENIX_COLLECTOR_ENDPOINT?: string;
+  PHOENIX_API_KEY?: string;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   GITHUB_REPO_OWNER: string;
