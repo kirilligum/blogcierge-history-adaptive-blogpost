@@ -53,7 +53,7 @@ export function initializeExporter(env: any) {
   try {
     const exporter = new FetchOTLPTraceExporter({
       url: `${phoenixEndpoint}/v1/traces`,
-      headers: phoenixApiKey ? { "api_key": phoenixApiKey } : {},
+      headers: phoenixApiKey ? { "X-API-KEY": phoenixApiKey } : {},
     });
     provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
     (globalThis as any).__phoenixExporterInitialized = true; // Set flag
