@@ -5,6 +5,12 @@ import type { APIRoute } from "astro";
 import { getCollection, getEntryBySlug } from "astro:content";
 import type { D1Database, KVNamespace, R2Bucket, VectorizeIndex } from "@cloudflare/workers-types";
 import { getApiKey } from "../../utils/apiKey";
+import { tracer } from "../../instrumentation";
+import { SpanStatusCode } from "@opentelemetry/api";
+import {
+  SemanticAttributes,
+  OpenInferenceSpanKind,
+} from "@arizeai/openinference-semantic-conventions";
 
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 60; // 2 months
 const ALL_POSTS_CACHE_KEY = "ALL_POSTS_CONCATENATED_V1";
@@ -107,7 +113,13 @@ No additional text or explanation outside this JSON object.`;
   const llmResponseSchema = { name: "blogPostAssistantResponse", strict: true, schema: { type: "object", properties: { relation: { type: "string" }, related: { type: "boolean" }, response: { type: "string" } }, required: ["relation", "related", "response"], additionalProperties: false } };
   const payload = { model: DEFAULT_MODEL, messages: [{ role: "system", content: answererSystemPrompt }, ...messages], max_tokens: 2048, temperature: 0.6, response_format: { type: "json_schema", json_schema: llmResponseSchema } };
   
-  return { payload, source: 'llm_rag', vectorMatches, contextChunks };
+  const promptTemplateVariables = {
+    slug,
+    context_length: contextMessage.length,
+    chat_history_length: messages.length,
+  };
+
+  return { payload, source: 'llm_rag', vectorMatches, contextChunks, promptTemplateVariables };
 }
 
 async function handleFullContextMode(
@@ -156,7 +168,13 @@ You MUST output your response as a single JSON object adhering to the following 
   const llmResponseSchema = { name: "blogPostAssistantResponse", strict: true, schema: { type: "object", properties: { relation: { type: "string" }, related: { type: "boolean" }, response: { type: "string" } }, required: ["relation", "related", "response"], additionalProperties: false } };
   const payload = { model: DEFAULT_MODEL, messages: [{ role: "system", content: answererSystemPrompt }, ...messages], max_tokens: 2048, temperature: 0.6, response_format: { type: "json_schema", json_schema: llmResponseSchema } };
 
-  return { payload, source: 'llm_full_context' };
+  const promptTemplateVariables = {
+    slug,
+    context_length: allPostsConcatenatedBody.length,
+    chat_history_length: messages.length,
+  };
+
+  return { payload, source: 'llm_full_context', promptTemplateVariables };
 }
 
 export const POST: APIRoute = async (context) => {
@@ -211,14 +229,69 @@ export const POST: APIRoute = async (context) => {
       return modeResult;
     }
 
-    const { payload, source, vectorMatches, contextChunks } = modeResult;
+    const { payload, source, vectorMatches, contextChunks, promptTemplateVariables } = modeResult;
 
     if (payload instanceof Response) {
       return payload;
     }
 
     const startTime = Date.now();
-    const llmResponse = await fetch(LLAMA_API_URL, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const llmResponse = await tracer.startActiveSpan(
+      source, // e.g., 'llm_rag'
+      {
+        attributes: {
+          [SemanticAttributes.OPENINFERENCE_SPAN_KIND]: OpenInferenceSpanKind.LLM,
+          [SemanticAttributes.LLM_MODEL_NAME]: payload.model,
+          [SemanticAttributes.LLM_PROMPT_TEMPLATE]: payload.messages.find(m => m.role === 'system')?.content || '',
+          [SemanticAttributes.LLM_PROMPT_TEMPLATE_VARIABLES]: JSON.stringify(promptTemplateVariables),
+          [SemanticAttributes.INPUT_VALUE]: JSON.stringify(payload.messages),
+        },
+      },
+      async (span) => {
+        try {
+          const response = await fetch(LLAMA_API_URL, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const responseClone = response.clone();
+          
+          try {
+            const answerData = await responseClone.json();
+            const llmOutputString = answerData.completion_message?.content?.text || answerData.choices?.[0]?.message?.content;
+            span.setAttribute(SemanticAttributes.OUTPUT_VALUE, llmOutputString || "Empty LLM response");
+
+            if (!response.ok) {
+              const errorDetails = answerData?.error?.message || JSON.stringify(answerData);
+              span.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: `LLM API Error: Status ${response.status}`,
+              });
+              span.recordException(new Error(`LLM API Error: Status ${response.status}. Details: ${errorDetails}`));
+            }
+          } catch (e) {
+            span.setStatus({ code: SpanStatusCode.ERROR, message: `Failed to parse LLM JSON response: ${e.message}` });
+            span.recordException(e);
+            try {
+              const textBody = await response.clone().text();
+              span.setAttribute(SemanticAttributes.OUTPUT_VALUE, `[UNPARSABLE_JSON_RESPONSE] ${textBody}`);
+            } catch (textErr) { /* ignore */ }
+          }
+          
+          span.end();
+          return response;
+        } catch (error) {
+          span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+          span.recordException(error);
+          span.end();
+          throw error;
+        }
+      },
+    );
     const durationMs = Date.now() - startTime;
 
     if (!llmResponse.ok) {

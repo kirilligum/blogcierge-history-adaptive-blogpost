@@ -6,6 +6,7 @@ import type { Ai, D1Database, KVNamespace, R2Bucket, VectorizeIndex } from "@clo
 // Define the Env interface for Cloudflare bindings
 interface Env {
   LLAMA_API_KEY: string; // For Cloudflare runtime
+  PHOENIX_COLLECTOR_ENDPOINT?: string;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   GITHUB_REPO_OWNER: string;
