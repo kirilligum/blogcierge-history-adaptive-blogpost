@@ -3,7 +3,7 @@ import { Resource } from "@opentelemetry/resources";
 import { BasicTracerProvider, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import { FetchOTLPTraceExporter } from "./utils/phoenix-exporter";
+import { FetchOTLPProtobufTraceExporter } from "./utils/phoenix-exporter";
 
 // For troubleshooting, set the log level to DiagLogLevel.INFO
 /*
@@ -48,19 +48,21 @@ export function initializeExporter(env: any) {
   const defaultEndpoint = phoenixApiKey ? "https://app.phoenix.arize.com" : "http://127.0.0.1:6006";
   const phoenixEndpoint = env?.PHOENIX_COLLECTOR_ENDPOINT || defaultEndpoint;
 
-  console.log(`[instrumentation] Initializing FetchOTLPTraceExporter with endpoint: ${phoenixEndpoint}, API key present: ${!!phoenixApiKey}`);
+  console.log(`[instrumentation] Initializing FetchOTLPProtobufTraceExporter with endpoint: ${phoenixEndpoint}, API key present: ${!!phoenixApiKey}`);
 
   try {
-    const exporter = new FetchOTLPTraceExporter({
+    // Use the new Protobuf-based fetch exporter
+    const exporter = new FetchOTLPProtobufTraceExporter({
       url: `${phoenixEndpoint}/v1/traces`,
-      headers: phoenixApiKey ? { "X-API-KEY": phoenixApiKey } : {},
+      // The official JS docs use "api_key" for Phoenix Cloud.
+      headers: phoenixApiKey ? { "api_key": phoenixApiKey } : {},
     });
     provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
     (globalThis as any).__phoenixExporterInitialized = true; // Set flag
-    console.log("[instrumentation] FetchOTLPTraceExporter successfully initialized and added to provider.");
+    console.log("[instrumentation] FetchOTLPProtobufTraceExporter successfully initialized and added to provider.");
   } catch (e) {
     console.warn(
-      "[instrumentation] FetchOTLPTraceExporter initialization failed:",
+      "[instrumentation] FetchOTLPProtobufTraceExporter initialization failed:",
       e
     );
   }
