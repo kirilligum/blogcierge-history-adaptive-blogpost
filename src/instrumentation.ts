@@ -22,13 +22,24 @@ const resource = new Resource({
   [SEMRESATTRS_PROJECT_NAME]: "blogcierge",
 });
 
-const exporter = new OTLPTraceExporter({
-  url: `${phoenixEndpoint}/v1/traces`,
-  headers: phoenixApiKey ? { "api_key": phoenixApiKey } : {},
-});
+let exporter: OTLPTraceExporter | undefined;
+
+if (typeof (globalThis as any).XMLHttpRequest !== "undefined") {
+  exporter = new OTLPTraceExporter({
+    url: `${phoenixEndpoint}/v1/traces`,
+    headers: phoenixApiKey ? { "api_key": phoenixApiKey } : {},
+  });
+}
 
 export const provider = new BasicTracerProvider({ resource });
-provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
+
+if (exporter) {
+  provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
+} else {
+  console.warn(
+    "[instrumentation] OTLPTraceExporter disabled: XMLHttpRequest is not available in this runtime."
+  );
+}
 
 // A global flag to ensure we only register once.
 const OTEL_IS_REGISTERED = Symbol.for("otel.is_registered");
