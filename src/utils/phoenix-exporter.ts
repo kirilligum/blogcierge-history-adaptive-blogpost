@@ -1,43 +1,59 @@
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base";
 import { ExportResult, ExportResultCode } from "@opentelemetry/core";
-import { ReadableSpan } from "@opentelemetry/sdk-trace-base";
-import { IExportTraceServiceRequest } from "@opentelemetry/otlp-transformer";
+import {
+  createExportTraceServiceRequest,
+  IExportTraceServiceRequest,
+} from "@opentelemetry/otlp-transformer";
 
 /**
  * A custom OTLP Trace Exporter that uses `fetch` to send Protobuf payloads,
  * making it compatible with environments like Cloudflare Workers.
- * It extends the official OTLPTraceExporter to leverage its Protobuf serialization logic.
+ * It uses the official OTLP Transformer to correctly serialize spans.
  */
-export class FetchOTLPProtobufTraceExporter extends OTLPTraceExporter {
-  // Override the `send` method to use `fetch` instead of `XMLHttpRequest`.
-  send(
-    items: ReadableSpan[],
-    onSuccess: () => void,
-    onError: (error: ExportResult) => void,
-  ): void {
-    // Convert spans to a Protobuf-compatible request object using the base class's method.
-    const serviceRequest = this.convert(items);
+export class FetchOTLPProtobufTraceExporter implements SpanExporter {
+  private _url: string;
+  private _headers: Record<string, string>;
+  private _shutdown = false;
 
-    // Serialize the request object to a binary Protobuf payload.
+  constructor(config: { url: string; headers?: Record<string, string> }) {
+    this._url = config.url;
+    this._headers = config.headers || {};
+  }
+
+  export(
+    spans: ReadableSpan[],
+    resultCallback: (result: ExportResult) => void,
+  ): void {
+    if (this._shutdown) {
+      return resultCallback({
+        code: ExportResultCode.FAILED,
+        error: new Error("Exporter has been shutdown"),
+      });
+    }
+
+    // Create the protobuf request object from the spans.
+    // The second argument `useHex` should be false to get byte arrays for IDs.
+    const serviceRequest = createExportTraceServiceRequest(spans, false);
+
+    // Serialize the request to a binary payload.
     const body = this.serialize(serviceRequest);
 
-    // Send the binary payload using fetch.
-    fetch(this.url, {
+    fetch(this._url, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-protobuf", // The correct content type for binary Protobuf
-        ...this.headers,
+        "Content-Type": "application/x-protobuf",
+        ...this._headers,
       },
       body,
     })
       .then((response) => {
         if (response.ok) {
-          onSuccess();
+          resultCallback({ code: ExportResultCode.SUCCESS });
         } else {
           console.error(
             `[FetchOTLPProtobufTraceExporter] Export failed with status ${response.status}: ${response.statusText}`,
           );
-          onError({
+          resultCallback({
             code: ExportResultCode.FAILED,
             error: new Error(`Status ${response.status}`),
           });
@@ -45,15 +61,17 @@ export class FetchOTLPProtobufTraceExporter extends OTLPTraceExporter {
       })
       .catch((error) => {
         console.error("[FetchOTLPProtobufTraceExporter] Export error:", error);
-        onError({ code: ExportResultCode.FAILED, error });
+        resultCallback({ code: ExportResultCode.FAILED, error });
       });
+  }
+
+  shutdown(): Promise<void> {
+    this._shutdown = true;
+    return Promise.resolve();
   }
 
   // Helper method to serialize the request object to a Uint8Array.
   private serialize(request: IExportTraceServiceRequest): Uint8Array {
-    // This relies on the internal `_export` method of the base class, which is not ideal
-    // but is the most direct way to access the Protobuf serialization.
-    // The `toBinary` method on the service request is what we need.
     return request.toBinary();
   }
 }
