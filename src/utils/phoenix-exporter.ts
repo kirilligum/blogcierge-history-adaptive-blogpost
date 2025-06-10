@@ -2,15 +2,6 @@ import { SpanExporter, ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import { ExportResult, ExportResultCode, hrTimeToMicroseconds } from "@opentelemetry/core";
 import { SpanStatusCode } from "@opentelemetry/api";
 
-// Helper to convert a hex string to a base64 string.
-function hexToBase64(hex: string): string {
-  let str = '';
-  for (let i = 0; i < hex.length; i += 2) {
-    str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
-  }
-  return btoa(str);
-}
-
 // A simplified OTLP/JSON over HTTP exporter that uses `fetch`
 export class FetchOTLPTraceExporter implements SpanExporter {
   private url: string;
@@ -93,8 +84,8 @@ export class FetchOTLPTraceExporter implements SpanExporter {
 
   private toOtlpSpan(span: ReadableSpan) {
     const otlpSpan: any = {
-      traceId: hexToBase64(span.spanContext().traceId),
-      spanId: hexToBase64(span.spanContext().spanId),
+      traceId: span.spanContext().traceId,
+      spanId: span.spanContext().spanId,
       name: span.name,
       kind: span.kind + 1, // OTLP span kind is 1-indexed
       startTimeUnixNano: (hrTimeToMicroseconds(span.startTime) * 1000).toString(),
@@ -108,7 +99,7 @@ export class FetchOTLPTraceExporter implements SpanExporter {
     };
 
     if (span.parentSpanId) {
-      otlpSpan.parentSpanId = hexToBase64(span.parentSpanId);
+      otlpSpan.parentSpanId = span.parentSpanId;
     }
 
     // Only include status if it's not UNSET.
