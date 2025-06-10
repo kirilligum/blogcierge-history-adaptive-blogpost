@@ -5,7 +5,7 @@ import type { APIRoute } from "astro";
 import { getCollection, getEntryBySlug } from "astro:content";
 import type { D1Database, KVNamespace, R2Bucket, VectorizeIndex } from "@cloudflare/workers-types";
 import { getApiKey } from "../../utils/apiKey";
-import { tracer } from "../../instrumentation";
+import { tracer, provider } from "../../instrumentation";
 import { SpanStatusCode } from "@opentelemetry/api";
 import {
   SemanticConventions,
@@ -390,5 +390,7 @@ export const POST: APIRoute = async (context) => {
       locals.runtime.ctx.waitUntil(aiLogsBucket.put(finalR2Key, JSON.stringify({ apiRequest: requestBody, errorDetails: `Outer API Error: ${errorMessage}`, source: "error_api_catch_all" }), { httpMetadata: { contentType: "application/json" } }));
     }
     return new Response(JSON.stringify({ error: `An unexpected server error occurred: ${errorMessage}` }), { status: 500, headers: { "Content-Type": "application/json" } });
+  } finally {
+    context.locals.runtime.ctx.waitUntil(provider.forceFlush());
   }
 };

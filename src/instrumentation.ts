@@ -1,7 +1,7 @@
 import { diag, DiagConsoleLogger, DiagLogLevel, trace } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import { Resource } from "@opentelemetry/resources";
-import { BasicTracerProvider, BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { BasicTracerProvider, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 
@@ -22,8 +22,8 @@ const exporter = new OTLPTraceExporter({
   url: `${phoenixEndpoint}/v1/traces`,
 });
 
-const provider = new BasicTracerProvider({ resource });
-provider.addSpanProcessor(new BatchSpanProcessor(exporter));
+export const provider = new BasicTracerProvider({ resource });
+provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
 
 // A global flag to ensure we only register once.
 const OTEL_IS_REGISTERED = Symbol.for("otel.is_registered");
