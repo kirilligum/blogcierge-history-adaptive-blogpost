@@ -31,20 +31,23 @@ const resource = new Resource({
 let exporter: OTLPTraceExporter | undefined;
 
 if (typeof (globalThis as any).XMLHttpRequest !== "undefined") {
-  exporter = new OTLPTraceExporter({
-    url: `${phoenixEndpoint}/v1/traces`,
-    headers: phoenixApiKey ? { "api_key": phoenixApiKey } : {},
-  });
+  try {
+    exporter = new OTLPTraceExporter({
+      url: `${phoenixEndpoint}/v1/traces`,
+      headers: phoenixApiKey ? { "api_key": phoenixApiKey } : {},
+    });
+  } catch (e) {
+    // Silently ignore initialization errors in environments without XMLHttpRequest
+    console.warn(
+      "[instrumentation] OTLPTraceExporter initialization skipped: XMLHttpRequest is not available in this runtime."
+    );
+  }
 }
 
 export const provider = new BasicTracerProvider({ resource });
 
 if (exporter) {
   provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
-} else {
-  console.warn(
-    "[instrumentation] OTLPTraceExporter disabled: XMLHttpRequest is not available in this runtime."
-  );
 }
 
 // A global flag to ensure we only register once.
