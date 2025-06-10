@@ -2,6 +2,20 @@ import { SpanExporter, ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import { ExportResult, ExportResultCode, hrTimeToMicroseconds } from "@opentelemetry/core";
 import { SpanStatusCode } from "@opentelemetry/api";
 
+// OTLP/JSON status codes are strings, not numbers.
+// https://opentelemetry.io/docs/specs/otlp/#json-encoding
+function toOtlpStatusCodeString(code: SpanStatusCode): string {
+  switch (code) {
+    case SpanStatusCode.OK:
+      return "STATUS_CODE_OK";
+    case SpanStatusCode.ERROR:
+      return "STATUS_CODE_ERROR";
+    case SpanStatusCode.UNSET:
+    default:
+      return "STATUS_CODE_UNSET";
+  }
+}
+
 // A simplified OTLP/JSON over HTTP exporter that uses `fetch`
 export class FetchOTLPTraceExporter implements SpanExporter {
   private url: string;
@@ -102,12 +116,15 @@ export class FetchOTLPTraceExporter implements SpanExporter {
       otlpSpan.parentSpanId = span.parentSpanId;
     }
 
-    // Only include status if it's not UNSET.
+    // The OTLP/JSON spec says the status code SHOULD be a string.
+    // This is likely the cause of the 400 Bad Request.
     if (span.status.code !== SpanStatusCode.UNSET) {
       otlpSpan.status = {
-        code: span.status.code,
-        message: span.status.message,
+        code: toOtlpStatusCodeString(span.status.code),
       };
+      if (span.status.message) {
+        otlpSpan.status.message = span.status.message;
+      }
     }
 
     return otlpSpan;
