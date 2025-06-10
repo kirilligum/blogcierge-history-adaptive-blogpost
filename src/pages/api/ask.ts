@@ -5,7 +5,7 @@ import type { APIRoute } from "astro";
 import { getCollection, getEntryBySlug } from "astro:content";
 import type { D1Database, KVNamespace, R2Bucket, VectorizeIndex } from "@cloudflare/workers-types";
 import { getApiKey } from "../../utils/apiKey";
-import { tracer, provider } from "../../instrumentation";
+import { tracer, provider, initializeExporter } from "../../instrumentation";
 import { SpanStatusCode } from "@opentelemetry/api";
 import {
   SemanticConventions,
@@ -179,6 +179,10 @@ You MUST output your response as a single JSON object adhering to the following 
 
 export const POST: APIRoute = async (context) => {
   const { request, locals } = context;
+  
+  // Initialize the exporter with runtime environment variables
+  initializeExporter(locals.runtime?.env);
+
   const aiLogsBucket = locals.runtime?.env?.BLGC_AI_LOGS_BUCKET;
   const userInteractionsKV = locals.runtime?.env?.BLGC_USER_INTERACTIONS_KV as KVNamespace | undefined;
 
