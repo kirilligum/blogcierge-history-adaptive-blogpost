@@ -1,8 +1,6 @@
 export const prerender = false;
 
 import "../../instrumentation";
-import { trace, Span, SpanStatusCode } from "@opentelemetry/api";
-import { OpenInferenceSpanKind, SemanticConventions } from "@arizeai/openinference-semantic-conventions";
 import type { APIRoute } from "astro";
 import { getCollection, getEntryBySlug } from "astro:content";
 import type { D1Database, KVNamespace, R2Bucket, VectorizeIndex } from "@cloudflare/workers-types";
@@ -24,8 +22,6 @@ function getR2SessionLogKey(slug: string, sessionId: string, turnTimestamp: stri
   const formattedDate = `${year}-${month}-${day}`;
   return `ai-logs/${slug}/${formattedDate}/${sessionId}/${turnTimestamp}.json`;
 }
-
-const tracer = trace.getTracer("blogcierge.ask", "0.1.0");
 
 const LLAMA_API_URL = "https://api.llama.com/v1/chat/completions";
 const DEFAULT_MODEL = "Llama-4-Maverick-17B-128E-Instruct-FP8";
@@ -53,11 +49,7 @@ async function handleRagMode(
     return new Response(JSON.stringify({ error: userMessage }), { status: 501 });
   }
 
-  const { data: embeddingData } = await tracer.startActiveSpan("rag.embed_question", async (span) => {
-    const res = await ai.run(EMBEDDING_MODEL, { text: [currentUserQuestion] });
-    span.end();
-    return res;
-  });
+  const { data: embeddingData } = await ai.run(EMBEDDING_MODEL, { text: [currentUserQuestion] });
   const questionEmbedding = embeddingData[0];
 
   if (!questionEmbedding) {
@@ -68,13 +60,7 @@ async function handleRagMode(
   }
 
   const topK = 5;
-  const vectorQuery = await tracer.startActiveSpan("rag.vector_query", async (span) => {
-    const query = await vectorIndex.query(questionEmbedding, { topK });
-    span.setAttribute("rag.vector_query.top_k", topK);
-    span.setAttribute("rag.vector_query.matches_count", query.matches.length);
-    span.end();
-    return query;
-  });
+  const vectorQuery = await vectorIndex.query(questionEmbedding, { topK });
   const vectorMatches = vectorQuery.matches;
   console.log(`[RAG] Found ${vectorMatches.length} vector matches for question "${currentUserQuestion.substring(0, 50)}...". Matches: ${JSON.stringify(vectorMatches)}`);
   const chunkIds = vectorMatches.map(match => parseInt(match.id));
@@ -82,13 +68,7 @@ async function handleRagMode(
   let contextChunks: { id: number; text: string }[] = [];
   if (chunkIds.length > 0) {
     const query = `SELECT id, text FROM content_chunks WHERE id IN (${'?,'.repeat(chunkIds.length).slice(0, -1)})`;
-    const { results } = await tracer.startActiveSpan("rag.fetch_chunks", async (span) => {
-      const res = await db.prepare(query).bind(...chunkIds).all<{ id: number; text: string }>();
-      span.setAttribute("rag.fetch_chunks.id_count", chunkIds.length);
-      span.setAttribute("rag.fetch_chunks.found_count", res?.results?.length ?? 0);
-      span.end();
-      return res;
-    });
+    const { results } = await db.prepare(query).bind(...chunkIds).all<{ id: number; text: string }>();
     if (results) contextChunks = results;
   }
   console.log(`[RAG] Fetched ${contextChunks.length} context chunks from D1 for context.`);
@@ -199,176 +179,143 @@ export const POST: APIRoute = async (context) => {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
   }
 
-  return tracer.startActiveSpan(`ask ${useRag ? 'RAG' : 'Full-Context'}`, {
-    attributes: {
-      [SemanticConventions.OPENINFERENCE_SPAN_KIND]: OpenInferenceSpanKind.CHAIN,
-      slug,
-      readerId,
-      sessionId,
-      useRag,
-      [SemanticConventions.INPUT_VALUE]: currentUserQuestion,
+  try {
+    turnTimestamp = new Date().toISOString();
+    if (aiLogsBucket) r2Key = getR2SessionLogKey(slug, sessionId, turnTimestamp);
+
+    const aiCache = locals.runtime?.env?.BLGC_BLOGPOST_AI_CACHE;
+    const lastMessage = messages[messages.length - 1];
+    if (aiCache && lastMessage && lastMessage.role === "user" && messages.length === 1) {
+      const normalizedCurrentUserQuestion = normalizeQuestionForCache(lastMessage.content);
+      const cacheKey = `initial-q::${slug}::${normalizedCurrentUserQuestion}`;
+      const cachedAnswer = await aiCache.get(cacheKey);
+      if (cachedAnswer) {
+        if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, aiResponse: cachedAnswer, source: "cache", cacheKey }), { httpMetadata: { contentType: "application/json" } }));
+        return new Response(JSON.stringify({ answer: cachedAnswer, source: "cache", durationMs: 0 }), { status: 200 });
+      }
     }
-  }, async (rootSpan: Span) => {
-    try {
-      turnTimestamp = new Date().toISOString();
-      if (aiLogsBucket) r2Key = getR2SessionLogKey(slug, sessionId, turnTimestamp);
 
-      const aiCache = locals.runtime?.env?.BLGC_BLOGPOST_AI_CACHE;
-      const lastMessage = messages[messages.length - 1];
-      if (aiCache && lastMessage && lastMessage.role === "user" && messages.length === 1) {
-        const normalizedCurrentUserQuestion = normalizeQuestionForCache(lastMessage.content);
-        const cacheKey = `initial-q::${slug}::${normalizedCurrentUserQuestion}`;
-        const cachedAnswer = await aiCache.get(cacheKey);
-        if (cachedAnswer) {
-          if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, aiResponse: cachedAnswer, source: "cache", cacheKey }), { httpMetadata: { contentType: "application/json" } }));
-          rootSpan.setAttribute("cache.hit", true);
-          return new Response(JSON.stringify({ answer: cachedAnswer, source: "cache", durationMs: 0 }), { status: 200 });
-        }
-        rootSpan.setAttribute("cache.hit", false);
-      }
-
-      const apiKey = getApiKey(locals, import.meta.env.DEV);
-      if (!apiKey) {
-        if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, errorDetails: "Server configuration error: API key missing.", source: "error_api_key" }), { httpMetadata: { contentType: "application/json" } }));
-        throw new Error("Server configuration error. API key missing.");
-      }
-
-      const modeArgs = { slug, currentUserQuestion, messages, readerId, sessionId, turnTimestamp, r2Key, requestBody };
-      
-      const modeResult = useRag
-        ? await handleRagMode(modeArgs, context)
-        : await handleFullContextMode(modeArgs, context);
-
-      if (modeResult instanceof Response) {
-        return modeResult;
-      }
-
-      const { payload, source, vectorMatches, contextChunks } = modeResult;
-
-      if (payload instanceof Response) {
-        return payload;
-      }
-
-      const llmSpan = tracer.startSpan("llm.request", {
-        attributes: {
-          [SemanticConventions.OPENINFERENCE_SPAN_KIND]: OpenInferenceSpanKind.LLM,
-          [SemanticConventions.LLM_MODEL_NAME]: payload.model,
-          [SemanticConventions.LLM_PROMPT_TEMPLATE]: payload.messages.find(m => m.role === 'system')?.content ?? '',
-          [SemanticConventions.INPUT_VALUE]: JSON.stringify(payload.messages),
-          [SemanticConventions.LLM_INVOCATION_PARAMETERS]: JSON.stringify({ temperature: payload.temperature, max_tokens: payload.max_tokens }),
-        }
-      });
-
-      const startTime = Date.now();
-      const llmResponse = await fetch(LLAMA_API_URL, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const durationMs = Date.now() - startTime;
-      llmSpan.setAttribute("duration.ms", durationMs);
-
-      if (!llmResponse.ok) {
-        const errorText = await llmResponse.text();
-        llmSpan.setStatus({ code: SpanStatusCode.ERROR, message: `LLM API Error: Status ${llmResponse.status}` });
-        llmSpan.recordException(errorText);
-        llmSpan.end();
-        if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, llmRequest: payload, errorDetails: `LLM API Error: Status ${llmResponse.status}. Details: ${errorText.substring(0, 1000)}`, source: "error_llm_api_response" }), { httpMetadata: { contentType: "application/json" } }));
-        return new Response(JSON.stringify({ error: `AI service failed with status ${llmResponse.status}` }), { status: llmResponse.status });
-      }
-
-      const answerData = await llmResponse.json();
-      const llmOutputString = answerData.completion_message?.content?.text || answerData.choices?.[0]?.message?.content;
-      llmSpan.setAttribute(SemanticConventions.OUTPUT_VALUE, llmOutputString);
-      llmSpan.setStatus({ code: SpanStatusCode.OK });
-      llmSpan.end();
-
-      if (!llmOutputString) {
-        if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, llmRequest: payload, llmResponse: answerData, errorDetails: "LLM response content was missing or empty.", source: "error_llm_empty_response_content" }), { httpMetadata: { contentType: "application/json" } }));
-        return new Response(JSON.stringify({ error: "AI service returned an empty response." }), { status: 500 });
-      }
-
-      const parsedLlmJson = JSON.parse(llmOutputString);
-      const { relation, related, response: llmAnswerFromSchema } = parsedLlmJson;
-
-      if (typeof related !== "boolean" || typeof llmAnswerFromSchema === "undefined") {
-        if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, llmRequest: payload, llmResponse: answerData, errorDetails: `LLM JSON response did not match expected schema.`, source: "error_llm_schema_mismatch" }), { httpMetadata: { contentType: "application/json" } }));
-        return new Response(JSON.stringify({ error: "AI service returned data in an unexpected format." }), { status: 500 });
-      }
-
-      if (!related) {
-        const funnyResponses = ["My circuits are tingling to chat about the blog post, but your question seems to be exploring a different galaxy! How about we steer back to LLM data curation?", "Hold your horses, thinker! That question's a bit of a wild stallion, off the blog's trail. Let's wrangle it back to AI and data insights!", "I'm geared up to dissect the blog's content! Your query, though, appears to have wandered into a parallel universe. Shall we return to the fascinating realm of LLMs?", "Bleep, blorp! My prime directive is to assist with this blog post. That question is like asking a dictionary for dance moves! Got any queries about data curation strategies?", "While I admire your expansive curiosity, my expertise is finely tuned to the blog post's subject matter. Let's delve into those topics, shall we?"];
-        const corkyResponse = funnyResponses[Math.floor(Math.random() * funnyResponses.length)];
-        if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, llmRequest: payload, llmResponse: answerData, parsedLlmResponse: parsedLlmJson, systemResponse: corkyResponse, source: "system_filter_off_topic" }), { httpMetadata: { contentType: "application/json" } }));
-        return new Response(JSON.stringify({ answer: corkyResponse, source: "system_filter_off_topic", durationMs: 0 }), { status: 200 });
-      }
-
-      const finalAnswer = llmAnswerFromSchema || "The AI indicated this query is related but didn't provide a specific answer. Try rephrasing your question.";
-      if (aiLogsBucket && r2Key) {
-          const logPayload = {
-              // Metadata
-              sessionId,
-              readerId,
-              blogSlug: slug,
-              turnTimestampUTC: turnTimestamp,
-              source,
-              modelUsed: DEFAULT_MODEL,
-              durationMs,
-              
-              // Request to our API
-              apiRequest: requestBody,
-
-              // Request to LLM
-              llmRequest: payload,
-
-              // Response from LLM
-              llmResponse: answerData,
-
-              // Parsed/final data
-              parsedLlmResponse: parsedLlmJson,
-              finalAnswer,
-
-              // RAG specific data
-              ...(vectorMatches && { ragVectorMatches: vectorMatches }),
-              ...(contextChunks && { ragContextChunks: contextChunks }),
-          };
-          locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify(logPayload), { httpMetadata: { contentType: "application/json" } }));
-      }
-
-      if (userInteractionsKV && readerId && slug && turnTimestamp && currentUserQuestion && finalAnswer) {
-        const interactionDate = new Date(turnTimestamp).toISOString().split('T')[0];
-        const kvKey = `${readerId}/${interactionDate}/${slug}`;
-        const userMessageEntry = { role: 'user', content: currentUserQuestion, timestamp: turnTimestamp };
-        const aiMessageEntry = { role: 'ai', content: finalAnswer, timestamp: new Date().toISOString() };
-        locals.runtime.ctx.waitUntil(
-          (async () => {
-            try {
-              let currentData = await userInteractionsKV.get<any>(kvKey, { type: 'json' }) || { read: true, messages: [] };
-              currentData.read = true;
-              currentData.messages.push(userMessageEntry, aiMessageEntry);
-              await userInteractionsKV.put(kvKey, JSON.stringify(currentData));
-            } catch (e) { console.error(`KV store error for /api/ask messages (${kvKey}):`, e); }
-          })()
-        );
-      }
-
-      const responsePayload = {
-        answer: finalAnswer,
-        source: source,
-        durationMs,
-        ...(vectorMatches && { vectorMatches }),
-        ...(contextChunks && { contextChunks }),
-      };
-
-      rootSpan.setStatus({ code: SpanStatusCode.OK });
-      return new Response(JSON.stringify(responsePayload), { status: 200, headers: { "Content-Type": "application/json" } });
-
-    } catch (error: unknown) {
-      rootSpan.recordException(error as Error);
-      rootSpan.setStatus({ code: SpanStatusCode.ERROR, message: (error as Error).message });
-      console.error("Error in /api/ask endpoint:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-      if (aiLogsBucket) {
-        const finalR2Key = r2Key || `ai-logs/error/${new Date().toISOString()}.json`;
-        locals.runtime.ctx.waitUntil(aiLogsBucket.put(finalR2Key, JSON.stringify({ apiRequest: requestBody, errorDetails: `Outer API Error: ${errorMessage}`, source: "error_api_catch_all" }), { httpMetadata: { contentType: "application/json" } }));
-      }
-      return new Response(JSON.stringify({ error: `An unexpected server error occurred: ${errorMessage}` }), { status: 500, headers: { "Content-Type": "application/json" } });
+    const apiKey = getApiKey(locals, import.meta.env.DEV);
+    if (!apiKey) {
+      if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, errorDetails: "Server configuration error: API key missing.", source: "error_api_key" }), { httpMetadata: { contentType: "application/json" } }));
+      throw new Error("Server configuration error. API key missing.");
     }
-  });
+
+    const modeArgs = { slug, currentUserQuestion, messages, readerId, sessionId, turnTimestamp, r2Key, requestBody };
+    
+    const modeResult = useRag
+      ? await handleRagMode(modeArgs, context)
+      : await handleFullContextMode(modeArgs, context);
+
+    if (modeResult instanceof Response) {
+      return modeResult;
+    }
+
+    const { payload, source, vectorMatches, contextChunks } = modeResult;
+
+    if (payload instanceof Response) {
+      return payload;
+    }
+
+    const startTime = Date.now();
+    const llmResponse = await fetch(LLAMA_API_URL, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const durationMs = Date.now() - startTime;
+
+    if (!llmResponse.ok) {
+      const errorText = await llmResponse.text();
+      if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, llmRequest: payload, errorDetails: `LLM API Error: Status ${llmResponse.status}. Details: ${errorText.substring(0, 1000)}`, source: "error_llm_api_response" }), { httpMetadata: { contentType: "application/json" } }));
+      return new Response(JSON.stringify({ error: `AI service failed with status ${llmResponse.status}` }), { status: llmResponse.status });
+    }
+
+    const answerData = await llmResponse.json();
+    const llmOutputString = answerData.completion_message?.content?.text || answerData.choices?.[0]?.message?.content;
+
+    if (!llmOutputString) {
+      if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, llmRequest: payload, llmResponse: answerData, errorDetails: "LLM response content was missing or empty.", source: "error_llm_empty_response_content" }), { httpMetadata: { contentType: "application/json" } }));
+      return new Response(JSON.stringify({ error: "AI service returned an empty response." }), { status: 500 });
+    }
+
+    const parsedLlmJson = JSON.parse(llmOutputString);
+    const { relation, related, response: llmAnswerFromSchema } = parsedLlmJson;
+
+    if (typeof related !== "boolean" || typeof llmAnswerFromSchema === "undefined") {
+      if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, llmRequest: payload, llmResponse: answerData, errorDetails: `LLM JSON response did not match expected schema.`, source: "error_llm_schema_mismatch" }), { httpMetadata: { contentType: "application/json" } }));
+      return new Response(JSON.stringify({ error: "AI service returned data in an unexpected format." }), { status: 500 });
+    }
+
+    if (!related) {
+      const funnyResponses = ["My circuits are tingling to chat about the blog post, but your question seems to be exploring a different galaxy! How about we steer back to LLM data curation?", "Hold your horses, thinker! That question's a bit of a wild stallion, off the blog's trail. Let's wrangle it back to AI and data insights!", "I'm geared up to dissect the blog's content! Your query, though, appears to have wandered into a parallel universe. Shall we return to the fascinating realm of LLMs?", "Bleep, blorp! My prime directive is to assist with this blog post. That question is like asking a dictionary for dance moves! Got any queries about data curation strategies?", "While I admire your expansive curiosity, my expertise is finely tuned to the blog post's subject matter. Let's delve into those topics, shall we?"];
+      const corkyResponse = funnyResponses[Math.floor(Math.random() * funnyResponses.length)];
+      if (aiLogsBucket && r2Key) locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify({ apiRequest: requestBody, llmRequest: payload, llmResponse: answerData, parsedLlmResponse: parsedLlmJson, systemResponse: corkyResponse, source: "system_filter_off_topic" }), { httpMetadata: { contentType: "application/json" } }));
+      return new Response(JSON.stringify({ answer: corkyResponse, source: "system_filter_off_topic", durationMs: 0 }), { status: 200 });
+    }
+
+    const finalAnswer = llmAnswerFromSchema || "The AI indicated this query is related but didn't provide a specific answer. Try rephrasing your question.";
+    if (aiLogsBucket && r2Key) {
+        const logPayload = {
+            // Metadata
+            sessionId,
+            readerId,
+            blogSlug: slug,
+            turnTimestampUTC: turnTimestamp,
+            source,
+            modelUsed: DEFAULT_MODEL,
+            durationMs,
+            
+            // Request to our API
+            apiRequest: requestBody,
+
+            // Request to LLM
+            llmRequest: payload,
+
+            // Response from LLM
+            llmResponse: answerData,
+
+            // Parsed/final data
+            parsedLlmResponse: parsedLlmJson,
+            finalAnswer,
+
+            // RAG specific data
+            ...(vectorMatches && { ragVectorMatches: vectorMatches }),
+            ...(contextChunks && { ragContextChunks: contextChunks }),
+        };
+        locals.runtime.ctx.waitUntil(aiLogsBucket.put(r2Key, JSON.stringify(logPayload), { httpMetadata: { contentType: "application/json" } }));
+    }
+
+    if (userInteractionsKV && readerId && slug && turnTimestamp && currentUserQuestion && finalAnswer) {
+      const interactionDate = new Date(turnTimestamp).toISOString().split('T')[0];
+      const kvKey = `${readerId}/${interactionDate}/${slug}`;
+      const userMessageEntry = { role: 'user', content: currentUserQuestion, timestamp: turnTimestamp };
+      const aiMessageEntry = { role: 'ai', content: finalAnswer, timestamp: new Date().toISOString() };
+      locals.runtime.ctx.waitUntil(
+        (async () => {
+          try {
+            let currentData = await userInteractionsKV.get<any>(kvKey, { type: 'json' }) || { read: true, messages: [] };
+            currentData.read = true;
+            currentData.messages.push(userMessageEntry, aiMessageEntry);
+            await userInteractionsKV.put(kvKey, JSON.stringify(currentData));
+          } catch (e) { console.error(`KV store error for /api/ask messages (${kvKey}):`, e); }
+        })()
+      );
+    }
+
+    const responsePayload = {
+      answer: finalAnswer,
+      source: source,
+      durationMs,
+      ...(vectorMatches && { vectorMatches }),
+      ...(contextChunks && { contextChunks }),
+    };
+
+    return new Response(JSON.stringify(responsePayload), { status: 200, headers: { "Content-Type": "application/json" } });
+
+  } catch (error: unknown) {
+    console.error("Error in /api/ask endpoint:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    if (aiLogsBucket) {
+      const finalR2Key = r2Key || `ai-logs/error/${new Date().toISOString()}.json`;
+      locals.runtime.ctx.waitUntil(aiLogsBucket.put(finalR2Key, JSON.stringify({ apiRequest: requestBody, errorDetails: `Outer API Error: ${errorMessage}`, source: "error_api_catch_all" }), { httpMetadata: { contentType: "application/json" } }));
+    }
+    return new Response(JSON.stringify({ error: `An unexpected server error occurred: ${errorMessage}` }), { status: 500, headers: { "Content-Type": "application/json" } });
+  }
 };
