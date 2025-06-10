@@ -19,4 +19,9 @@ export default defineConfig({
       entrypoint: 'astro/assets/services/squoosh'
     }
   },
+  vite: {
+    ssr: {
+      external: ['@opentelemetry/context-cloudflare-workers'],
+    },
+  },
 });
