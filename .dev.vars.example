@@ -1,5 +1,10 @@
 LLAMA_API_KEY=""
 
+# --- Phoenix Tracing ---
+# For local development, Phoenix runs on http://127.0.0.1:6006
+PHOENIX_COLLECTOR_ENDPOINT="http://127.0.0.1:6006"
+# PHOENIX_API_KEY="" # Uncomment and set if you are using an authenticated Phoenix instance
+
 # --- GitHub OAuth App Credentials ---
 # Create a GitHub OAuth App in your developer settings.
 # For local dev, set the callback URL to: http://localhost:8788/api/auth/github/callback
