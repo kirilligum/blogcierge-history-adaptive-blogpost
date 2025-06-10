@@ -8,7 +8,7 @@ import { getApiKey } from "../../utils/apiKey";
 import { tracer } from "../../instrumentation";
 import { SpanStatusCode } from "@opentelemetry/api";
 import {
-  SemanticAttributes,
+  SemanticConventions,
   OpenInferenceSpanKind,
 } from "@arizeai/openinference-semantic-conventions";
 
@@ -240,11 +240,11 @@ export const POST: APIRoute = async (context) => {
       source, // e.g., 'llm_rag'
       {
         attributes: {
-          [SemanticAttributes.OPENINFERENCE_SPAN_KIND]: OpenInferenceSpanKind.LLM,
-          [SemanticAttributes.LLM_MODEL_NAME]: payload.model,
-          [SemanticAttributes.LLM_PROMPT_TEMPLATE]: payload.messages.find(m => m.role === 'system')?.content || '',
-          [SemanticAttributes.LLM_PROMPT_TEMPLATE_VARIABLES]: JSON.stringify(promptTemplateVariables),
-          [SemanticAttributes.INPUT_VALUE]: JSON.stringify(payload.messages),
+          [SemanticConventions.OPENINFERENCE_SPAN_KIND]: OpenInferenceSpanKind.LLM,
+          [SemanticConventions.LLM_MODEL_NAME]: payload.model,
+          [SemanticConventions.LLM_PROMPT_TEMPLATE]: payload.messages.find(m => m.role === 'system')?.content || '',
+          [SemanticConventions.LLM_PROMPT_TEMPLATE_VARIABLES]: JSON.stringify(promptTemplateVariables),
+          [SemanticConventions.INPUT_VALUE]: JSON.stringify(payload.messages),
         },
       },
       async (span) => {
@@ -263,7 +263,7 @@ export const POST: APIRoute = async (context) => {
           try {
             const answerData = await responseClone.json();
             const llmOutputString = answerData.completion_message?.content?.text || answerData.choices?.[0]?.message?.content;
-            span.setAttribute(SemanticAttributes.OUTPUT_VALUE, llmOutputString || "Empty LLM response");
+            span.setAttribute(SemanticConventions.OUTPUT_VALUE, llmOutputString || "Empty LLM response");
 
             if (!response.ok) {
               const errorDetails = answerData?.error?.message || JSON.stringify(answerData);
@@ -278,7 +278,7 @@ export const POST: APIRoute = async (context) => {
             span.recordException(e);
             try {
               const textBody = await response.clone().text();
-              span.setAttribute(SemanticAttributes.OUTPUT_VALUE, `[UNPARSABLE_JSON_RESPONSE] ${textBody}`);
+              span.setAttribute(SemanticConventions.OUTPUT_VALUE, `[UNPARSABLE_JSON_RESPONSE] ${textBody}`);
             } catch (textErr) { /* ignore */ }
           }
           
