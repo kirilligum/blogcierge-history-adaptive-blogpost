@@ -6,7 +6,13 @@ import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions"
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 
 // For troubleshooting, set the log level to DiagLogLevel.INFO
-diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
+/*
+ * Reduce OpenTelemetry diagnostic output during local development.
+ * Setting the log level to WARN suppresses the “[ERROR]” banner that
+ * caused Wrangler to treat the start-up notice as a fatal error and
+ * shut the dev server down.
+ */
+diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
 
 // In Cloudflare Pages, environment variables are available on `process.env`
 // when using the nodejs_compat flag.
