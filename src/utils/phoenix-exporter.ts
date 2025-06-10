@@ -1,5 +1,15 @@
 import { SpanExporter, ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import { ExportResult, ExportResultCode, hrTimeToMicroseconds } from "@opentelemetry/core";
+import { SpanStatusCode } from "@opentelemetry/api";
+
+// Helper to convert a hex string to a base64 string.
+function hexToBase64(hex: string): string {
+  let str = '';
+  for (let i = 0; i < hex.length; i += 2) {
+    str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+  }
+  return btoa(str);
+}
 
 // A simplified OTLP/JSON over HTTP exporter that uses `fetch`
 export class FetchOTLPTraceExporter implements SpanExporter {
@@ -15,14 +25,10 @@ export class FetchOTLPTraceExporter implements SpanExporter {
   }
 
   export(spans: ReadableSpan[], resultCallback: (result: ExportResult) => void): void {
-    const otlpSpans = this.groupSpansByScope(spans);
-    const resource = spans.length > 0 ? this.toOtlpResource(spans[0].resource) : {};
+    const resourceSpans = this.groupSpansByResource(spans);
 
     const body = JSON.stringify({
-      resourceSpans: [{
-        resource,
-        scopeSpans: otlpSpans,
-      }],
+      resourceSpans,
     });
 
     fetch(this.url, {
@@ -48,20 +54,35 @@ export class FetchOTLPTraceExporter implements SpanExporter {
     return Promise.resolve();
   }
 
-  private groupSpansByScope(spans: ReadableSpan[]) {
-    const scopeSpansMap = new Map<string, { scope: any; spans: any[] }>();
+  private groupSpansByResource(spans: ReadableSpan[]) {
+    const resourceMap = new Map<ReadableSpan['resource'], Map<string, any[]>>();
     for (const span of spans) {
+      if (!resourceMap.has(span.resource)) {
+        resourceMap.set(span.resource, new Map<string, any[]>());
+      }
+      const scopeMap = resourceMap.get(span.resource)!;
       const scope = span.instrumentationLibrary;
       const scopeKey = `${scope.name}@${scope.version}`;
-      if (!scopeSpansMap.has(scopeKey)) {
-        scopeSpansMap.set(scopeKey, {
-          scope: { name: scope.name, version: scope.version },
-          spans: [],
-        });
+      if (!scopeMap.has(scopeKey)) {
+        scopeMap.set(scopeKey, []);
       }
-      scopeSpansMap.get(scopeKey)!.spans.push(this.toOtlpSpan(span));
+      scopeMap.get(scopeKey)!.push(this.toOtlpSpan(span));
     }
-    return Array.from(scopeSpansMap.values());
+
+    const resourceSpans: any[] = [];
+    for (const [resource, scopeMap] of resourceMap.entries()) {
+      resourceSpans.push({
+        resource: this.toOtlpResource(resource),
+        scopeSpans: Array.from(scopeMap.entries()).map(([scopeKey, spans]) => {
+          const [name, version] = scopeKey.split('@');
+          return {
+            scope: { name, version },
+            spans,
+          };
+        }),
+      });
+    }
+    return resourceSpans;
   }
 
   private toOtlpResource(resource: ReadableSpan['resource']) {
@@ -71,36 +92,46 @@ export class FetchOTLPTraceExporter implements SpanExporter {
   }
 
   private toOtlpSpan(span: ReadableSpan) {
-    return {
-      traceId: span.spanContext().traceId,
-      spanId: span.spanContext().spanId,
-      parentSpanId: span.parentSpanId,
+    const otlpSpan: any = {
+      traceId: hexToBase64(span.spanContext().traceId),
+      spanId: hexToBase64(span.spanContext().spanId),
       name: span.name,
       kind: span.kind + 1, // OTLP span kind is 1-indexed
-      startTimeUnixNano: hrTimeToMicroseconds(span.startTime) * 1000,
-      endTimeUnixNano: hrTimeToMicroseconds(span.endTime) * 1000,
+      startTimeUnixNano: (hrTimeToMicroseconds(span.startTime) * 1000).toString(),
+      endTimeUnixNano: (hrTimeToMicroseconds(span.endTime) * 1000).toString(),
       attributes: Object.entries(span.attributes).map(([key, value]) => this.toKeyValue(key, value)),
-      status: {
-        code: span.status.code + 1, // OTLP status code is 1-indexed
-        message: span.status.message,
-      },
       events: span.events.map(event => ({
         name: event.name,
-        timeUnixNano: hrTimeToMicroseconds(event.time) * 1000,
+        timeUnixNano: (hrTimeToMicroseconds(event.time) * 1000).toString(),
         attributes: Object.entries(event.attributes || {}).map(([key, value]) => this.toKeyValue(key, value)),
       })),
     };
+
+    if (span.parentSpanId) {
+      otlpSpan.parentSpanId = hexToBase64(span.parentSpanId);
+    }
+
+    // Only include status if it's not UNSET.
+    if (span.status.code !== SpanStatusCode.UNSET) {
+      otlpSpan.status = {
+        code: span.status.code,
+        message: span.status.message,
+      };
+    }
+
+    return otlpSpan;
   }
 
   private toKeyValue(key: string, value: any) {
     return { key, value: this.toAnyValue(value) };
   }
 
-  private toAnyValue(value: any) {
+  private toAnyValue(value: any): { [key: string]: any } {
     const type = typeof value;
     if (type === 'string') return { stringValue: value };
     if (type === 'number') {
-      return Number.isInteger(value) ? { intValue: value } : { doubleValue: value };
+      // OTLP/JSON spec says intValue should be a string.
+      return Number.isInteger(value) ? { intValue: String(value) } : { doubleValue: value };
     }
     if (type === 'boolean') return { boolValue: value };
     if (value === null) return {};
