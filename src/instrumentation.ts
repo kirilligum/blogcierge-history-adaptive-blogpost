@@ -2,10 +2,10 @@
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import { Resource } from "@opentelemetry/resources";
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import { BatchSpanProcessor, BasicTracerProvider } from "@opentelemetry/sdk-trace-base";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
+import { CloudflareContextManager } from "@opentelemetry/context-cloudflare-workers";
 
 // For troubleshooting, set the log level to DiagLogLevel.DEBUG
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
@@ -32,10 +32,15 @@ const exporter = new OTLPTraceExporter({
 
 const processor = new BatchSpanProcessor(exporter);
 
-const provider = new NodeTracerProvider({
+const provider = new BasicTracerProvider({
   resource: resource,
 });
 provider.addSpanProcessor(processor);
-provider.register();
+
+// Register the provider with the Cloudflare context manager.
+// This is crucial for context propagation in the Cloudflare Workers environment.
+provider.register({
+  contextManager: new CloudflareContextManager(),
+});
 
 console.log("Phoenix tracer initialized.");
