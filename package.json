@@ -7,7 +7,7 @@
     "dev": "wrangler pages dev -- astro dev",
     "start": "astro dev",
     "build": "mkdir -p src/data/qa && astro build",
-    "preview": "node scripts/preview.js",
+    "preview": "yarn install --check-files && node scripts/preview.js",
     "astro": "astro",
     "deploy": "astro build && wrangler pages deploy",
     "cf-typegen": "wrangler types",
